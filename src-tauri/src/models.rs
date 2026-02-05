@@ -6,6 +6,7 @@ pub struct Task {
     pub text: String,
     pub bucket: String,
     pub domain: Option<i64>,
+    pub parent_id: Option<i64>,
     pub status: String,
     pub scheduled_date: Option<String>,
     pub reschedule_count: i64,

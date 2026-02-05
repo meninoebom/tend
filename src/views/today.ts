@@ -9,8 +9,8 @@ export async function renderToday(container: HTMLElement) {
   const allTasks = await getTasks("today");
   const stats = await getDailyStats(30);
 
-  const pending = allTasks.filter((t) => t.status === "pending");
-  const completed = allTasks.filter((t) => t.status === "complete");
+  const pending = allTasks.filter((t) => t.status === "pending" && !t.parent_id);
+  const completed = allTasks.filter((t) => t.status === "complete" && !t.parent_id);
   const filtered = activeDomainFilter
     ? pending.filter((t) => t.domain === activeDomainFilter)
     : pending;
@@ -93,17 +93,27 @@ export async function renderToday(container: HTMLElement) {
   if (pending.length === 0 && completed.length === 0) {
     const welcome = document.createElement("div");
     welcome.className = "welcome-state";
+
+    const domainsHtml = domains
+      .map(
+        (d) =>
+          `<span class="legend-dot" style="background:${d.color}"></span> ${d.name}`
+      )
+      .join(" &nbsp; ");
+
     welcome.innerHTML = `
       <p class="welcome-title">Nothing here yet.</p>
       <p class="welcome-hint">Type a task above and hit enter.<br>
       Each morning, you'll review what's on your plate<br>
       and decide what to do with each one.</p>
-      <div class="welcome-legend">
-        <p><span class="legend-dot" style="background:${domains[0]?.color || '#3B82F6'}"></span> ${domains[0]?.name || 'Work'} &nbsp;
-        <span class="legend-dot" style="background:${domains[1]?.color || '#F59E0B'}"></span> ${domains[1]?.name || 'Admin'} &nbsp;
-        <span class="legend-dot" style="background:${domains[2]?.color || '#10B981'}"></span> ${domains[2]?.name || 'Calling'}</p>
-        <p class="welcome-legend-note">Click the dot next to the input to tag a task (optional).</p>
-      </div>
+      ${
+        domains.length > 0
+          ? `<div class="welcome-legend">
+              <p>${domainsHtml}</p>
+              <p class="welcome-legend-note">Click the dot next to the input to tag a task (optional).</p>
+            </div>`
+          : ""
+      }
     `;
     container.appendChild(welcome);
   } else if (pending.length > 0) {
@@ -168,7 +178,7 @@ async function renderBucket(
   domains: Domain[]
 ) {
   const tasks = await getTasks(bucket);
-  const pending = tasks.filter((t) => t.status === "pending");
+  const pending = tasks.filter((t) => t.status === "pending" && !t.parent_id);
 
   container.innerHTML = "";
 

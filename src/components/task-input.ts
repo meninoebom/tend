@@ -36,12 +36,12 @@ export function renderTaskInput(
   }
 
   dotBtn.addEventListener("click", () => {
+    if (domains.length === 0) return;
     if (selectedDomain === null) {
-      selectedDomain = 1;
-    } else if (selectedDomain < 3) {
-      selectedDomain++;
+      selectedDomain = domains[0].id;
     } else {
-      selectedDomain = null;
+      const idx = domains.findIndex((d) => d.id === selectedDomain);
+      selectedDomain = idx < domains.length - 1 ? domains[idx + 1].id : null;
     }
     updateDotBtn();
   });

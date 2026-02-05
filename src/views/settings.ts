@@ -1,4 +1,10 @@
-import { getDomains, updateDomain, Domain } from "../api";
+import {
+  getDomains,
+  updateDomain,
+  createDomain,
+  deleteDomain,
+  Domain,
+} from "../api";
 
 export async function renderSettings(
   container: HTMLElement,
@@ -35,20 +41,40 @@ export async function renderSettings(
   const sectionHint = document.createElement("p");
   sectionHint.className = "settings-hint";
   sectionHint.textContent =
-    "Name up to three areas of your life. Leave a name blank to hide that domain.";
+    "Organize tasks by area of life. Up to 5 domains.";
 
   section.appendChild(sectionTitle);
   section.appendChild(sectionHint);
 
   // Domain editor rows
+  const domainList = document.createElement("div");
+  domainList.className = "settings-domain-list";
   for (const domain of domains) {
-    section.appendChild(renderDomainRow(domain));
+    domainList.appendChild(
+      renderDomainRow(domain, () => renderSettings(container, onBack))
+    );
+  }
+  section.appendChild(domainList);
+
+  // Add domain button (if under limit)
+  if (domains.length < 5) {
+    const addBtn = document.createElement("button");
+    addBtn.className = "settings-add-domain";
+    addBtn.textContent = "+ Add domain";
+    addBtn.addEventListener("click", async () => {
+      await createDomain("New domain", "#6366F1");
+      renderSettings(container, onBack);
+    });
+    section.appendChild(addBtn);
   }
 
   container.appendChild(section);
 }
 
-function renderDomainRow(domain: Domain): HTMLElement {
+function renderDomainRow(
+  domain: Domain,
+  onRefresh: () => void
+): HTMLElement {
   const row = document.createElement("div");
   row.className = "settings-domain-row";
 
@@ -64,12 +90,22 @@ function renderDomainRow(domain: Domain): HTMLElement {
   nameInput.type = "text";
   nameInput.className = "settings-domain-name";
   nameInput.value = domain.name;
-  nameInput.placeholder = `Domain ${domain.id} (leave blank to hide)`;
+  nameInput.placeholder = "Domain name";
   nameInput.maxLength = 20;
 
   // Status indicator
   const status = document.createElement("span");
   status.className = "settings-save-status";
+
+  // Delete button
+  const delBtn = document.createElement("button");
+  delBtn.className = "settings-delete-domain";
+  delBtn.textContent = "\u00D7";
+  delBtn.title = "Delete domain";
+  delBtn.addEventListener("click", async () => {
+    await deleteDomain(domain.id);
+    onRefresh();
+  });
 
   // Save on blur or enter
   let saveTimeout: ReturnType<typeof setTimeout>;
@@ -111,6 +147,7 @@ function renderDomainRow(domain: Domain): HTMLElement {
   row.appendChild(colorInput);
   row.appendChild(nameInput);
   row.appendChild(status);
+  row.appendChild(delBtn);
 
   return row;
 }

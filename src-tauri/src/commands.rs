@@ -21,21 +21,39 @@ pub async fn create_task(
     text: String,
     bucket: Option<String>,
     domain: Option<i64>,
+    parent_id: Option<i64>,
 ) -> Result<Task> {
-    let bucket = bucket.unwrap_or_else(|| "today".into());
     let ts = now();
     let date = today();
-
     let mut tx = db.inner().begin().await?;
 
+    // If creating a sub-task, validate parent and inherit its bucket/domain
+    let (effective_bucket, effective_domain) = if let Some(pid) = parent_id {
+        let parent = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
+            .bind(pid)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(Error::TaskNotFound(pid))?;
+
+        // Enforce 1-level nesting: parent must not be a child itself
+        if parent.parent_id.is_some() {
+            return Err(Error::NestingTooDeep);
+        }
+
+        (parent.bucket.clone(), parent.domain)
+    } else {
+        (bucket.unwrap_or_else(|| "today".into()), domain)
+    };
+
     let row = sqlx::query_as::<_, Task>(
-        "INSERT INTO tasks (text, bucket, domain, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?)
+        "INSERT INTO tasks (text, bucket, domain, parent_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          RETURNING *",
     )
     .bind(&text)
-    .bind(&bucket)
-    .bind(domain)
+    .bind(&effective_bucket)
+    .bind(effective_domain)
+    .bind(parent_id)
     .bind(&ts)
     .bind(&ts)
     .fetch_one(&mut *tx)
@@ -85,9 +103,24 @@ pub async fn get_tasks(
 
 #[tauri::command]
 pub async fn get_triage_tasks(db: State<'_, Db>) -> Result<Vec<Task>> {
+    // Only top-level tasks appear in triage; sub-tasks are triaged with their parent
     let tasks = sqlx::query_as::<_, Task>(
-        "SELECT * FROM tasks WHERE bucket = 'today' AND status = 'pending' ORDER BY created_at ASC",
+        "SELECT * FROM tasks
+         WHERE bucket = 'today' AND status = 'pending' AND parent_id IS NULL
+         ORDER BY created_at ASC",
     )
+    .fetch_all(db.inner())
+    .await?;
+
+    Ok(tasks)
+}
+
+#[tauri::command]
+pub async fn get_subtasks(db: State<'_, Db>, parent_id: i64) -> Result<Vec<Task>> {
+    let tasks = sqlx::query_as::<_, Task>(
+        "SELECT * FROM tasks WHERE parent_id = ? ORDER BY created_at ASC",
+    )
+    .bind(parent_id)
     .fetch_all(db.inner())
     .await?;
 
@@ -154,6 +187,14 @@ pub async fn defer_task(db: State<'_, Db>, id: i64, new_bucket: String) -> Resul
         return Err(Error::TaskNotFound(id));
     }
 
+    // Cascade: move children to the same bucket
+    sqlx::query("UPDATE tasks SET bucket = ?, updated_at = ? WHERE parent_id = ?")
+        .bind(&new_bucket)
+        .bind(&ts)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
     let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
         .bind(id)
         .fetch_one(&mut *tx)
@@ -182,6 +223,17 @@ pub async fn complete_task(db: State<'_, Db>, id: i64) -> Result<Task> {
         return Err(Error::TaskNotFound(id));
     }
 
+    // Auto-complete pending children
+    sqlx::query(
+        "UPDATE tasks SET status = 'complete', completed_at = ?, updated_at = ?
+         WHERE parent_id = ? AND status = 'pending'",
+    )
+    .bind(&ts)
+    .bind(&ts)
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+
     sqlx::query(
         "INSERT INTO daily_stats (date, tasks_completed) VALUES (?, 1)
          ON CONFLICT(date) DO UPDATE SET tasks_completed = tasks_completed + 1",
@@ -201,6 +253,7 @@ pub async fn complete_task(db: State<'_, Db>, id: i64) -> Result<Task> {
 
 #[tauri::command]
 pub async fn delete_task(db: State<'_, Db>, id: i64) -> Result<()> {
+    // ON DELETE CASCADE handles children automatically
     let r = sqlx::query("DELETE FROM tasks WHERE id = ?")
         .bind(id)
         .execute(db.inner())
@@ -220,6 +273,41 @@ pub async fn get_domains(db: State<'_, Db>) -> Result<Vec<Domain>> {
         .fetch_all(db.inner())
         .await?;
     Ok(domains)
+}
+
+#[tauri::command]
+pub async fn create_domain(db: State<'_, Db>, name: String, color: String) -> Result<Domain> {
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM domains")
+        .fetch_one(db.inner())
+        .await?;
+
+    if count.0 >= 5 {
+        return Err(Error::DomainLimitReached);
+    }
+
+    let domain = sqlx::query_as::<_, Domain>(
+        "INSERT INTO domains (name, color) VALUES (?, ?) RETURNING *",
+    )
+    .bind(&name)
+    .bind(&color)
+    .fetch_one(db.inner())
+    .await?;
+
+    Ok(domain)
+}
+
+#[tauri::command]
+pub async fn delete_domain(db: State<'_, Db>, id: i64) -> Result<()> {
+    // ON DELETE SET NULL handles untagging tasks automatically
+    let r = sqlx::query("DELETE FROM domains WHERE id = ?")
+        .bind(id)
+        .execute(db.inner())
+        .await?;
+
+    if r.rows_affected() == 0 {
+        return Err(Error::DomainNotFound(id));
+    }
+    Ok(())
 }
 
 #[tauri::command]

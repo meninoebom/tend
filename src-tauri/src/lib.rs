@@ -30,12 +30,15 @@ pub fn run() {
             create_task,
             get_tasks,
             get_triage_tasks,
+            get_subtasks,
             update_task,
             defer_task,
             complete_task,
             delete_task,
             get_domains,
+            create_domain,
             update_domain,
+            delete_domain,
             get_daily_stats,
         ])
         .run(tauri::generate_context!())

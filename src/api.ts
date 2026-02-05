@@ -7,6 +7,7 @@ export interface Task {
   text: string;
   bucket: string;
   domain: number | null;
+  parent_id: number | null;
   status: string;
   scheduled_date: string | null;
   reschedule_count: number;
@@ -32,9 +33,14 @@ export interface DailyStat {
 export function createTask(
   text: string,
   bucket?: string,
-  domain?: number
+  domain?: number,
+  parentId?: number
 ): Promise<Task> {
-  return invoke("create_task", { text, bucket, domain });
+  return invoke("create_task", { text, bucket, domain, parentId });
+}
+
+export function getSubtasks(parentId: number): Promise<Task[]> {
+  return invoke("get_subtasks", { parentId });
 }
 
 export function getTasks(
@@ -77,6 +83,14 @@ export function deleteTask(id: number): Promise<void> {
 
 export function getDomains(): Promise<Domain[]> {
   return invoke("get_domains");
+}
+
+export function createDomain(name: string, color: string): Promise<Domain> {
+  return invoke("create_domain", { name, color });
+}
+
+export function deleteDomain(id: number): Promise<void> {
+  return invoke("delete_domain", { id });
 }
 
 export function updateDomain(

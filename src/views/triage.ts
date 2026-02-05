@@ -1,6 +1,7 @@
 import {
   getTriageTasks,
   getDomains,
+  getSubtasks,
   deferTask,
   completeTask,
   deleteTask,
@@ -24,7 +25,7 @@ export async function renderTriage(
 
   let currentIndex = 0;
 
-  function renderCard() {
+  async function renderCard() {
     if (currentIndex >= tasks.length) {
       // Triage complete — show Today
       import("./today").then(({ renderToday }) => renderToday(container));
@@ -78,6 +79,20 @@ export async function renderTriage(
     }
     meta.textContent = metaParts.join(" \u00B7 ");
     card.appendChild(meta);
+
+    // Sub-task context (if any)
+    const subs = await getSubtasks(task.id);
+    if (subs.length > 0) {
+      const subList = document.createElement("ul");
+      subList.className = "triage-subtask-list";
+      for (const sub of subs) {
+        const subItem = document.createElement("li");
+        subItem.className = `triage-subtask-item ${sub.status === "complete" ? "task-complete" : ""}`;
+        subItem.textContent = sub.text;
+        subList.appendChild(subItem);
+      }
+      card.appendChild(subList);
+    }
 
     // Rewrite prompt (if deferred 3+ times)
     if (task.reschedule_count >= 3) {

@@ -275,6 +275,72 @@ html, body {
   color: var(--age-critical);
 }
 
+/* ── Sub-tasks ──────────────────────────────── */
+
+.task-with-subtasks {
+  /* Wrapper for parent + its children */
+}
+
+.subtask-list {
+  list-style: none;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+  margin-left: 12px;
+}
+
+.subtask .domain-dot {
+  display: none;
+}
+
+.subtask .task-add-sub {
+  display: none !important;
+}
+
+.task-add-sub {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.task-item:hover .task-add-sub {
+  opacity: 1;
+}
+
+.task-add-sub:hover {
+  color: var(--text);
+}
+
+.subtask-input-form {
+  padding: 4px 4px 4px 36px;
+  margin-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.subtask-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  padding: 6px 0;
+  outline: none;
+  font-family: inherit;
+}
+
+.subtask-input::placeholder {
+  color: var(--text-muted);
+}
+
+.subtask-input:focus {
+  border-bottom-color: var(--text-dim);
+}
+
 /* ── Honest Nudge ────────────────────────────── */
 
 .honest-nudge {
@@ -362,6 +428,33 @@ html, body {
   font-size: 13px;
   color: var(--text-dim);
   margin-top: 12px;
+}
+
+/* Sub-task context in triage */
+.triage-subtask-list {
+  list-style: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.triage-subtask-item {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 3px 0 3px 16px;
+  position: relative;
+}
+
+.triage-subtask-item::before {
+  content: "\2022";
+  position: absolute;
+  left: 4px;
+  color: var(--text-muted);
+}
+
+.triage-subtask-item.task-complete {
+  text-decoration: line-through;
+  opacity: 0.5;
 }
 
 /* Rewrite prompt */
@@ -654,4 +747,41 @@ html, body {
 
 .settings-save-status.saved {
   color: #10B981;
+}
+
+.settings-delete-domain {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.settings-domain-row:hover .settings-delete-domain {
+  opacity: 1;
+}
+
+.settings-delete-domain:hover {
+  color: var(--age-critical);
+}
+
+.settings-add-domain {
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.15s;
+}
+
+.settings-add-domain:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
 }

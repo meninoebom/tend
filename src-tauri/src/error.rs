@@ -10,6 +10,12 @@ pub enum Error {
 
     #[error("domain not found: {0}")]
     DomainNotFound(i64),
+
+    #[error("domain limit reached (max 5)")]
+    DomainLimitReached,
+
+    #[error("sub-tasks cannot have children")]
+    NestingTooDeep,
 }
 
 // Tauri commands require serializable errors
