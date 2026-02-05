@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Rust build output
+src-tauri/target/
+
+# SQLite database
+*.db
+*.db-wal
+*.db-shm
+
+# OS files
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
