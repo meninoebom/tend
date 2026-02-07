@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tend — UI Playground</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-root: #0a0a0a;
+  --bg-card: #1a1a1a;
+  --bg-input: #111111;
+  --bg-hover: #252525;
+  --bg-surface: #141414;
+  --text-primary: #fafafa;
+  --text-secondary: #888888;
+  --text-muted: #555555;
+  --border: #2a2a2a;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
+  --accent-blue: #3b82f6;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-root);
+  color: var(--text-primary);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Controls Panel */
+.controls {
+  width: 280px;
+  min-width: 280px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controls h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.controls h1 span { color: var(--text-muted); font-weight: 400; }
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.screen-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.screen-tab {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 8px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.screen-tab:hover { background: var(--bg-hover); }
+.screen-tab.active {
+  background: var(--text-primary);
+  color: var(--bg-root);
+  border-color: var(--text-primary);
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.toggle-row span { font-size: 13px; color: var(--text-primary); }
+
+.toggle {
+  width: 36px; height: 20px;
+  background: var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.toggle.on { background: var(--accent-blue); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(16px); }
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-blue);
+  height: 4px;
+}
+
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.slider-header .value {
+  color: var(--accent-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+select {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 100%;
+}
+
+/* Presets */
+.presets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.preset-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Main area */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Preview */
+.preview-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--bg-root);
+}
+
+.preview-frame {
+  background: var(--bg-root);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: width 0.3s, min-height 0.3s;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-frame.mobile { width: 375px; min-height: 667px; }
+.preview-frame.desktop { width: 800px; min-height: 600px; }
+
+/* Phone chrome */
+.phone-bar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-root);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.phone-bar .time { font-weight: 600; }
+
+.preview-content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* Prompt output */
+.prompt-bar {
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-height: 140px;
+}
+
+.prompt-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow-y: auto;
+  max-height: 110px;
+}
+
+.copy-btn {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.copy-btn:hover { opacity: 0.85; }
+
+/* ==================== */
+/* TEND UI COMPONENTS   */
+/* ==================== */
+
+/* Triage */
+.triage-progress {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.triage-progress .count { color: var(--text-primary); font-weight: 600; }
+
+.greeting {
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.triage-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.triage-card .task-text {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.meta-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.badge-age { background: #1e293b; color: #94a3b8; }
+.badge-domain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.domain-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.badge-defer { background: #422006; color: var(--accent-amber); }
+.badge-defer.high { background: #450a0a; color: var(--accent-red); }
+
+.subtask-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  border-radius: 6px;
+}
+
+.subtask-summary .done { color: var(--accent-green); }
+
+.rewrite-prompt {
+  background: #1c1917;
+  border: 1px solid #78350f;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--accent-amber);
+  line-height: 1.5;
+}
+
+.rewrite-prompt strong { color: var(--text-primary); }
+
+.rewrite-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-top: 8px;
+  font-family: inherit;
+  resize: none;
+}
+
+.triage-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.triage-btn {
+  padding: 12px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.triage-btn:hover { background: var(--bg-hover); }
+
+.triage-btn.today { border-color: #166534; color: #4ade80; }
+.triage-btn.today:hover { background: #14532d; }
+.triage-btn.soon { border-color: #1e3a5f; color: #60a5fa; }
+.triage-btn.later { border-color: #3b3b1a; color: #facc15; }
+.triage-btn.someday { border-color: #2d2d2d; color: #a1a1aa; }
+.triage-btn.done { border-color: #166534; color: #22c55e; }
+.triage-btn.kill { border-color: #450a0a; color: #ef4444; }
+
+/* Today View */
+.nudge {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 12px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.nudge .highlight { color: var(--accent-amber); font-weight: 600; }
+.nudge .count { color: var(--text-primary); font-weight: 600; }
+
+.domain-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+  flex-wrap: wrap;
+}
+
+.domain-filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+
+.domain-filter:hover { border-color: var(--text-muted); }
+.domain-filter.active { border-color: var(--text-secondary); color: var(--text-primary); }
+
+.section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 16px 0 8px;
+  font-weight: 500;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.task-item:hover { background: var(--bg-hover); }
+
+.task-check {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.task-item:hover .task-check { border-color: var(--text-muted); }
+
+.task-item .task-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.task-item .task-age {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.task-item .expand-arrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.task-item.completed {
+  opacity: 0.4;
+}
+
+.task-item.completed .task-check {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.task-item.completed .task-text {
+  text-decoration: line-through;
+}
+
+/* Task Input */
+.task-input-bar {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.task-input::placeholder { color: var(--text-muted); }
+
+.domain-cycle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Wind down */
+.winddown-btn {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Bucket View */
+.bucket-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.back-btn {
+  font-size: 18px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.bucket-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.bucket-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Settings */
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+.domain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.domain-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-radius: 8px;
+}
+
+.domain-item .domain-name {
+  flex: 1;
+  font-size: 14px;
+}
+
+.domain-item .domain-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.domain-action {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.domain-action:hover { color: var(--text-secondary); }
+.domain-action.delete:hover { color: var(--accent-red); }
+
+.add-domain-btn {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 8px;
+  width: 100%;
+  transition: all 0.15s;
+}
+
+.add-domain-btn:hover:not(.disabled) {
+  border-color: var(--text-muted);
+  color: var(--text-secondary);
+}
+
+.add-domain-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Nav bar for today view */
+.nav-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.nav-item {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nav-item:hover { color: var(--text-secondary); }
+.nav-item.active { background: var(--bg-card); color: var(--text-primary); font-weight: 500; }
+
+/* Triage complete state */
+.triage-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.triage-complete .check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #14532d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--accent-green);
+}
+
+.triage-complete h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.triage-complete p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.age-warning { color: var(--accent-amber) !important; }
+.age-critical { color: var(--accent-red) !important; }
+
+/* Onboarding */
+.onboarding-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 32px 24px;
+  text-align: center;
+  gap: 24px;
+}
+
+.onboarding-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.onboarding-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.3;
+}
+
+.onboarding-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.onboarding-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  text-align: center;
+  transition: opacity 0.15s;
+}
+
+.onboarding-btn:hover { opacity: 0.85; }
+
+.onboarding-btn.primary {
+  background: var(--text-primary);
+  color: var(--bg-root);
+}
+
+.onboarding-btn.secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.onboarding-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.onboarding-dot.active { background: var(--text-primary); }
+
+.domain-setup-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.domain-setup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.domain-setup-item .domain-name {
+  flex: 1;
+  font-size: 14px;
+}
+
+.domain-setup-item .domain-check {
+  color: var(--accent-green);
+  font-size: 14px;
+}
+
+/* First-time education elements */
+.first-time-card {
+  background: var(--bg-card);
+  border: 1px solid var(--accent-blue);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.first-time-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.first-time-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.first-time-card .start-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: var(--text-primary);
+  color: var(--bg-root);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.nudge-annotation {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.btn-desc {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 12px;
+}
+
+.empty-state p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<!-- Controls -->
+<div class="controls">
+  <h1>Tend <span>UI Playground</span></h1>
+
+  <div class="control-group">
+    <label>Presets</label>
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('newuser')">New User</button>
+      <button class="preset-btn" onclick="applyPreset('morning')">Morning</button>
+      <button class="preset-btn" onclick="applyPreset('firsttriage')">1st Triage</button>
+      <button class="preset-btn" onclick="applyPreset('midday')">Midday</button>
+      <button class="preset-btn" onclick="applyPreset('winddown')">Wind Down</button>
+      <button class="preset-btn" onclick="applyPreset('overloaded')">Overloaded</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Screen</label>
+    <div class="screen-tabs">
+      <button class="screen-tab" data-screen="onboarding" onclick="setScreen('onboarding')">Onboard</button>
+      <button class="screen-tab active" data-screen="triage" onclick="setScreen('triage')">Triage</button>
+      <button class="screen-tab" data-screen="today" onclick="setScreen('today')">Today</button>
+      <button class="screen-tab" data-screen="bucket" onclick="setScreen('bucket')">Bucket</button>
+      <button class="screen-tab" data-screen="settings" onclick="setScreen('settings')">Settings</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Viewport</label>
+    <div class="toggle-row">
+      <span>Mobile</span>
+      <div class="toggle" id="viewportToggle" onclick="toggleViewport()"></div>
+      <span>Desktop</span>
+    </div>
+  </div>
+
+  <div class="control-group" id="onboardingStepSelect" style="display:none;">
+    <label>Onboarding Step</label>
+    <select onchange="state.onboardingStep=+this.value; updateAll()" id="onboardingStepDropdown">
+      <option value="0">1. Welcome</option>
+      <option value="1">2. Domain Setup</option>
+      <option value="2">3. First Tasks</option>
+    </select>
+  </div>
+
+  <div class="control-group" id="firstTimeToggle">
+    <div class="toggle-row">
+      <span>First-time user</span>
+      <div class="toggle" id="firstTimeToggleBtn" onclick="toggleFirstTime()"></div>
+    </div>
+  </div>
+
+  <div class="control-group" id="bucketSelect" style="display:none;">
+    <label>Bucket</label>
+    <select onchange="state.selectedBucket=this.value; updateAll()">
+      <option value="soon">Soon (this week)</option>
+      <option value="later">Later (not now)</option>
+      <option value="someday">Someday (be honest)</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <div class="slider-row">
+      <div class="slider-header">
+        <span>Tasks</span>
+        <span class="value" id="taskCountVal">6</span>
+      </div>
+      <input type="range" min="0" max="20" value="6" oninput="state.taskCount=+this.value; document.getElementById('taskCountVal').textContent=this.value; updateAll()">
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="slider-row">
+      <div class="slider-header">
+        <span>Domains</span>
+        <span class="value" id="domainCountVal">3</span>
+      </div>
+      <input type="range" min="1" max="5" value="3" oninput="state.domainCount=+this.value; document.getElementById('domainCountVal').textContent=this.value; updateAll()">
+    </div>
+  </div>
+
+  <div class="control-group" id="triageControls">
+    <div class="slider-row">
+      <div class="slider-header">
+        <span>Triage progress</span>
+        <span class="value" id="triageProgressVal">3 of 12</span>
+      </div>
+      <input type="range" min="0" max="12" value="3" id="triageSlider" oninput="state.triageProgress=+this.value; updateAll()">
+    </div>
+  </div>
+
+  <div class="control-group" id="deferControls">
+    <div class="slider-row">
+      <div class="slider-header">
+        <span>Defer count</span>
+        <span class="value" id="deferVal">0</span>
+      </div>
+      <input type="range" min="0" max="5" value="0" oninput="state.deferCount=+this.value; document.getElementById('deferVal').textContent=this.value; updateAll()">
+    </div>
+  </div>
+
+  <div class="control-group" id="completedToggle">
+    <div class="toggle-row">
+      <span>Show completed</span>
+      <div class="toggle on" id="completedToggleBtn" onclick="toggleCompleted()"></div>
+    </div>
+  </div>
+
+  <div class="control-group" id="subtaskToggle">
+    <div class="toggle-row">
+      <span>Show sub-tasks</span>
+      <div class="toggle" id="subtaskToggleBtn" onclick="toggleSubtasks()"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Area -->
+<div class="main">
+  <div class="preview-container">
+    <div class="preview-frame mobile" id="previewFrame">
+      <div class="phone-bar">
+        <span class="time">9:41 AM</span>
+      </div>
+      <div class="preview-content" id="previewContent">
+      </div>
+    </div>
+  </div>
+
+  <div class="prompt-bar">
+    <div class="prompt-text" id="promptText">Adjust controls to generate a design prompt...</div>
+    <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+  </div>
+</div>
+
+<script>
+const DOMAINS = [
+  { name: 'Work', color: '#3b82f6' },
+  { name: 'Personal', color: '#10b981' },
+  { name: 'Health', color: '#f59e0b' },
+  { name: 'Creative', color: '#8b5cf6' },
+  { name: 'Admin', color: '#ec4899' }
+];
+
+const SAMPLE_TASKS = [
+  'Review Q1 budget with Sarah',
+  'Buy groceries for the week',
+  'Schedule dentist appointment',
+  'Ship landing page hero section',
+  'Read chapter 5 of Designing Data-Intensive Applications',
+  'Reply to Marcus about the proposal',
+  'Fix auth token refresh bug',
+  'Call insurance about claim',
+  'Write blog post draft',
+  'Update portfolio with new project',
+  'Cancel unused subscriptions',
+  'Prep slides for Thursday standup',
+  'Order new running shoes',
+  'Set up automated backups',
+  'Plan weekend hiking trip',
+  'Review PR from Jake',
+  'Clean out inbox',
+  'Draft quarterly OKRs',
+  'Book flight for March conference',
+  'Refactor user service tests'
+];
+
+const SAMPLE_SUBTASKS = [
+  ['Pull numbers from accounting', 'Draft summary slides', 'Send agenda to Sarah', 'Book meeting room'],
+  ['Check fridge', 'Make list'],
+  ['Check calendar', 'Call office'],
+  ['Write hero copy', 'Add OG image', 'Test on mobile'],
+];
+
+const DEFAULTS = {
+  screen: 'triage',
+  viewport: 'mobile',
+  taskCount: 6,
+  domainCount: 3,
+  triageProgress: 3,
+  triageTotal: 12,
+  deferCount: 0,
+  showCompleted: true,
+  showSubtasks: false,
+  selectedBucket: 'soon',
+  onboardingStep: 0,
+  firstTime: false
+};
+
+const state = { ...DEFAULTS };
+
+function setScreen(screen) {
+  state.screen = screen;
+  document.querySelectorAll('.screen-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.screen === screen);
+  });
+  document.getElementById('triageControls').style.display = screen === 'triage' ? '' : 'none';
+  document.getElementById('deferControls').style.display = screen === 'triage' ? '' : 'none';
+  document.getElementById('completedToggle').style.display = (screen === 'today' || screen === 'bucket') ? '' : 'none';
+  document.getElementById('subtaskToggle').style.display = (screen === 'today' || screen === 'bucket') ? '' : 'none';
+  document.getElementById('bucketSelect').style.display = screen === 'bucket' ? '' : 'none';
+  document.getElementById('onboardingStepSelect').style.display = screen === 'onboarding' ? '' : 'none';
+  document.getElementById('firstTimeToggle').style.display = (screen === 'triage' || screen === 'today') ? '' : 'none';
+  updateAll();
+}
+
+function toggleFirstTime() {
+  state.firstTime = !state.firstTime;
+  document.getElementById('firstTimeToggleBtn').classList.toggle('on', state.firstTime);
+  updateAll();
+}
+
+function toggleViewport() {
+  state.viewport = state.viewport === 'mobile' ? 'desktop' : 'mobile';
+  document.getElementById('viewportToggle').classList.toggle('on', state.viewport === 'desktop');
+  document.getElementById('previewFrame').className = 'preview-frame ' + state.viewport;
+  updateAll();
+}
+
+function toggleCompleted() {
+  state.showCompleted = !state.showCompleted;
+  document.getElementById('completedToggleBtn').classList.toggle('on', state.showCompleted);
+  updateAll();
+}
+
+function toggleSubtasks() {
+  state.showSubtasks = !state.showSubtasks;
+  document.getElementById('subtaskToggleBtn').classList.toggle('on', state.showSubtasks);
+  updateAll();
+}
+
+// Age system: each task gets a simulated age in days
+// Spread across a realistic range so the bucket-relative rules are visible
+function taskAgeDays(i) {
+  const ages = [0, 1, 3, 5, 8, 14, 18, 23, 28, 35, 45];
+  return ages[i % ages.length];
+}
+
+function formatAge(days) {
+  if (days === 0) return 'now';
+  if (days < 7) return days + 'd';
+  if (days < 30) return Math.floor(days / 7) + 'w';
+  return Math.floor(days / 30) + 'mo';
+}
+
+// Bucket-relative visibility: only show the badge when age is suspicious for the bucket
+function shouldShowAge(days, bucket) {
+  if (bucket === 'triage') return days > 0; // always show in triage (except brand new)
+  if (bucket === 'today') return days >= 2;
+  if (bucket === 'soon') return days >= 7;
+  // later, someday: only show as reaper warning
+  return days >= 22;
+}
+
+// Bucket-relative coloring
+function ageColorClass(days, bucket) {
+  if (bucket === 'triage') {
+    if (days >= 30) return 'age-critical';
+    if (days >= 14) return 'age-warning';
+    return '';
+  }
+  if (bucket === 'today') {
+    if (days >= 14) return 'age-critical';
+    if (days >= 7) return 'age-warning';
+    return '';
+  }
+  if (bucket === 'soon') {
+    if (days >= 21) return 'age-critical';
+    if (days >= 14) return 'age-warning';
+    return '';
+  }
+  // later, someday
+  if (days >= 27) return 'age-critical';
+  if (days >= 22) return 'age-warning';
+  return '';
+}
+
+function getDomains() {
+  return DOMAINS.slice(0, state.domainCount);
+}
+
+function renderOnboarding() {
+  const el = document.getElementById('previewContent');
+  const step = state.onboardingStep;
+  const domains = getDomains();
+
+  const dots = [0,1,2].map(i =>
+    `<div class="onboarding-dot ${i === step ? 'active' : ''}"></div>`
+  ).join('');
+
+  if (step === 0) {
+    el.innerHTML = `
+      <div class="onboarding-screen">
+        <div class="onboarding-icon">&#127793;</div>
+        <h2 class="onboarding-title">Tend helps you do fewer things, more honestly</h2>
+        <p class="onboarding-subtitle">A daily ritual for deciding what actually matters today. No clutter, no guilt, just clarity.</p>
+        <div style="flex:1"></div>
+        <button class="onboarding-btn primary">Get started</button>
+        <div class="onboarding-dots">${dots}</div>
+      </div>
+    `;
+  } else if (step === 1) {
+    let domainItemsHtml = domains.map(d => `
+      <div class="domain-setup-item">
+        <span class="domain-dot" style="background:${d.color};width:12px;height:12px;"></span>
+        <span class="domain-name">${d.name}</span>
+        <span class="domain-check">&#10003;</span>
+      </div>
+    `).join('');
+
+    el.innerHTML = `
+      <div class="onboarding-screen">
+        <h2 class="onboarding-title">Choose your life areas</h2>
+        <p class="onboarding-subtitle">Domains help you see where your attention goes. You can change these anytime.</p>
+        <div class="domain-setup-list">
+          ${domainItemsHtml}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${domains.length} of 5</div>
+        <div style="flex:1"></div>
+        <button class="onboarding-btn primary">Continue</button>
+        <button class="onboarding-btn secondary">Use defaults</button>
+        <div class="onboarding-dots">${dots}</div>
+      </div>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="onboarding-screen" style="justify-content:flex-start;padding-top:24px;">
+        <h2 class="onboarding-title" style="font-size:18px;">What's on your plate?</h2>
+        <p class="onboarding-subtitle">Add a few tasks to get started. Tomorrow morning, Tend will ask you to triage them.</p>
+        <div style="width:100%;flex:1;display:flex;flex-direction:column;">
+          <div class="empty-state" style="flex:1;">
+            <p style="color:var(--text-muted);font-size:13px;">No tasks yet</p>
+          </div>
+          <div class="task-input-bar" style="border-top:none;padding-top:0;">
+            <div class="task-input-row">
+              <input class="task-input" placeholder="Add a task..." autofocus />
+              <div class="domain-cycle">
+                <span class="domain-dot" style="background:${domains[0].color}"></span>
+                ${domains[0].name}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="onboarding-dots">${dots}</div>
+      </div>
+    `;
+  }
+}
+
+function renderTriage() {
+  const el = document.getElementById('previewContent');
+  const total = state.triageTotal;
+  const progress = state.triageProgress;
+
+  if (progress >= total) {
+    el.innerHTML = `
+      <div class="triage-complete">
+        <div class="check">&#10003;</div>
+        <h2>Triage complete</h2>
+        <p>All ${total} tasks reviewed. Heading to your Today view.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const hour = 9;
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Winding down';
+  const currentTask = SAMPLE_TASKS[progress % SAMPLE_TASKS.length];
+  const ageDays = taskAgeDays(progress);
+  const age = formatAge(ageDays);
+  const domain = getDomains()[progress % getDomains().length];
+  const hasSubs = progress < SAMPLE_SUBTASKS.length;
+  const subs = hasSubs ? SAMPLE_SUBTASKS[progress] : null;
+  const deferCount = state.deferCount;
+  const showRewrite = deferCount >= 3;
+
+  let subtaskHtml = '';
+  if (subs) {
+    const done = Math.min(Math.floor(subs.length / 2), subs.length);
+    subtaskHtml = `
+      <div class="subtask-summary">
+        <span class="done">${done}</span> of ${subs.length} sub-tasks done
+      </div>
+    `;
+  }
+
+  let rewriteHtml = '';
+  if (showRewrite) {
+    rewriteHtml = `
+      <div class="rewrite-prompt">
+        <strong>This task has been deferred ${deferCount} times.</strong><br>
+        Consider rewriting it — if it keeps getting pushed, it might be poorly framed.
+        <textarea class="rewrite-input" rows="2" placeholder="Rewrite the task...">${currentTask}</textarea>
+      </div>
+    `;
+  }
+
+  let deferBadge = '';
+  if (deferCount > 0) {
+    deferBadge = `<span class="badge badge-defer ${deferCount >= 3 ? 'high' : ''}">${deferCount}x deferred</span>`;
+  }
+
+  const isFirstTime = state.firstTime;
+
+  let firstTimeIntro = '';
+  if (isFirstTime && progress === 0) {
+    firstTimeIntro = `
+      <div class="first-time-card">
+        <h3>Every morning, review your tasks</h3>
+        <p>For each one, decide: do it today, push it to this week or later, or let it go. This takes about 2 minutes.</p>
+        <button class="start-btn">Start triaging &rarr;</button>
+      </div>
+    `;
+  }
+
+  const btnDescs = isFirstTime;
+  el.innerHTML = `
+    <div class="greeting">${greeting}</div>
+    <div class="triage-progress"><span class="count">${progress + 1}</span> of <span class="count">${total}</span> to triage</div>
+    ${firstTimeIntro}
+    <div class="triage-card" ${isFirstTime && progress === 0 ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+      <div class="task-text">${currentTask}</div>
+      <div class="meta-row">
+        ${shouldShowAge(ageDays, 'triage') ? `<span class="badge badge-age ${ageColorClass(ageDays, 'triage')}">${age}</span>` : ''}
+        <span class="badge badge-domain"><span class="domain-dot" style="background:${domain.color}"></span>${domain.name}</span>
+        ${deferBadge}
+      </div>
+      ${subtaskHtml}
+      ${rewriteHtml}
+      <div class="triage-actions">
+        <button class="triage-btn today">Today${btnDescs ? '<span class="btn-desc">do it today</span>' : ''}</button>
+        <button class="triage-btn soon">Soon${btnDescs ? '<span class="btn-desc">this week</span>' : ''}</button>
+        <button class="triage-btn later">Later${btnDescs ? '<span class="btn-desc">not now</span>' : ''}</button>
+        <button class="triage-btn someday">Someday${btnDescs ? '<span class="btn-desc">be honest</span>' : ''}</button>
+        <button class="triage-btn done">Done &#10003;${btnDescs ? '<span class="btn-desc">already handled</span>' : ''}</button>
+        <button class="triage-btn kill">Kill &times;${btnDescs ? '<span class="btn-desc">let it go</span>' : ''}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderToday() {
+  const el = document.getElementById('previewContent');
+  const domains = getDomains();
+  const pendingCount = state.taskCount;
+  const completedCount = state.showCompleted ? Math.max(0, Math.floor(pendingCount * 0.4)) : 0;
+  const avg = Math.round(pendingCount * 0.65);
+
+  let filtersHtml = domains.map((d, i) => `
+    <div class="domain-filter ${i === 0 ? 'active' : ''}">
+      <span class="domain-dot" style="background:${d.color}"></span>
+      ${d.name}
+    </div>
+  `).join('');
+
+  let tasksHtml = '';
+  for (let i = 0; i < pendingCount; i++) {
+    const domain = domains[i % domains.length];
+    const ageDays = taskAgeDays(i);
+    const age = formatAge(ageDays);
+    const showAge = shouldShowAge(ageDays, 'today');
+    const hasSubs = i < 3;
+    const subIndicator = hasSubs ? `<span class="expand-arrow">${state.showSubtasks ? '&#9660;' : '&#9654;'}</span>` : '';
+
+    tasksHtml += `
+      <div class="task-item">
+        <div class="task-check"></div>
+        <span class="domain-dot" style="background:${domain.color}"></span>
+        <span class="task-text">${SAMPLE_TASKS[i % SAMPLE_TASKS.length]}</span>
+        ${showAge ? `<span class="task-age ${ageColorClass(ageDays, 'today')}">${age}</span>` : ''}
+        ${subIndicator}
+      </div>
+    `;
+
+    if (state.showSubtasks && hasSubs && SAMPLE_SUBTASKS[i]) {
+      SAMPLE_SUBTASKS[i].forEach((sub, si) => {
+        const isDone = si < Math.floor(SAMPLE_SUBTASKS[i].length / 2);
+        tasksHtml += `
+          <div class="task-item ${isDone ? 'completed' : ''}" style="padding-left:44px;">
+            <div class="task-check" style="width:14px;height:14px;"></div>
+            <span class="task-text" style="font-size:13px;">${sub}</span>
+          </div>
+        `;
+      });
+    }
+  }
+
+  let completedHtml = '';
+  if (state.showCompleted && completedCount > 0) {
+    completedHtml = `<div class="section-label">Completed</div>`;
+    for (let i = 0; i < completedCount; i++) {
+      completedHtml += `
+        <div class="task-item completed">
+          <div class="task-check"></div>
+          <span class="task-text">${SAMPLE_TASKS[(i + 10) % SAMPLE_TASKS.length]}</span>
+        </div>
+      `;
+    }
+  }
+
+  const domainCycle = domains[0];
+
+  el.innerHTML = `
+    <div class="nav-bar">
+      <div class="nav-item active">Today</div>
+      <div class="nav-item">Soon</div>
+      <div class="nav-item">Later</div>
+      <div class="nav-item">Someday</div>
+    </div>
+    <div class="nudge">
+      <span class="count">${pendingCount}</span> tasks today — you usually complete about <span class="highlight">${avg}</span>
+    </div>
+    ${state.firstTime ? '<div class="nudge-annotation">(based on your last 30 days — this gets more accurate over time)</div>' : ''}
+    <div class="domain-filters">${filtersHtml}</div>
+    ${pendingCount === 0 ? `
+      <div class="empty-state">
+        <p>${state.firstTime ? "What's on your plate? Add a few tasks to start." : "Nothing on your plate today. Add a task, or enjoy the quiet."}</p>
+      </div>
+    ` : `
+      <div class="section-label">Pending</div>
+      <div class="task-list">
+        ${tasksHtml}
+        ${completedHtml}
+      </div>
+    `}
+    <div class="task-input-bar">
+      <div class="task-input-row">
+        <input class="task-input" placeholder="Add a task..." />
+        <div class="domain-cycle">
+          <span class="domain-dot" style="background:${domainCycle.color}"></span>
+          ${domainCycle.name}
+        </div>
+      </div>
+      <div class="winddown-btn">Wind Down</div>
+    </div>
+  `;
+}
+
+function renderBucket() {
+  const el = document.getElementById('previewContent');
+  const bucket = state.selectedBucket;
+  const bucketNames = { soon: 'Soon', later: 'Later', someday: 'Someday' };
+  const bucketDescs = { soon: 'this week', later: 'not now', someday: 'be honest' };
+  const domains = getDomains();
+  const count = state.taskCount;
+
+  let tasksHtml = '';
+  for (let i = 0; i < count; i++) {
+    const domain = domains[i % domains.length];
+    const ageDays = taskAgeDays(i + 3);
+    const age = formatAge(ageDays);
+    const showAge = shouldShowAge(ageDays, bucket);
+    tasksHtml += `
+      <div class="task-item">
+        <div class="task-check"></div>
+        <span class="domain-dot" style="background:${domain.color}"></span>
+        <span class="task-text">${SAMPLE_TASKS[(i + 5) % SAMPLE_TASKS.length]}</span>
+        ${showAge ? `<span class="task-age ${ageColorClass(ageDays, bucket)}">${age}</span>` : ''}
+      </div>
+    `;
+  }
+
+  el.innerHTML = `
+    <div class="bucket-header">
+      <span class="back-btn">&larr;</span>
+      <span class="bucket-title">${bucketNames[bucket]}</span>
+      <span style="font-size:13px;color:var(--text-muted)">${bucketDescs[bucket]}</span>
+      <span class="bucket-count">${count} tasks</span>
+    </div>
+    <div class="task-list">
+      ${tasksHtml}
+    </div>
+    <div class="task-input-bar">
+      <div class="task-input-row">
+        <input class="task-input" placeholder="Add to ${bucketNames[bucket].toLowerCase()}..." />
+        <div class="domain-cycle">
+          <span class="domain-dot" style="background:${domains[0].color}"></span>
+          ${domains[0].name}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const el = document.getElementById('previewContent');
+  const domains = getDomains();
+  const atMax = domains.length >= 5;
+
+  let domainItems = domains.map(d => `
+    <div class="domain-item">
+      <span class="domain-dot" style="background:${d.color};width:12px;height:12px;"></span>
+      <span class="domain-name">${d.name}</span>
+      <div class="domain-actions">
+        <span class="domain-action">Edit</span>
+        <span class="domain-action delete">&times;</span>
+      </div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="bucket-header">
+      <span class="back-btn">&larr;</span>
+      <span class="bucket-title">Settings</span>
+    </div>
+    <div class="settings-section">
+      <div class="settings-title">Life Domains</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${domains.length} of 5 domains used</div>
+      <div class="domain-list">
+        ${domainItems}
+      </div>
+      <button class="add-domain-btn ${atMax ? 'disabled' : ''}" ${atMax ? 'disabled' : ''}>
+        ${atMax ? 'Maximum 5 domains reached' : '+ Add Domain'}
+      </button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-title">Account</div>
+      <div class="domain-list">
+        <div class="domain-item">
+          <span class="domain-name" style="color:var(--text-secondary);">Email</span>
+          <span style="font-size:13px;">brandon@example.com</span>
+        </div>
+        <div class="domain-item">
+          <span class="domain-name" style="color:var(--text-secondary);">Export data</span>
+          <span style="font-size:12px;color:var(--accent-blue);cursor:pointer;">Download JSON</span>
+        </div>
+        <div class="domain-item">
+          <span class="domain-name" style="color:var(--accent-red);">Delete account</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPreview() {
+  switch (state.screen) {
+    case 'onboarding': renderOnboarding(); break;
+    case 'triage': renderTriage(); break;
+    case 'today': renderToday(); break;
+    case 'bucket': renderBucket(); break;
+    case 'settings': renderSettings(); break;
+  }
+}
+
+function updatePrompt() {
+  const parts = [];
+  const el = document.getElementById('promptText');
+
+  parts.push(`Screen: ${state.screen === 'bucket' ? state.selectedBucket + ' bucket' : state.screen} view.`);
+  parts.push(`Viewport: ${state.viewport}.`);
+  if (state.firstTime && state.screen !== 'onboarding') parts.push('FIRST-TIME USER — show contextual education elements.');
+
+  if (state.screen === 'onboarding') {
+    const stepNames = ['Welcome', 'Domain Setup', 'First Tasks'];
+    parts.push(`Onboarding step ${state.onboardingStep + 1} of 3: ${stepNames[state.onboardingStep]}.`);
+    if (state.onboardingStep === 0) parts.push('Centered layout: app icon, tagline "Tend helps you do fewer things, more honestly", subtitle, and "Get started" button. Step dots at bottom.');
+    if (state.onboardingStep === 1) parts.push(`"Choose your life areas" — ${state.domainCount} domains shown as selectable rows with color dots and checkmarks. "Continue" and "Use defaults" buttons. X of 5 counter.`);
+    if (state.onboardingStep === 2) parts.push('Empty Today view with prompt "What\'s on your plate? Add a few tasks to start." Auto-focused task input at bottom. Step dots showing final step.');
+  }
+
+  if (state.screen === 'triage') {
+    if (state.triageProgress >= state.triageTotal) {
+      parts.push('Triage is complete — show the success state with a green checkmark and transition prompt.');
+    } else {
+      if (state.firstTime && state.triageProgress === 0) {
+        parts.push('FIRST TRIAGE: Show a one-time intro card above the triage card: "Every morning, review your tasks. For each one, decide: do it today, push it to this week or later, or let it go. This takes about 2 minutes." with a "Start triaging" button. Triage card is dimmed/inactive behind it.');
+      }
+      parts.push(`Triage progress: card ${state.triageProgress + 1} of ${state.triageTotal}.`);
+      if (state.deferCount >= 3) {
+        parts.push(`Task has been deferred ${state.deferCount} times — show the rewrite prompt with an editable textarea pre-filled with the current task text, and an amber warning.`);
+      } else if (state.deferCount > 0) {
+        parts.push(`Show a "${state.deferCount}x deferred" badge in amber.`);
+      }
+    }
+    parts.push('Triage card: task text (18px, bold), age badge (always visible during triage), domain badge with color dot, action buttons in 2-column grid (Today/Soon/Later/Someday/Done/Kill). Today button has green accent, Kill has red.');
+    if (state.firstTime) parts.push('First-time: triage buttons include inline sub-labels ("do it today", "this week", "not now", "be honest", "already handled", "let it go").');
+  }
+
+  if (state.screen === 'today') {
+    parts.push(`${state.taskCount} pending tasks. Honest nudge at top showing count vs. 30-day average.`);
+    if (state.firstTime) parts.push('First-time: italic annotation below nudge: "(based on your last 30 days — this gets more accurate over time)".');
+    parts.push(`${state.domainCount} domain filter pills below the nudge.`);
+    parts.push('Age badges use bucket-relative visibility: only shown on tasks 2+ days old in Today (younger tasks show no badge). Gray at 2d+, amber at 1w+, red at 2w+.');
+    if (state.taskCount === 0) parts.push(state.firstTime ? 'Empty state: "What\'s on your plate? Add a few tasks to start."' : 'Empty state: "Nothing on your plate today. Add a task, or enjoy the quiet."');
+    if (state.showCompleted) parts.push('Completed tasks shown in a dimmed section below pending.');
+    if (state.showSubtasks) parts.push('Sub-tasks expanded inline under parent tasks, indented.');
+    parts.push('Task input at bottom with domain cycle button. Wind Down button below input.');
+  }
+
+  if (state.screen === 'bucket') {
+    const bucketAgeRule = state.selectedBucket === 'soon'
+      ? 'Age badges shown on tasks 7+ days old (amber at 2w, red at 3w).'
+      : 'Age badges only shown on tasks 22+ days old as a reaper proximity warning (amber at 22d, red at 27d).';
+    parts.push(`${state.taskCount} tasks in the ${state.selectedBucket} bucket. Back arrow + bucket title header. ${bucketAgeRule} Simple task list with input at bottom.`);
+  }
+
+  if (state.screen === 'settings') {
+    parts.push(`${state.domainCount} of 5 domains. Each domain row shows color dot, name, edit and delete actions.`);
+    if (state.domainCount >= 5) {
+      parts.push('Add Domain button is grayed out with "Maximum 5 domains reached" message.');
+    }
+  }
+
+  parts.push(`Dark theme (#0a0a0a background, #1a1a1a cards, #fafafa text). System font stack. ${state.viewport === 'mobile' ? '375px mobile width.' : '800px desktop width.'}`);
+
+  el.textContent = parts.join(' ');
+}
+
+function updateAll() {
+  // Update triage slider label
+  const total = state.triageTotal;
+  const prog = state.triageProgress;
+  document.getElementById('triageProgressVal').textContent = prog >= total ? 'Complete' : `${prog + 1} of ${total}`;
+
+  renderPreview();
+  updatePrompt();
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function applyPreset(name) {
+  const presets = {
+    newuser: {
+      screen: 'onboarding', viewport: 'mobile', taskCount: 0, domainCount: 5,
+      triageProgress: 0, triageTotal: 0, deferCount: 0, showCompleted: false, showSubtasks: false,
+      onboardingStep: 0, firstTime: true
+    },
+    morning: {
+      screen: 'triage', viewport: 'mobile', taskCount: 8, domainCount: 3,
+      triageProgress: 0, triageTotal: 12, deferCount: 0, showCompleted: true, showSubtasks: false,
+      onboardingStep: 0, firstTime: false
+    },
+    firsttriage: {
+      screen: 'triage', viewport: 'mobile', taskCount: 6, domainCount: 5,
+      triageProgress: 0, triageTotal: 6, deferCount: 0, showCompleted: false, showSubtasks: false,
+      onboardingStep: 0, firstTime: true
+    },
+    midday: {
+      screen: 'today', viewport: 'mobile', taskCount: 6, domainCount: 3,
+      triageProgress: 12, triageTotal: 12, deferCount: 0, showCompleted: true, showSubtasks: false,
+      onboardingStep: 0, firstTime: false
+    },
+    winddown: {
+      screen: 'triage', viewport: 'mobile', taskCount: 4, domainCount: 3,
+      triageProgress: 1, triageTotal: 4, deferCount: 1, showCompleted: true, showSubtasks: false,
+      onboardingStep: 0, firstTime: false
+    },
+    overloaded: {
+      screen: 'today', viewport: 'mobile', taskCount: 16, domainCount: 4,
+      triageProgress: 12, triageTotal: 12, deferCount: 4, showCompleted: true, showSubtasks: true,
+      onboardingStep: 0, firstTime: false
+    }
+  };
+
+  const p = presets[name];
+  Object.assign(state, p);
+
+  // Sync all controls
+  setScreen(p.screen);
+  document.getElementById('viewportToggle').classList.toggle('on', p.viewport === 'desktop');
+  document.getElementById('previewFrame').className = 'preview-frame ' + p.viewport;
+  document.getElementById('completedToggleBtn').classList.toggle('on', p.showCompleted);
+  document.getElementById('subtaskToggleBtn').classList.toggle('on', p.showSubtasks);
+  document.getElementById('firstTimeToggleBtn').classList.toggle('on', p.firstTime);
+  document.getElementById('onboardingStepDropdown').value = p.onboardingStep;
+
+  // Sync sliders
+  document.querySelector('[oninput*="taskCount"]').value = p.taskCount;
+  document.getElementById('taskCountVal').textContent = p.taskCount;
+  document.querySelector('[oninput*="domainCount"]').value = p.domainCount;
+  document.getElementById('domainCountVal').textContent = p.domainCount;
+  document.getElementById('triageSlider').value = p.triageProgress;
+  document.getElementById('triageSlider').max = p.triageTotal || 12;
+  document.querySelector('[oninput*="deferCount"]').value = p.deferCount;
+  document.getElementById('deferVal').textContent = p.deferCount;
+
+  updateAll();
+}
+
+// Init
+setScreen('triage');
+updateAll();
+</script>
+</body>
+</html>
