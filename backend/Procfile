@@ -1,1 +1,1 @@
-web: python -c "import os; url=os.environ.get('DATABASE_URL',''); print(f'DATABASE_URL set: {bool(url)}, starts with: {url[:15]}...' if url else 'DATABASE_URL IS NOT SET')" && python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+web: python -c "import os; print('DB_URL set:', bool(os.environ.get('DATABASE_URL')))" && python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
