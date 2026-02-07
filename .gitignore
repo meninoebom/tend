@@ -7,10 +7,25 @@ dist/
 # Rust build output
 src-tauri/target/
 
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Next.js
+.next/
+
 # SQLite database
 *.db
 *.db-wal
 *.db-shm
+
+# Environment
+.env
+.env.local
+.env.*.local
 
 # OS files
 .DS_Store

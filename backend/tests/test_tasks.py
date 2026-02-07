@@ -1,0 +1,126 @@
+import uuid
+
+from app.models.enums import BucketType, TaskStatus
+from app.models.task import Task
+
+
+class TestTaskCRUD:
+    def test_create_task(self, client, test_user, test_domains):
+        r = client.post(
+            "/tasks",
+            json={"text": "New task", "bucket": "today", "domain_id": str(test_domains[0].id)},
+        )
+        assert r.status_code == 201
+        data = r.json()
+        assert data["text"] == "New task"
+        assert data["bucket"] == "today"
+        assert data["status"] == "pending"
+        assert data["domain"]["name"] == "Work"
+
+    def test_create_task_minimal(self, client, test_user):
+        r = client.post("/tasks", json={"text": "Just text"})
+        assert r.status_code == 201
+        assert r.json()["bucket"] == "today"
+        assert r.json()["domain"] is None
+
+    def test_create_subtask(self, client, test_user, test_tasks):
+        parent = test_tasks[0]
+        r = client.post(
+            "/tasks", json={"text": "Sub-task", "parent_id": str(parent.id)}
+        )
+        assert r.status_code == 201
+        data = r.json()
+        assert data["text"] == "Sub-task"
+        # Sub-task inherits parent bucket
+        assert data["bucket"] == parent.bucket
+
+    def test_create_subtask_depth_limit(self, client, test_user, test_tasks, db):
+        """Cannot create a sub-sub-task (only 1 level deep)."""
+        parent = test_tasks[0]
+        # Create a child
+        child = Task(
+            user_id=test_user.id,
+            text="Child",
+            bucket=BucketType.today,
+            parent_id=parent.id,
+        )
+        db.add(child)
+        db.flush()
+
+        # Try to create grandchild
+        r = client.post(
+            "/tasks", json={"text": "Grandchild", "parent_id": str(child.id)}
+        )
+        assert r.status_code == 422
+
+    def test_create_task_text_too_long(self, client, test_user):
+        r = client.post("/tasks", json={"text": "x" * 501})
+        assert r.status_code == 422
+
+    def test_list_tasks_by_bucket(self, client, test_user, test_tasks):
+        r = client.get("/tasks?bucket=today")
+        assert r.status_code == 200
+        texts = [t["text"] for t in r.json()]
+        assert "Build frontend" in texts
+        assert "Go for a run" in texts
+        assert "Read docs" not in texts
+
+    def test_list_tasks_by_status(self, client, test_user, test_tasks):
+        r = client.get("/tasks?status=pending")
+        assert r.status_code == 200
+        assert len(r.json()) == 5
+
+    def test_get_task(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        r = client.get(f"/tasks/{task.id}")
+        assert r.status_code == 200
+        assert r.json()["text"] == "Build frontend"
+
+    def test_get_task_not_found(self, client, test_user):
+        fake_id = uuid.uuid4()
+        r = client.get(f"/tasks/{fake_id}")
+        assert r.status_code == 404
+
+    def test_update_task(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        r = client.patch(f"/tasks/{task.id}", json={"text": "Updated text"})
+        assert r.status_code == 200
+        assert r.json()["text"] == "Updated text"
+
+    def test_complete_task(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        r = client.post(f"/tasks/{task.id}/complete")
+        assert r.status_code == 200
+        assert r.json()["status"] == "complete"
+        assert r.json()["completed_at"] is not None
+
+    def test_complete_task_cascades_children(self, client, test_user, test_tasks, db):
+        parent = test_tasks[0]
+        child = Task(
+            user_id=test_user.id,
+            text="Child task",
+            bucket=BucketType.today,
+            parent_id=parent.id,
+        )
+        db.add(child)
+        db.flush()
+
+        r = client.post(f"/tasks/{parent.id}/complete")
+        assert r.status_code == 200
+
+        # Verify child is also completed
+        db.refresh(child)
+        assert child.status == TaskStatus.complete
+
+    def test_delete_task(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        r = client.delete(f"/tasks/{task.id}")
+        assert r.status_code == 204
+
+        r = client.get(f"/tasks/{task.id}")
+        assert r.status_code == 404
+
+    def test_task_age_days(self, client, test_user, test_tasks):
+        r = client.get(f"/tasks/{test_tasks[0].id}")
+        assert r.status_code == 200
+        assert r.json()["age_days"] >= 0
