@@ -45,21 +45,35 @@ export function TaskInput({ bucket, domains, onCreated }: TaskInputProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 py-2">
-      <button
-        type="button"
-        onClick={cycleDomain}
-        className="shrink-0 h-6 w-6 rounded-full border-2 border-border flex items-center justify-center hover:border-text-secondary transition-colors"
-        title={activeDomain ? activeDomain.name : "No domain"}
-      >
-        {activeDomain ? (
-          <span
-            className="h-3 w-3 rounded-full"
-            style={{ backgroundColor: activeDomain.color }}
-          />
-        ) : (
-          <span className="text-text-muted text-xs">+</span>
-        )}
-      </button>
+      {domains.length > 0 ? (
+        <button
+          type="button"
+          onClick={cycleDomain}
+          className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border border-border hover:border-text-secondary transition-colors"
+          title={activeDomain ? `${activeDomain.name} (click to change)` : "Click to set domain"}
+        >
+          {activeDomain ? (
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: activeDomain.color }}
+            />
+          ) : (
+            <span className="h-2.5 w-2.5 rounded-full border border-text-muted" />
+          )}
+          <span className="text-xs text-text-muted">
+            {activeDomain ? activeDomain.name : "Domain"}
+          </span>
+        </button>
+      ) : (
+        <a
+          href="/settings"
+          className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full border border-dashed border-border text-xs text-text-muted hover:border-text-secondary hover:text-text-secondary transition-colors"
+          title="Create domains in Settings"
+        >
+          <span className="h-2.5 w-2.5 rounded-full border border-text-muted" />
+          Domains
+        </a>
+      )}
       <input
         type="text"
         value={text}
