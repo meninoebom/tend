@@ -90,14 +90,14 @@ def update_task(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    task = task_service.update_task(
-        db,
-        user_id,
-        task_id,
-        text=body.text,
-        bucket=body.bucket,
-        domain_id=body.domain_id,
-    )
+    kwargs: dict = {}
+    if body.text is not None:
+        kwargs["text"] = body.text
+    if body.bucket is not None:
+        kwargs["bucket"] = body.bucket
+    if "domain_id" in body.model_fields_set:
+        kwargs["domain_id"] = body.domain_id
+    task = task_service.update_task(db, user_id, task_id, **kwargs)
     return _to_response(task)
 
 

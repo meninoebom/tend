@@ -79,7 +79,7 @@ export default function BucketPage() {
           </p>
         )}
         {pending.map((task) => (
-          <TaskItem key={task.id} task={task} onMutate={refresh} />
+          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
         ))}
 
         {completed.length > 0 && (
@@ -88,7 +88,7 @@ export default function BucketPage() {
               Completed ({completed.length})
             </p>
             {completed.map((task) => (
-              <TaskItem key={task.id} task={task} onMutate={refresh} />
+              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
             ))}
           </div>
         )}

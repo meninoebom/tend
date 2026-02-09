@@ -1,21 +1,48 @@
 "use client";
 
 import { useState } from "react";
-import type { Task } from "@/lib/api-types";
-import { completeTask, deleteTask } from "@/lib/api";
+import type { Task, Domain } from "@/lib/api-types";
+import { completeTask, deleteTask, updateTask } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
 
 interface TaskItemProps {
   task: Task;
+  domains: Domain[];
   onMutate: () => void;
 }
 
-export function TaskItem({ task, onMutate }: TaskItemProps) {
+export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [domainError, setDomainError] = useState(false);
   const isComplete = task.status === "complete";
   const hasChildren = task.children.length > 0;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
+
+  async function cycleDomain() {
+    if (isComplete || loading) return;
+    setDomainError(false);
+    const currentId = task.domain?.id ?? null;
+    let nextId: string | null;
+    if (domains.length === 0) return;
+    if (!currentId) {
+      nextId = domains[0].id;
+    } else {
+      const idx = domains.findIndex((d) => d.id === currentId);
+      if (idx === -1 || idx === domains.length - 1) {
+        nextId = null;
+      } else {
+        nextId = domains[idx + 1].id;
+      }
+    }
+    try {
+      await updateTask(task.id, { domain_id: nextId });
+      onMutate();
+    } catch {
+      setDomainError(true);
+      setTimeout(() => setDomainError(false), 2000);
+    }
+  }
 
   async function handleComplete() {
     if (isComplete || loading) return;
@@ -52,14 +79,34 @@ export function TaskItem({ task, onMutate }: TaskItemProps) {
           )}
         </button>
 
-        {/* Domain dot */}
-        {task.domain && (
+        {/* Domain dot (click to cycle) */}
+        {!isComplete && domains.length > 0 ? (
+          <button
+            onClick={cycleDomain}
+            className={cn(
+              "shrink-0 h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
+              domainError
+                ? "border-accent-red"
+                : "border-border hover:border-text-secondary",
+            )}
+            title={task.domain ? `${task.domain.name} (click to change)` : "Set domain"}
+          >
+            {task.domain ? (
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: task.domain.color }}
+              />
+            ) : (
+              <span className="text-text-muted text-[10px]">+</span>
+            )}
+          </button>
+        ) : task.domain ? (
           <span
             className="shrink-0 h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: task.domain.color }}
             title={task.domain.name}
           />
-        )}
+        ) : null}
 
         {/* Text + subtask toggle */}
         <button

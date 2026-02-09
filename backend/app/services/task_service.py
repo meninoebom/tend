@@ -104,6 +104,9 @@ def get_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
     return task
 
 
+_UNSET = object()
+
+
 def update_task(
     db: Session,
     user_id: uuid.UUID,
@@ -111,7 +114,7 @@ def update_task(
     *,
     text: str | None = None,
     bucket: BucketType | None = None,
-    domain_id: uuid.UUID | None = None,
+    domain_id: uuid.UUID | None | object = _UNSET,
 ) -> Task:
     task = get_task(db, user_id, task_id)
 
@@ -125,7 +128,7 @@ def update_task(
         task.text = text.strip()
     if bucket is not None:
         task.bucket = bucket
-    if domain_id is not None:
+    if domain_id is not _UNSET:
         task.domain_id = domain_id
 
     task.updated_at = datetime.utcnow()
