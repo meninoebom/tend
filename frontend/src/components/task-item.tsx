@@ -127,6 +127,9 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [domainError, setDomainError] = useState(false);
+  const [domainLoading, setDomainLoading] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -151,30 +154,53 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
     }
   }, [isAddingSubtask]);
 
-  async function cycleDomain() {
-    if (isComplete || loading) return;
-    setDomainError(false);
-    const currentId = task.domain?.id ?? null;
-    let nextId: string | null;
-    if (domains.length === 0) return;
-    if (!currentId) {
-      nextId = domains[0].id;
-    } else {
-      const idx = domains.findIndex((d) => d.id === currentId);
-      if (idx === -1 || idx === domains.length - 1) {
-        nextId = null;
-      } else {
-        nextId = domains[idx + 1].id;
-      }
+  async function selectDomain(domainId: string | null) {
+    if (isComplete || domainLoading) return;
+    if (domainId === (task.domain?.id ?? null)) {
+      setIsPickerOpen(false);
+      return;
     }
+    setDomainError(false);
+    setDomainLoading(true);
     try {
-      await updateTask(task.id, { domain_id: nextId });
+      await updateTask(task.id, { domain_id: domainId });
+      setIsPickerOpen(false);
       onMutate();
-    } catch {
+    } catch (err) {
+      console.error("Failed to update domain:", err);
       setDomainError(true);
-      setTimeout(() => setDomainError(false), 2000);
+    } finally {
+      setDomainLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!domainError) return;
+    const timer = setTimeout(() => setDomainError(false), 2000);
+    return () => clearTimeout(timer);
+  }, [domainError]);
+
+  useEffect(() => {
+    if (!isPickerOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target;
+      if (target instanceof Node && pickerRef.current && !pickerRef.current.contains(target)) {
+        setIsPickerOpen(false);
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setIsPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isPickerOpen]);
 
   function startEditing() {
     if (isComplete || loading) return;
@@ -288,27 +314,67 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
           )}
         </button>
 
-        {/* Domain dot (click to cycle) */}
+        {/* Domain dot (click to open picker) */}
         {!isComplete && domains.length > 0 ? (
-          <button
-            onClick={cycleDomain}
-            className={cn(
-              "shrink-0 h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
-              domainError
-                ? "border-accent-red"
-                : "border-border hover:border-text-secondary",
+          <div className="relative shrink-0" ref={pickerRef}>
+            <button
+              onClick={() => setIsPickerOpen(!isPickerOpen)}
+              disabled={domainLoading}
+              className={cn(
+                "h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
+                domainError
+                  ? "border-accent-red"
+                  : "border-border hover:border-text-secondary",
+                domainLoading && "opacity-50",
+              )}
+              aria-label={task.domain ? `Domain: ${task.domain.name}. Click to change` : "Set domain"}
+              aria-expanded={isPickerOpen}
+              title={task.domain ? `${task.domain.name} (click to change)` : "Set domain"}
+            >
+              {task.domain ? (
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: task.domain.color }}
+                />
+              ) : (
+                <span className="text-text-muted text-[10px]">+</span>
+              )}
+            </button>
+            {isPickerOpen && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-10 flex items-center gap-1.5 bg-bg-card border border-border rounded-full px-2 py-1.5 shadow-lg">
+                {domains.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => selectDomain(d.id)}
+                    disabled={domainLoading}
+                    className={cn(
+                      "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
+                      task.domain?.id === d.id && "ring-2 ring-text-secondary ring-offset-1 ring-offset-bg-card",
+                    )}
+                    aria-label={`Set domain to ${d.name}`}
+                    title={d.name}
+                  >
+                    <span
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: d.color }}
+                    />
+                  </button>
+                ))}
+                <button
+                  onClick={() => selectDomain(null)}
+                  disabled={domainLoading}
+                  className={cn(
+                    "h-5 w-5 rounded-full flex items-center justify-center text-text-muted hover:text-text-secondary transition-colors",
+                    !task.domain && "ring-2 ring-text-secondary ring-offset-1 ring-offset-bg-card",
+                  )}
+                  aria-label="Clear domain"
+                  title="Clear domain"
+                >
+                  <span className="text-xs">×</span>
+                </button>
+              </div>
             )}
-            title={task.domain ? `${task.domain.name} (click to change)` : "Set domain"}
-          >
-            {task.domain ? (
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: task.domain.color }}
-              />
-            ) : (
-              <span className="text-text-muted text-[10px]">+</span>
-            )}
-          </button>
+          </div>
         ) : task.domain ? (
           <span
             className="shrink-0 h-2.5 w-2.5 rounded-full"
