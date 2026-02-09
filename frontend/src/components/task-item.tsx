@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { Task, Domain } from "@/lib/api-types";
-import { completeTask, deleteTask, updateTask } from "@/lib/api";
+import { completeTask, createTask, deleteTask, updateTask } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
 
 interface TaskItemProps {
@@ -18,6 +18,10 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+  const [subtaskText, setSubtaskText] = useState("");
+  const [subtaskLoading, setSubtaskLoading] = useState(false);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
   const isComplete = task.status === "complete";
   const hasChildren = task.children.length > 0;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
@@ -28,6 +32,12 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
       inputRef.current.select();
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    if (isAddingSubtask && subtaskInputRef.current) {
+      subtaskInputRef.current.focus();
+    }
+  }, [isAddingSubtask]);
 
   async function cycleDomain() {
     if (isComplete || loading) return;
@@ -88,6 +98,46 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
       saveEdit();
     } else if (e.key === "Escape") {
       cancelEditing();
+    }
+  }
+
+  function startAddingSubtask() {
+    if (isComplete || loading) return;
+    setSubtaskText("");
+    setIsAddingSubtask(true);
+    setExpanded(true);
+  }
+
+  function cancelAddingSubtask() {
+    setSubtaskText("");
+    setIsAddingSubtask(false);
+  }
+
+  async function saveSubtask() {
+    const trimmed = subtaskText.trim();
+    if (!trimmed || subtaskLoading) return;
+    setSubtaskLoading(true);
+    try {
+      await createTask({
+        text: trimmed,
+        parent_id: task.id,
+        bucket: task.bucket,
+        domain_id: task.domain?.id,
+      });
+      setSubtaskText("");
+      setIsAddingSubtask(false);
+      onMutate();
+    } finally {
+      setSubtaskLoading(false);
+    }
+  }
+
+  function handleSubtaskKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveSubtask();
+    } else if (e.key === "Escape") {
+      cancelAddingSubtask();
     }
   }
 
@@ -208,6 +258,17 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
           </button>
         )}
 
+        {/* Add subtask button */}
+        {!isEditing && !isComplete && (
+          <button
+            onClick={startAddingSubtask}
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary transition-opacity text-xs"
+            title="Add subtask"
+          >
+            +
+          </button>
+        )}
+
         {/* Subtask count */}
         {hasChildren && (
           <span className="text-xs text-text-muted shrink-0">
@@ -238,8 +299,8 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
         </button>
       </div>
 
-      {/* Expanded subtasks */}
-      {expanded && hasChildren && (
+      {/* Expanded subtasks + add subtask input */}
+      {(expanded && hasChildren) || isAddingSubtask ? (
         <div className="ml-8 border-l border-border pl-3">
           {task.children.map((child) => (
             <div
@@ -266,8 +327,27 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
               <span className="text-text-secondary">{child.text}</span>
             </div>
           ))}
+          {isAddingSubtask && (
+            <div className="flex items-center gap-2 py-1.5">
+              <span className="h-4 w-4 rounded-full border-2 border-border shrink-0" />
+              <input
+                ref={subtaskInputRef}
+                value={subtaskText}
+                onChange={(e) => setSubtaskText(e.target.value)}
+                onKeyDown={handleSubtaskKeyDown}
+                onBlur={() => { if (!subtaskText.trim()) cancelAddingSubtask(); }}
+                disabled={subtaskLoading}
+                placeholder="Add subtask..."
+                maxLength={500}
+                className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+              />
+              {subtaskLoading && (
+                <span className="text-xs text-text-muted shrink-0">Saving…</span>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
