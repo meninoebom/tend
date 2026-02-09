@@ -22,23 +22,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Triage gate: redirect to /triage if not complete (skip for settings and triage itself)
   useEffect(() => {
     const skip = pathname === "/triage" || pathname === "/settings";
-    if (skip) {
-      setTriageChecked(true);
-      return;
-    }
+    if (skip) return;
+
+    let cancelled = false;
 
     getTriageQueue()
       .then((q) => {
+        if (cancelled) return;
         if (!q.triage_complete && q.tasks.length > 0) {
           router.replace("/triage");
         } else {
           setTriageChecked(true);
         }
       })
-      .catch(() => setTriageChecked(true));
+      .catch(() => {
+        if (cancelled) return;
+        setTriageChecked(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname, router]);
 
-  const showContent = triageChecked || pathname === "/triage" || pathname === "/settings";
+  // Avoid setState inside effects for the skip routes; these routes can render immediately.
+  const showContent = pathname === "/triage" || pathname === "/settings" || triageChecked;
 
   return (
     <div className="flex flex-col min-h-screen bg-bg-root">
