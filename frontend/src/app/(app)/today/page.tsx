@@ -100,7 +100,7 @@ export default function TodayPage() {
           </p>
         )}
         {pending.map((task) => (
-          <TaskItem key={task.id} task={task} onMutate={refresh} />
+          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
         ))}
 
         {/* Completed tasks */}
@@ -110,7 +110,7 @@ export default function TodayPage() {
               Completed ({completed.length})
             </p>
             {completed.map((task) => (
-              <TaskItem key={task.id} task={task} onMutate={refresh} />
+              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
             ))}
           </div>
         )}
