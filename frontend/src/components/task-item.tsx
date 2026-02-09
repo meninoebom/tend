@@ -127,6 +127,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [domainError, setDomainError] = useState(false);
+  const [domainLoading, setDomainLoading] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -154,31 +155,44 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   }, [isAddingSubtask]);
 
   async function selectDomain(domainId: string | null) {
-    if (isComplete || loading) return;
+    if (isComplete || domainLoading) return;
     if (domainId === (task.domain?.id ?? null)) {
       setIsPickerOpen(false);
       return;
     }
     setDomainError(false);
-    setIsPickerOpen(false);
+    setDomainLoading(true);
     try {
       await updateTask(task.id, { domain_id: domainId });
+      setIsPickerOpen(false);
       onMutate();
-    } catch {
+    } catch (err) {
+      console.error("Failed to update domain:", err);
       setDomainError(true);
-      setTimeout(() => setDomainError(false), 2000);
+    } finally {
+      setDomainLoading(false);
     }
   }
 
   useEffect(() => {
+    if (!domainError) return;
+    const timer = setTimeout(() => setDomainError(false), 2000);
+    return () => clearTimeout(timer);
+  }, [domainError]);
+
+  useEffect(() => {
     if (!isPickerOpen) return;
     function handleClickOutside(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      const target = e.target;
+      if (target instanceof Node && pickerRef.current && !pickerRef.current.contains(target)) {
         setIsPickerOpen(false);
       }
     }
     function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape") setIsPickerOpen(false);
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setIsPickerOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
@@ -305,12 +319,16 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
           <div className="relative shrink-0" ref={pickerRef}>
             <button
               onClick={() => setIsPickerOpen(!isPickerOpen)}
+              disabled={domainLoading}
               className={cn(
                 "h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
                 domainError
                   ? "border-accent-red"
                   : "border-border hover:border-text-secondary",
+                domainLoading && "opacity-50",
               )}
+              aria-label={task.domain ? `Domain: ${task.domain.name}. Click to change` : "Set domain"}
+              aria-expanded={isPickerOpen}
               title={task.domain ? `${task.domain.name} (click to change)` : "Set domain"}
             >
               {task.domain ? (
@@ -328,10 +346,12 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
                   <button
                     key={d.id}
                     onClick={() => selectDomain(d.id)}
+                    disabled={domainLoading}
                     className={cn(
                       "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
                       task.domain?.id === d.id && "ring-2 ring-text-secondary ring-offset-1 ring-offset-bg-card",
                     )}
+                    aria-label={`Set domain to ${d.name}`}
                     title={d.name}
                   >
                     <span
@@ -342,10 +362,12 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
                 ))}
                 <button
                   onClick={() => selectDomain(null)}
+                  disabled={domainLoading}
                   className={cn(
                     "h-5 w-5 rounded-full flex items-center justify-center text-text-muted hover:text-text-secondary transition-colors",
                     !task.domain && "ring-2 ring-text-secondary ring-offset-1 ring-offset-bg-card",
                   )}
+                  aria-label="Clear domain"
                   title="Clear domain"
                 >
                   <span className="text-xs">×</span>
