@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Task } from "@/lib/api-types";
-import { completeTask, deleteTask } from "@/lib/api";
+import { completeTask, deleteTask, updateTask } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
 
 interface TaskItemProps {
@@ -13,9 +13,56 @@ interface TaskItemProps {
 export function TaskItem({ task, onMutate }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(task.text);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isComplete = task.status === "complete";
   const hasChildren = task.children.length > 0;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  function startEditing() {
+    if (isComplete || loading) return;
+    setDraftText(task.text);
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setDraftText(task.text);
+    setIsEditing(false);
+  }
+
+  async function saveEdit() {
+    const trimmed = draftText.trim();
+    if (!trimmed || loading) return;
+    if (trimmed === task.text) {
+      setIsEditing(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      await updateTask(task.id, { text: trimmed });
+      setIsEditing(false);
+      onMutate();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === "Escape") {
+      cancelEditing();
+    }
+  }
 
   async function handleComplete() {
     if (isComplete || loading) return;
@@ -61,16 +108,58 @@ export function TaskItem({ task, onMutate }: TaskItemProps) {
           />
         )}
 
-        {/* Text + subtask toggle */}
-        <button
-          className={cn(
-            "flex-1 text-left text-sm",
-            isComplete ? "line-through text-text-muted" : "text-text-primary",
-          )}
-          onClick={() => hasChildren && setExpanded(!expanded)}
-        >
-          {task.text}
-        </button>
+        {/* Text: edit mode or display mode */}
+        {isEditing ? (
+          <div className="flex-1 flex items-center gap-2">
+            <input
+              ref={inputRef}
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={saveEdit}
+              disabled={loading}
+              maxLength={500}
+              className="flex-1 bg-bg-input border border-border rounded px-2 py-0.5 text-sm text-text-primary outline-none focus:border-accent-blue"
+            />
+            {loading && (
+              <span className="text-xs text-text-muted shrink-0">Saving…</span>
+            )}
+          </div>
+        ) : (
+          <button
+            className={cn(
+              "flex-1 text-left text-sm",
+              isComplete ? "line-through text-text-muted" : "text-text-primary",
+              !isComplete && "cursor-text",
+            )}
+            onClick={() => {
+              if (hasChildren && !isComplete) {
+                setExpanded(!expanded);
+              } else if (!isComplete) {
+                startEditing();
+              }
+            }}
+            onDoubleClick={(e) => {
+              if (!isComplete) {
+                e.stopPropagation();
+                startEditing();
+              }
+            }}
+          >
+            {task.text}
+          </button>
+        )}
+
+        {/* Edit button (hover affordance for tasks with children) */}
+        {!isEditing && !isComplete && hasChildren && (
+          <button
+            onClick={startEditing}
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary transition-opacity text-xs"
+            title="Edit task"
+          >
+            ✎
+          </button>
+        )}
 
         {/* Subtask count */}
         {hasChildren && (
