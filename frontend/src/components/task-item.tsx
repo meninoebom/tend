@@ -163,7 +163,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
           onClick={handleComplete}
           disabled={isComplete}
           className={cn(
-            "shrink-0 h-5 w-5 rounded-full border-2 transition-colors flex items-center justify-center",
+            "shrink-0 h-5 w-5 rounded border-2 transition-colors flex items-center justify-center",
             isComplete
               ? "border-accent-green bg-accent-green"
               : "border-border hover:border-text-secondary",
@@ -312,7 +312,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
             >
               <span
                 className={cn(
-                  "h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                  "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0",
                   child.status === "complete"
                     ? "border-accent-green bg-accent-green"
                     : "border-border",
@@ -329,7 +329,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
           ))}
           {isAddingSubtask && (
             <div className="flex items-center gap-2 py-1.5">
-              <span className="h-4 w-4 rounded-full border-2 border-border shrink-0" />
+              <span className="h-4 w-4 rounded border-2 border-border shrink-0" />
               <input
                 ref={subtaskInputRef}
                 value={subtaskText}
