@@ -1,9 +1,121 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { Task, Domain } from "@/lib/api-types";
+import type { Task, Domain, SubTask } from "@/lib/api-types";
 import { completeTask, createTask, deleteTask, updateTask } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
+
+interface SubtaskItemProps {
+  child: SubTask;
+  onMutate: () => void;
+}
+
+function SubtaskItem({ child, onMutate }: SubtaskItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(child.text);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isComplete = child.status === "complete";
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  async function saveEdit() {
+    const trimmed = draftText.trim();
+    if (!trimmed || loading) return;
+    if (trimmed === child.text) {
+      setIsEditing(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      await updateTask(child.id, { text: trimmed });
+      setIsEditing(false);
+      onMutate();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === "Escape") {
+      setDraftText(child.text);
+      setIsEditing(false);
+    }
+  }
+
+  async function handleComplete() {
+    if (isComplete || loading) return;
+    setLoading(true);
+    await completeTask(child.id);
+    onMutate();
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 py-1.5 text-sm group/subtask",
+        isComplete && "opacity-40 line-through",
+      )}
+    >
+      <button
+        onClick={handleComplete}
+        disabled={isComplete}
+        className={cn(
+          "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
+          isComplete
+            ? "border-accent-green bg-accent-green"
+            : "border-border hover:border-text-secondary",
+        )}
+      >
+        {isComplete && (
+          <svg className="h-2.5 w-2.5 text-bg-root" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </button>
+      {isEditing ? (
+        <div className="flex-1 flex items-center gap-2">
+          <input
+            ref={inputRef}
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={saveEdit}
+            disabled={loading}
+            maxLength={500}
+            className="flex-1 bg-bg-input border border-border rounded px-2 py-0.5 text-sm text-text-primary outline-none focus:border-accent-blue"
+          />
+          {loading && (
+            <span className="text-xs text-text-muted shrink-0">Saving…</span>
+          )}
+        </div>
+      ) : (
+        <button
+          className={cn(
+            "flex-1 text-left text-text-secondary",
+            !isComplete && "cursor-text",
+          )}
+          onClick={() => {
+            if (!isComplete) {
+              setDraftText(child.text);
+              setIsEditing(true);
+            }
+          }}
+        >
+          {child.text}
+        </button>
+      )}
+    </div>
+  );
+}
 
 interface TaskItemProps {
   task: Task;
@@ -303,29 +415,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
       {(expanded && hasChildren) || isAddingSubtask ? (
         <div className="ml-8 border-l border-border pl-3">
           {task.children.map((child) => (
-            <div
-              key={child.id}
-              className={cn(
-                "flex items-center gap-2 py-1.5 text-sm",
-                child.status === "complete" && "opacity-40 line-through",
-              )}
-            >
-              <span
-                className={cn(
-                  "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0",
-                  child.status === "complete"
-                    ? "border-accent-green bg-accent-green"
-                    : "border-border",
-                )}
-              >
-                {child.status === "complete" && (
-                  <svg className="h-2.5 w-2.5 text-bg-root" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </span>
-              <span className="text-text-secondary">{child.text}</span>
-            </div>
+            <SubtaskItem key={child.id} child={child} onMutate={onMutate} />
           ))}
           {isAddingSubtask && (
             <div className="flex items-center gap-2 py-1.5">
