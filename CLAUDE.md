@@ -80,6 +80,7 @@ tend/
 │   ├── start.py        # Railway startup: validate env, run migrations, start uvicorn
 │   └── railway.toml
 ├── docs/               # PRD, plans, playground, solutions/learnings
+│   └── log/            # Build-in-public learning journal (numbered entries)
 ├── src/                # (prototype — reference only)
 ├── src-tauri/          # (prototype — reference only)
 └── CLAUDE.md           # this file
@@ -101,6 +102,35 @@ tend/
 - **Git:** Branch naming per `~/.claude/CLAUDE.md` conventions (feature/, bugfix/, etc.)
 - **Testing:** Shared DB with rollback per test, factory fixtures, auth mock
 - **Migrations:** Date-prefixed Alembic filenames, pre-flight verification
+
+## Learning Log (Build in Public)
+
+After completing a task (commit + PR created), offer a reflection prompt:
+
+> "This might be worth a log entry — want to reflect on it, or skip?"
+
+**Skip-worthy:** typo fixes, dependency bumps, minor CSS tweaks, config changes.
+**Log-worthy:** new features, architecture decisions, deployment milestones, anything where a decision was made or something was learned.
+
+If Brandon says yes (or the work is clearly substantial):
+
+1. **Summarize** — Write a 2-3 sentence summary of what was built and why
+2. **Coach** — Ask Brandon 2-3 reflection questions that:
+   - Connect the specific work to broader product/engineering concepts
+   - Surface a dimension he hasn't covered recently (check `docs/log/README.md`)
+   - Push toward "founder thinking" — not just "what" but "why" and "what did you learn"
+3. **Capture** — After Brandon responds, create the log entry in `docs/log/NNN-slug.md`
+4. **Update** — Update the dimensions table in `docs/log/README.md`
+
+If Brandon says skip, move on. No guilt, no log entry.
+
+Coaching questions should feel like a conversation, not an exam. Examples:
+- "The click-vs-double-click decision in task-item — how did you think about that UX trade-off?"
+- "This was a frontend-only change. What would need to change on the backend if you wanted to add edit history?"
+- "You're 4 phases into a 6-phase plan. What's surprised you most about the gap between planning and building?"
+- "If a hiring manager read this PR, what would you want them to notice about how you work?"
+
+The log lives at `docs/log/`. Entries are numbered (001, 002, ...) with slug filenames.
 
 ## Railway Deployment Notes
 
