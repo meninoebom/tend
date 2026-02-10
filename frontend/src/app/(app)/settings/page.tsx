@@ -84,7 +84,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-6">
-      <h1 className="text-lg font-semibold text-text-primary">Settings</h1>
+      <h1 className="text-xl font-semibold text-text-primary">Settings</h1>
 
       {/* Domains */}
       <section className="space-y-3">

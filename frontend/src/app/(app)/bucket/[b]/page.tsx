@@ -71,7 +71,7 @@ export default function BucketPage() {
         >
           &larr;
         </button>
-        <h1 className="text-lg font-semibold text-text-primary">
+        <h1 className="text-xl font-semibold text-text-primary">
           {BUCKET_LABELS[bucket]}
         </h1>
         <span className="text-xs text-text-muted">{pending.length} tasks</span>
