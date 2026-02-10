@@ -59,7 +59,7 @@ export default function TodayPage() {
               {nudge.today_count === 1 ? "task" : "tasks"} today
             </span>
           </div>
-          {nudge.average_completed > 0 && (
+          {Math.round(nudge.average_completed) > 0 && (
             <p className="mt-1 text-sm text-accent-amber">
               You usually finish ~{Math.round(nudge.average_completed)}
             </p>
