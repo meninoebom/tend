@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getTriageQueue, getMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -50,12 +50,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [triageChecked, setTriageChecked] = useState(false);
+  const onboardingVerified = useRef(false);
 
   const skipGates = pathname === "/triage" || pathname === "/settings" || pathname === "/onboarding";
 
   // Onboarding gate: redirect to /onboarding if not completed (runs before triage gate)
   useEffect(() => {
     if (skipGates) return;
+    if (onboardingVerified.current) {
+      setOnboardingChecked(true);
+      return;
+    }
     let cancelled = false;
     getMe()
       .then((user) => {
@@ -63,11 +68,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (!user.has_completed_onboarding) {
           router.replace("/onboarding");
         } else {
+          onboardingVerified.current = true;
           setOnboardingChecked(true);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
+        console.error("Onboarding check failed:", err);
         setOnboardingChecked(true); // fail open
       });
     return () => { cancelled = true; };
@@ -86,8 +93,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           setTriageChecked(true);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
+        console.error("Triage check failed:", err);
         setTriageChecked(true);
       });
     return () => { cancelled = true; };
@@ -107,30 +115,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Bottom nav */}
-      {!hideNav && <nav className="sticky bottom-0 bg-bg-card border-t border-border">
-        <div className="flex justify-around max-w-lg mx-auto">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href.startsWith("/bucket/") && pathname === item.href);
+      {!hideNav && (
+        <nav className="sticky bottom-0 bg-bg-card border-t border-border">
+          <div className="flex justify-around max-w-lg mx-auto">
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname === item.href;
 
-            return (
-              <button
-                key={item.href}
-                onClick={() => router.push(item.href)}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "flex flex-col items-center gap-1 py-2.5 px-3 text-xs transition-colors min-h-[44px]",
-                  isActive ? "text-text-primary" : "text-text-muted hover:text-text-secondary",
-                )}
-              >
-                <NavIcon name={item.icon} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>}
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex flex-col items-center gap-1 py-2.5 px-3 text-xs transition-colors min-h-[44px]",
+                    isActive ? "text-text-primary" : "text-text-muted hover:text-text-secondary",
+                  )}
+                >
+                  <NavIcon name={item.icon} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Task, TriageQueue } from "@/lib/api-types";
+import type { TriageQueue } from "@/lib/api-types";
 import { getTriageQueue, getMe } from "@/lib/api";
 import { TriageCard } from "@/components/triage-card";
 
@@ -11,7 +11,7 @@ export default function TriagePage() {
   const [queue, setQueue] = useState<TriageQueue | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [hasTriagedBefore, setHasTriagedBefore] = useState(true);
+  const [showHints, setShowHints] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function TriagePage() {
           return;
         }
         setQueue(q);
-        setHasTriagedBefore(user.has_triaged_before);
+        setShowHints(!user.has_triaged_before);
         setShowExplainer(!user.has_triaged_before);
         setLoading(false);
       })
@@ -53,7 +53,7 @@ export default function TriagePage() {
     );
   }
 
-  const task: Task = queue.tasks[currentIndex];
+  const task = queue.tasks[currentIndex];
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center py-8">
@@ -80,7 +80,7 @@ export default function TriagePage() {
           task={task}
           progress={{ current: currentIndex + 1, total: queue.tasks.length }}
           onAction={handleAction}
-          showHints={!hasTriagedBefore}
+          showHints={showHints}
         />
       )}
     </div>

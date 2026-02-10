@@ -19,6 +19,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Step 2: domain state
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -35,17 +36,24 @@ export default function OnboardingPage() {
 
   // Guard: redirect if already onboarded
   useEffect(() => {
-    getMe().then((user) => {
-      if (user.has_completed_onboarding) {
-        router.replace("/today");
-      } else {
+    getMe()
+      .then((user) => {
+        if (user.has_completed_onboarding) {
+          router.replace("/today");
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Onboarding guard failed:", err);
         setLoading(false);
-      }
-    });
+      });
   }, [router]);
 
   const refreshDomains = useCallback(() => {
-    getDomains().then(setDomains);
+    getDomains()
+      .then(setDomains)
+      .catch((err) => console.error("Failed to load domains:", err));
   }, []);
 
   // Fetch domains when entering step 2
@@ -62,14 +70,22 @@ export default function OnboardingPage() {
   async function saveEdit(id: string) {
     const trimmed = editName.trim();
     if (!trimmed) return;
-    await updateDomain(id, { name: trimmed, color: editColor });
-    setEditingId(null);
-    refreshDomains();
+    try {
+      await updateDomain(id, { name: trimmed, color: editColor });
+      setEditingId(null);
+      refreshDomains();
+    } catch (err) {
+      console.error("Failed to save domain:", err);
+    }
   }
 
   async function handleDeleteDomain(id: string) {
-    await deleteDomain(id);
-    refreshDomains();
+    try {
+      await deleteDomain(id);
+      refreshDomains();
+    } catch (err) {
+      console.error("Failed to delete domain:", err);
+    }
   }
 
   function updateTask(index: number, field: "text" | "domainId", value: string | undefined) {
@@ -91,31 +107,22 @@ export default function OnboardingPage() {
     }
   }
 
-  async function completeOnboarding() {
+  async function finishOnboarding(withTasks: boolean) {
     if (completing) return;
     setCompleting(true);
+    setError(null);
     try {
-      // Create non-empty tasks
-      const toCreate = tasks.filter((t) => t.text.trim());
-      for (const t of toCreate) {
-        await createTask({ text: t.text.trim(), bucket: "today", domain_id: t.domainId });
+      if (withTasks) {
+        const toCreate = tasks.filter((t) => t.text.trim());
+        await Promise.all(
+          toCreate.map((t) => createTask({ text: t.text.trim(), bucket: "today", domain_id: t.domainId })),
+        );
       }
       await updateMe({ has_completed_onboarding: true });
       router.replace("/today");
     } catch (err) {
-      console.error("Onboarding completion failed:", err);
-      setCompleting(false);
-    }
-  }
-
-  async function skipTasks() {
-    if (completing) return;
-    setCompleting(true);
-    try {
-      await updateMe({ has_completed_onboarding: true });
-      router.replace("/today");
-    } catch (err) {
-      console.error("Onboarding skip failed:", err);
+      console.error("Onboarding failed:", err);
+      setError("Something went wrong. Please try again.");
       setCompleting(false);
     }
   }
@@ -289,7 +296,7 @@ export default function OnboardingPage() {
                   <input
                     value={task.text}
                     onChange={(e) => updateTask(i, "text", e.target.value)}
-                    placeholder={i === 0 ? "e.g. Review quarterly goals" : i === 1 ? "e.g. Schedule dentist" : "e.g. Read that article"}
+                    placeholder={["e.g. Review quarterly goals", "e.g. Schedule dentist", "e.g. Read that article"][i]}
                     maxLength={500}
                     className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
                   />
@@ -299,15 +306,18 @@ export default function OnboardingPage() {
           </div>
 
           <div className="flex flex-col items-center gap-3 mt-2">
+            {error && (
+              <p className="text-sm text-accent-red">{error}</p>
+            )}
             <button
-              onClick={completeOnboarding}
+              onClick={() => finishOnboarding(true)}
               disabled={completing}
               className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
             >
               {completing ? "Setting up..." : "Done"}
             </button>
             <button
-              onClick={skipTasks}
+              onClick={() => finishOnboarding(false)}
               disabled={completing}
               className="text-sm text-text-muted hover:text-text-secondary transition-colors"
             >
