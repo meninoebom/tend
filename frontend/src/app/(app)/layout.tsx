@@ -5,8 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { getTriageQueue } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-function NavIcon({ name, className }: { name: string; className?: string }) {
-  const props = { className: cn("h-5 w-5", className), viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+type NavIconName = "triage" | "today" | "soon" | "later" | "someday" | "settings";
+
+function NavIcon({ name, className }: { name: NavIconName; className?: string }) {
+  const props = {
+    className: cn("h-5 w-5", className),
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.75,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true as const,
+  };
   switch (name) {
     case "triage":
       return <svg {...props}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>;
@@ -25,7 +36,7 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
   }
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { href: string; label: string; icon: NavIconName }[] = [
   { href: "/triage", label: "Triage", icon: "triage" },
   { href: "/today", label: "Today", icon: "today" },
   { href: "/bucket/soon", label: "Soon", icon: "soon" },
@@ -90,6 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <button
                 key={item.href}
                 onClick={() => router.push(item.href)}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-1 py-2.5 px-3 text-xs transition-colors min-h-[44px]",
                   isActive ? "text-text-primary" : "text-text-muted hover:text-text-secondary",

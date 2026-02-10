@@ -354,6 +354,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
                         : "hover:bg-bg-hover",
                     )}
                     aria-label={`Set domain to ${d.name}`}
+                    title={d.name}
                   >
                     <span
                       className="h-2.5 w-2.5 rounded-full shrink-0"
@@ -372,6 +373,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
                       : "hover:bg-bg-hover",
                   )}
                   aria-label="Clear domain"
+                  title="None"
                 >
                   <span className="h-2.5 w-2.5 rounded-full border border-text-muted shrink-0" />
                   <span className="text-[10px] text-text-muted whitespace-nowrap">None</span>

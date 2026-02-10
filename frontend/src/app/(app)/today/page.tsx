@@ -51,7 +51,7 @@ export default function TodayPage() {
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
       {/* Nudge */}
-      {nudge && (
+      {nudge && nudge.today_count > 0 && (
         <div className="rounded-xl bg-bg-card border border-border px-5 py-5">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-text-primary">{nudge.today_count}</span>
