@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getTriageQueue } from "@/lib/api";
+import { getTriageQueue, getMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type NavIconName = "triage" | "today" | "soon" | "later" | "someday" | "settings";
@@ -48,15 +48,35 @@ const NAV_ITEMS: { href: string; label: string; icon: NavIconName }[] = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [triageChecked, setTriageChecked] = useState(false);
 
-  // Triage gate: redirect to /triage if not complete (skip for settings and triage itself)
+  const skipGates = pathname === "/triage" || pathname === "/settings" || pathname === "/onboarding";
+
+  // Onboarding gate: redirect to /onboarding if not completed (runs before triage gate)
   useEffect(() => {
-    const skip = pathname === "/triage" || pathname === "/settings";
-    if (skip) return;
-
+    if (skipGates) return;
     let cancelled = false;
+    getMe()
+      .then((user) => {
+        if (cancelled) return;
+        if (!user.has_completed_onboarding) {
+          router.replace("/onboarding");
+        } else {
+          setOnboardingChecked(true);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setOnboardingChecked(true); // fail open
+      });
+    return () => { cancelled = true; };
+  }, [pathname, router, skipGates]);
 
+  // Triage gate: redirect to /triage if not complete (only after onboarding confirmed)
+  useEffect(() => {
+    if (skipGates || !onboardingChecked) return;
+    let cancelled = false;
     getTriageQueue()
       .then((q) => {
         if (cancelled) return;
@@ -70,14 +90,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setTriageChecked(true);
       });
+    return () => { cancelled = true; };
+  }, [pathname, router, skipGates, onboardingChecked]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname, router]);
-
-  // Avoid setState inside effects for the skip routes; these routes can render immediately.
-  const showContent = pathname === "/triage" || pathname === "/settings" || triageChecked;
+  const showContent = skipGates || (onboardingChecked && triageChecked);
+  const hideNav = pathname === "/onboarding";
 
   return (
     <div className="flex flex-col min-h-screen bg-bg-root">
@@ -90,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Bottom nav */}
-      <nav className="sticky bottom-0 bg-bg-card border-t border-border">
+      {!hideNav && <nav className="sticky bottom-0 bg-bg-card border-t border-border">
         <div className="flex justify-around max-w-lg mx-auto">
           {NAV_ITEMS.map((item) => {
             const isActive =
@@ -113,7 +130,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </div>
-      </nav>
+      </nav>}
     </div>
   );
 }

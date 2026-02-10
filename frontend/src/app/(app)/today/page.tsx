@@ -17,6 +17,9 @@ export default function TodayPage() {
   const [nudge, setNudge] = useState<NudgeStats | null>(null);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showNudgeAnnotation] = useState(
+    () => typeof window !== "undefined" && !localStorage.getItem("tend:nudge_annotation_shown"),
+  );
 
   const refresh = useCallback(() => {
     Promise.all([
@@ -32,6 +35,13 @@ export default function TodayPage() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Mark nudge annotation as shown (one-time)
+  useEffect(() => {
+    if (showNudgeAnnotation && nudge && nudge.today_count > 0) {
+      localStorage.setItem("tend:nudge_annotation_shown", "true");
+    }
+  }, [showNudgeAnnotation, nudge]);
 
   const filtered = domainFilter
     ? tasks.filter((t) => t.domain?.id === domainFilter)
@@ -62,6 +72,11 @@ export default function TodayPage() {
           {Math.round(nudge.average_completed) > 0 && (
             <p className="mt-1 text-sm text-accent-amber">
               You usually finish ~{Math.round(nudge.average_completed)}
+            </p>
+          )}
+          {showNudgeAnnotation && (
+            <p className="mt-2 text-xs text-text-muted">
+              (based on your last 30 days &mdash; this gets more accurate over time)
             </p>
           )}
         </div>
