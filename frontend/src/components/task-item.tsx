@@ -429,7 +429,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
         {!isEditing && !isComplete && hasChildren && (
           <button
             onClick={startEditing}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary transition-opacity text-xs"
+            className="shrink-0 hover-action text-text-muted hover:text-text-secondary text-xs"
             title="Edit task"
           >
             ✎
@@ -440,7 +440,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
         {!isEditing && !isComplete && (
           <button
             onClick={startAddingSubtask}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary transition-opacity text-xs"
+            className="shrink-0 hover-action text-text-muted hover:text-text-secondary text-xs"
             title="Add subtask"
           >
             +
@@ -471,7 +471,7 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
         {/* Delete */}
         <button
           onClick={handleDelete}
-          className="shrink-0 opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent-red transition-opacity text-sm"
+          className="shrink-0 hover-action text-text-muted hover:text-accent-red text-sm"
         >
           ×
         </button>
