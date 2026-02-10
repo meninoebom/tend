@@ -44,7 +44,7 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-text-primary">Tend</h1>
+          <h1 className="text-4xl font-bold text-text-primary tracking-tight">Tend</h1>
           <p className="mt-2 text-sm text-text-secondary">
             Create your account
           </p>

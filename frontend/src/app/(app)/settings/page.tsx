@@ -84,7 +84,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-6">
-      <h1 className="text-lg font-semibold text-text-primary">Settings</h1>
+      <h1 className="text-xl font-semibold text-text-primary">Settings</h1>
 
       {/* Domains */}
       <section className="space-y-3">
@@ -197,20 +197,26 @@ export default function SettingsPage() {
         {user && (
           <p className="text-sm text-text-muted">{user.email}</p>
         )}
-        <div className="flex gap-3">
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="text-sm text-text-muted hover:text-text-secondary transition-colors"
-          >
-            Sign out
-          </button>
-          <button
-            onClick={handleDeleteAccount}
-            className="text-sm text-accent-red/70 hover:text-accent-red transition-colors"
-          >
-            Delete account
-          </button>
-        </div>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors"
+        >
+          Sign out
+        </button>
+      </section>
+
+      {/* Danger zone */}
+      <section className="mt-8 rounded-lg border border-accent-red/20 bg-accent-red/5 p-4 space-y-2">
+        <h2 className="text-sm font-medium text-accent-red">Danger zone</h2>
+        <p className="text-xs text-text-muted">
+          Permanently delete your account and all associated data.
+        </p>
+        <button
+          onClick={handleDeleteAccount}
+          className="text-sm text-accent-red border border-accent-red/30 rounded-lg px-4 py-2 hover:bg-accent-red/10 transition-colors"
+        >
+          Delete account
+        </button>
       </section>
     </div>
   );

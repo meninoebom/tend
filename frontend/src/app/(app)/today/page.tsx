@@ -51,9 +51,19 @@ export default function TodayPage() {
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
       {/* Nudge */}
-      {nudge && (
-        <div className="rounded-xl bg-bg-card border border-border px-4 py-3">
-          <p className="text-sm text-text-secondary">{nudge.message}</p>
+      {nudge && nudge.today_count > 0 && (
+        <div className="rounded-xl bg-bg-card border border-border px-5 py-5">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-text-primary">{nudge.today_count}</span>
+            <span className="text-base text-text-secondary">
+              {nudge.today_count === 1 ? "task" : "tasks"} today
+            </span>
+          </div>
+          {Math.round(nudge.average_completed) > 0 && (
+            <p className="mt-1 text-sm text-accent-amber">
+              You usually finish ~{Math.round(nudge.average_completed)}
+            </p>
+          )}
         </div>
       )}
 
@@ -95,9 +105,14 @@ export default function TodayPage() {
       {/* Pending tasks */}
       <div className="flex-1">
         {pending.length === 0 && completed.length === 0 && (
-          <p className="text-sm text-text-muted text-center py-8">
-            No tasks for today. Add one below.
-          </p>
+          <div className="text-center py-12 px-4">
+            <p className="text-base text-text-secondary">
+              Nothing on your plate today.
+            </p>
+            <p className="text-sm text-text-muted mt-1">
+              Add a task below, or check back after morning triage.
+            </p>
+          </div>
         )}
         {pending.map((task) => (
           <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
@@ -117,7 +132,7 @@ export default function TodayPage() {
       </div>
 
       {/* Task input */}
-      <div className="sticky bottom-0 bg-bg-root border-t border-border">
+      <div className="sticky bottom-0 bg-bg-root pb-2">
         <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
       </div>
 
