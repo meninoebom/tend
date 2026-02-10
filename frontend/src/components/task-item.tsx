@@ -341,36 +341,40 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
               )}
             </button>
             {isPickerOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-10 flex items-center gap-1.5 bg-bg-card border border-border rounded-full px-2 py-1.5 shadow-lg">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-10 flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg">
                 {domains.map((d) => (
                   <button
                     key={d.id}
                     onClick={() => selectDomain(d.id)}
                     disabled={domainLoading}
                     className={cn(
-                      "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
-                      task.domain?.id === d.id && "ring-2 ring-text-secondary ring-offset-1 ring-offset-bg-card",
+                      "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                      task.domain?.id === d.id
+                        ? "bg-bg-hover"
+                        : "hover:bg-bg-hover",
                     )}
                     aria-label={`Set domain to ${d.name}`}
-                    title={d.name}
                   >
                     <span
-                      className="h-3 w-3 rounded-full"
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: d.color }}
                     />
+                    <span className="text-[10px] text-text-secondary whitespace-nowrap">{d.name}</span>
                   </button>
                 ))}
                 <button
                   onClick={() => selectDomain(null)}
                   disabled={domainLoading}
                   className={cn(
-                    "h-5 w-5 rounded-full flex items-center justify-center text-text-muted hover:text-text-secondary transition-colors",
-                    !task.domain && "ring-2 ring-text-secondary ring-offset-1 ring-offset-bg-card",
+                    "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                    !task.domain
+                      ? "bg-bg-hover"
+                      : "hover:bg-bg-hover",
                   )}
                   aria-label="Clear domain"
-                  title="Clear domain"
                 >
-                  <span className="text-xs">×</span>
+                  <span className="h-2.5 w-2.5 rounded-full border border-text-muted shrink-0" />
+                  <span className="text-[10px] text-text-muted whitespace-nowrap">None</span>
                 </button>
               </div>
             )}
