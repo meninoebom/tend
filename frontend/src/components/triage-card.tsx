@@ -10,9 +10,10 @@ interface TriageCardProps {
   task: Task;
   progress: { current: number; total: number };
   onAction: (result: TriageResult) => void;
+  showHints?: boolean;
 }
 
-export function TriageCard({ task, progress, onAction }: TriageCardProps) {
+export function TriageCard({ task, progress, onAction, showHints = false }: TriageCardProps) {
   const [rewriteMode, setRewriteMode] = useState(false);
   const [rewriteText, setRewriteText] = useState(task.text);
   const [loading, setLoading] = useState(false);
@@ -130,28 +131,28 @@ export function TriageCard({ task, progress, onAction }: TriageCardProps) {
       <div className="grid grid-cols-4 gap-2 w-full">
         <ActionButton
           label="Today"
-          hint="do it today"
+          hint={showHints ? "do it today" : undefined}
           onClick={() => handleAction("confirm")}
           loading={loading}
           className="bg-accent-green/15 text-accent-green hover:bg-accent-green/25"
         />
         <ActionButton
           label="Soon"
-          hint="this week"
+          hint={showHints ? "this week" : undefined}
           onClick={() => handleAction("defer", "soon")}
           loading={loading}
           className="bg-accent-blue/15 text-accent-blue hover:bg-accent-blue/25"
         />
         <ActionButton
           label="Later"
-          hint="not now"
+          hint={showHints ? "not now" : undefined}
           onClick={() => handleAction("defer", "later")}
           loading={loading}
           className="bg-accent-amber/15 text-accent-amber hover:bg-accent-amber/25"
         />
         <ActionButton
           label="Someday"
-          hint="be honest"
+          hint={showHints ? "be honest" : undefined}
           onClick={() => handleAction("defer", "someday")}
           loading={loading}
           className="bg-text-muted/10 text-text-secondary hover:bg-text-muted/20"
@@ -162,14 +163,14 @@ export function TriageCard({ task, progress, onAction }: TriageCardProps) {
       <div className="grid grid-cols-2 gap-2 w-full">
         <ActionButton
           label="Done"
-          hint="already handled"
+          hint={showHints ? "already handled" : undefined}
           onClick={() => handleAction("complete")}
           loading={loading}
           className="bg-bg-surface text-text-secondary hover:bg-bg-hover"
         />
         <ActionButton
           label="Kill"
-          hint="doesn't matter"
+          hint={showHints ? "let it go" : undefined}
           onClick={() => handleAction("kill")}
           loading={loading}
           className="bg-bg-surface text-accent-red/70 hover:bg-accent-red/10"
@@ -187,7 +188,7 @@ function ActionButton({
   className,
 }: {
   label: string;
-  hint: string;
+  hint?: string;
   onClick: () => void;
   loading: boolean;
   className: string;
@@ -202,7 +203,7 @@ function ActionButton({
       )}
     >
       <span className="text-sm font-medium">{label}</span>
-      <span className="text-[10px] opacity-60">{hint}</span>
+      {hint && <span className="text-[10px] opacity-60">{hint}</span>}
     </button>
   );
 }

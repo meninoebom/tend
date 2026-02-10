@@ -12,13 +12,7 @@ import {
   deleteMe,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
-const PRESET_COLORS = [
-  "#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7",
-  "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
-];
-
-const MAX_DOMAINS = 5;
+import { PRESET_COLORS, MAX_DOMAINS } from "@/lib/constants";
 
 export default function SettingsPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
