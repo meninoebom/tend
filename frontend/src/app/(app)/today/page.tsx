@@ -95,9 +95,14 @@ export default function TodayPage() {
       {/* Pending tasks */}
       <div className="flex-1">
         {pending.length === 0 && completed.length === 0 && (
-          <p className="text-sm text-text-muted text-center py-8">
-            No tasks for today. Add one below.
-          </p>
+          <div className="text-center py-12 px-4">
+            <p className="text-base text-text-secondary">
+              Nothing on your plate today.
+            </p>
+            <p className="text-sm text-text-muted mt-1">
+              Add a task below, or check back after morning triage.
+            </p>
+          </div>
         )}
         {pending.map((task) => (
           <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
@@ -117,7 +122,7 @@ export default function TodayPage() {
       </div>
 
       {/* Task input */}
-      <div className="sticky bottom-0 bg-bg-root border-t border-border">
+      <div className="sticky bottom-0 bg-bg-root pb-2">
         <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
       </div>
 

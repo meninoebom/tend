@@ -44,7 +44,7 @@ export function TaskInput({ bucket, domains, onCreated }: TaskInputProps) {
   const activeDomain = domains.find((d) => d.id === domainId);
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 py-2">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-lg bg-bg-card border border-border px-3 py-2.5 my-2">
       {domains.length > 0 ? (
         <button
           type="button"

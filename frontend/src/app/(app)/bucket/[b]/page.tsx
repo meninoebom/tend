@@ -14,6 +14,12 @@ const BUCKET_LABELS: Record<string, string> = {
   someday: "Someday",
 };
 
+const EMPTY_MESSAGES: Record<string, string> = {
+  soon: "Tasks you push to \u2018this week\u2019 during morning triage will land here.",
+  later: "Parking lot for things that matter \u2014 but not right now.",
+  someday: "Be honest with yourself \u2014 will you actually do these?",
+};
+
 export default function BucketPage() {
   const params = useParams<{ b: string }>();
   const router = useRouter();
@@ -74,9 +80,11 @@ export default function BucketPage() {
       {/* Tasks */}
       <div className="flex-1">
         {pending.length === 0 && completed.length === 0 && (
-          <p className="text-sm text-text-muted text-center py-8">
-            No tasks here yet.
-          </p>
+          <div className="text-center py-12 px-4">
+            <p className="text-base text-text-secondary">
+              {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
+            </p>
+          </div>
         )}
         {pending.map((task) => (
           <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
@@ -95,7 +103,7 @@ export default function BucketPage() {
       </div>
 
       {/* Task input */}
-      <div className="sticky bottom-0 bg-bg-root border-t border-border">
+      <div className="sticky bottom-0 bg-bg-root pb-2">
         <TaskInput bucket={bucket} domains={domains} onCreated={refresh} />
       </div>
     </div>
