@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import type { Task, Domain, SubTask } from "@/lib/api-types";
 import { completeTask, createTask, deleteTask, updateTask } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
+import { DomainPicker } from "@/components/domain-picker";
 
 interface SubtaskItemProps {
   child: SubTask;
@@ -126,10 +127,6 @@ interface TaskItemProps {
 export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [domainError, setDomainError] = useState(false);
-  const [domainLoading, setDomainLoading] = useState(false);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,54 +150,6 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
       subtaskInputRef.current.focus();
     }
   }, [isAddingSubtask]);
-
-  async function selectDomain(domainId: string | null) {
-    if (isComplete || domainLoading) return;
-    if (domainId === (task.domain?.id ?? null)) {
-      setIsPickerOpen(false);
-      return;
-    }
-    setDomainError(false);
-    setDomainLoading(true);
-    try {
-      await updateTask(task.id, { domain_id: domainId });
-      setIsPickerOpen(false);
-      onMutate();
-    } catch (err) {
-      console.error("Failed to update domain:", err);
-      setDomainError(true);
-    } finally {
-      setDomainLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!domainError) return;
-    const timer = setTimeout(() => setDomainError(false), 2000);
-    return () => clearTimeout(timer);
-  }, [domainError]);
-
-  useEffect(() => {
-    if (!isPickerOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target;
-      if (target instanceof Node && pickerRef.current && !pickerRef.current.contains(target)) {
-        setIsPickerOpen(false);
-      }
-    }
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setIsPickerOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isPickerOpen]);
 
   function startEditing() {
     if (isComplete || loading) return;
@@ -316,71 +265,12 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
 
         {/* Domain dot (click to open picker) */}
         {!isComplete && domains.length > 0 ? (
-          <div className="relative shrink-0" ref={pickerRef}>
-            <button
-              onClick={() => setIsPickerOpen(!isPickerOpen)}
-              disabled={domainLoading}
-              className={cn(
-                "h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
-                domainError
-                  ? "border-accent-red"
-                  : "border-border hover:border-text-secondary",
-                domainLoading && "opacity-50",
-              )}
-              aria-label={task.domain ? `Domain: ${task.domain.name}. Click to change` : "Set domain"}
-              aria-expanded={isPickerOpen}
-              title={task.domain ? `${task.domain.name} (click to change)` : "Set domain"}
-            >
-              {task.domain ? (
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: task.domain.color }}
-                />
-              ) : (
-                <span className="text-text-muted text-[10px]">+</span>
-              )}
-            </button>
-            {isPickerOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-10 flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg">
-                {domains.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => selectDomain(d.id)}
-                    disabled={domainLoading}
-                    className={cn(
-                      "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
-                      task.domain?.id === d.id
-                        ? "bg-bg-hover"
-                        : "hover:bg-bg-hover",
-                    )}
-                    aria-label={`Set domain to ${d.name}`}
-                    title={d.name}
-                  >
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: d.color }}
-                    />
-                    <span className="text-[10px] text-text-secondary whitespace-nowrap">{d.name}</span>
-                  </button>
-                ))}
-                <button
-                  onClick={() => selectDomain(null)}
-                  disabled={domainLoading}
-                  className={cn(
-                    "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
-                    !task.domain
-                      ? "bg-bg-hover"
-                      : "hover:bg-bg-hover",
-                  )}
-                  aria-label="Clear domain"
-                  title="None"
-                >
-                  <span className="h-2.5 w-2.5 rounded-full border border-text-muted shrink-0" />
-                  <span className="text-[10px] text-text-muted whitespace-nowrap">None</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <DomainPicker
+            taskId={task.id}
+            currentDomain={task.domain}
+            domains={domains}
+            onMutate={onMutate}
+          />
         ) : task.domain ? (
           <span
             className="shrink-0 h-2.5 w-2.5 rounded-full"
