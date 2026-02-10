@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Task, TriageAction, BucketType } from "@/lib/api-types";
+import type { Task, TriageAction, TriageResult, BucketType } from "@/lib/api-types";
 import { submitTriage } from "@/lib/api";
 import { DomainBadge } from "@/components/domain-badge";
 import { formatAge, cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { formatAge, cn } from "@/lib/utils";
 interface TriageCardProps {
   task: Task;
   progress: { current: number; total: number };
-  onAction: (result: { triage_complete: boolean }) => void;
+  onAction: (result: TriageResult) => void;
 }
 
 export function TriageCard({ task, progress, onAction }: TriageCardProps) {
@@ -28,8 +28,13 @@ export function TriageCard({ task, progress, onAction }: TriageCardProps) {
     if (rewriteMode && rewriteText.trim() !== task.text) {
       body.rewritten_text = rewriteText.trim();
     }
-    const result = await submitTriage(task.id, body);
-    onAction(result);
+    try {
+      const result = await submitTriage(task.id, body);
+      onAction(result);
+    } catch (err) {
+      console.error("Triage action failed:", err);
+      setLoading(false);
+    }
   }
 
   return (

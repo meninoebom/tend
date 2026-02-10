@@ -25,8 +25,8 @@ export default function TriagePage() {
       .catch(() => setLoading(false));
   }, [router]);
 
-  function handleAction(result: { triage_complete: boolean }) {
-    if (result.triage_complete || !queue || currentIndex >= queue.tasks.length - 1) {
+  function handleAction(result: { triage_complete: boolean; remaining: number }) {
+    if (result.triage_complete || result.remaining === 0 || !queue || currentIndex >= queue.tasks.length - 1) {
       router.replace("/today");
       return;
     }
