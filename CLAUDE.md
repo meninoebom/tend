@@ -103,7 +103,15 @@ tend/
 - **Testing:** Shared DB with rollback per test, factory fixtures, auth mock
 - **Migrations:** Date-prefixed Alembic filenames, pre-flight verification
 
-## Learning Log (Build in Public)
+## After Completing Work (Agent Self-Assessment)
+
+Before wrapping up a non-trivial PR, self-assess:
+- What was the hardest decision or trickiest problem?
+- Did anything surprise you or require a workaround?
+- Would a future session benefit from knowing this?
+If yes, update this CLAUDE.md with the pattern or gotcha — don't wait to be asked.
+
+## Learning Log — Brandon's Journal (Build in Public)
 
 After completing a task (commit + PR created), offer a reflection prompt:
 
