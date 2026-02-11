@@ -6,9 +6,11 @@ import type { Task, Domain, BucketType } from "@/lib/api-types";
 import { getTasks, getDomains } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { TaskInput } from "@/components/task-input";
+import { formatAge } from "@/lib/utils";
 
 const VALID_BUCKETS = ["soon", "later", "someday"] as const;
 const BUCKET_LABELS: Record<string, string> = {
+  today: "Today",
   soon: "Soon",
   later: "Later",
   someday: "Someday",
@@ -27,18 +29,26 @@ export default function BucketPage() {
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isValid = VALID_BUCKETS.includes(bucket as (typeof VALID_BUCKETS)[number]);
 
+  const isSomeday = bucket === "someday";
+
   const refresh = useCallback(() => {
     if (!isValid) return;
-    Promise.all([getTasks({ bucket }), getDomains()]).then(([t, d]) => {
+    Promise.all([
+      getTasks({ bucket }),
+      getDomains(),
+      isSomeday ? getTasks({ status: "archived" }) : Promise.resolve([]),
+    ]).then(([t, d, archived]) => {
       setTasks(t);
       setDomains(d);
+      setArchivedTasks(archived);
       setLoading(false);
     });
-  }, [bucket, isValid]);
+  }, [bucket, isValid, isSomeday]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -102,6 +112,32 @@ export default function BucketPage() {
               <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
             ))}
           </div>
+        )}
+
+        {archivedTasks.length > 0 && (
+          <details className="mt-4 pt-4 border-t border-border">
+            <summary className="text-xs text-text-muted cursor-pointer hover:text-text-secondary">
+              Be honest with yourself &mdash; {archivedTasks.length} archived
+              {archivedTasks.length === 1 ? " task" : " tasks"}
+            </summary>
+            <div className="mt-2">
+              {archivedTasks.map((task) => (
+                <div key={task.id} className="flex items-center gap-3 py-2 px-3 text-sm text-text-muted">
+                  {task.domain && (
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: task.domain.color }}
+                    />
+                  )}
+                  <span className="flex-1">{task.text}</span>
+                  <span className="text-xs shrink-0">
+                    from {BUCKET_LABELS[task.bucket] ?? task.bucket}
+                  </span>
+                  <span className="text-xs shrink-0">{formatAge(task.age_days)}</span>
+                </div>
+              ))}
+            </div>
+          </details>
         )}
       </div>
     </div>
