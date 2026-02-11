@@ -8,7 +8,7 @@ Tend is a "conscious todo app" — it forces a daily morning triage where you de
 
 **Prototype:** Tauri v2 desktop app (Rust backend + vanilla TS frontend + SQLite) in `src-tauri/` and `src/`. Fully functional single-user app. Reference only.
 
-**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway. Phases 1-4 complete (data layer, API + services, auth, frontend core). Phases 5-6 remaining (onboarding, polish).
+**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). Remaining ops work: reaper cron scheduling.
 
 ## Key Documents
 
@@ -61,7 +61,7 @@ tend/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── (auth)/     # login, signup
-│   │   │   ├── (app)/      # triage, today, bucket/[b], settings
+│   │   │   ├── (app)/      # triage, today, winddown, bucket/[b], settings
 │   │   │   └── api/        # NextAuth + proxy catch-all + debug
 │   │   ├── components/     # triage-card, task-item, task-input, domain-badge
 │   │   ├── lib/            # api.ts, api-types.ts, utils.ts, backend-jwt.ts
@@ -92,8 +92,8 @@ tend/
 2. ~~**Services & API**~~ — all business logic in services, all endpoints, 55 tests
 3. ~~**Authentication**~~ — NextAuth v5, email/password, proxy JWT, user creation
 4. ~~**Frontend Core**~~ — 4 screens (triage, today, bucket, settings), hand-written TS types, deployed to Railway
-5. **Onboarding** — 3-step flow, first-time triage education, empty states
-6. **Polish** — wind-down, mobile responsiveness, error handling refinements
+5. ~~**Onboarding**~~ — 3-step flow, first-time triage education, empty states
+6. ~~**Polish**~~ — wind-down nav swap, task input relocation, archived tasks view, delete error handling
 
 ## Conventions
 
@@ -153,6 +153,42 @@ Both services deploy to Railway in a single project with managed PostgreSQL. Key
 - **Debug endpoint** — `frontend/src/app/api/debug/route.ts` reports env var status. Remove before production.
 
 Full details: `docs/solutions/deployment-issues/railway-two-service-deployment.md`
+
+## Frontend Patterns & Gotchas
+
+### Nav bar: Triage ↔ Wind Down swap
+Triage and Wind Down are mutually exclusive (morning gate vs evening flow). Once `triageChecked` is true in `layout.tsx`, the Triage nav slot swaps to Wind Down (moon icon). This was the result of 4 rejected placement attempts — the lesson is that repurposing existing UI beats adding new UI when two features are temporally exclusive.
+
+### Sticky bottom elements overlap
+If a page uses `sticky bottom-0` (e.g., task input) inside `<main>`, it will be hidden behind the layout's `sticky bottom-0` nav bar. Two sticky-bottom elements in nested containers fight. **Solution:** Don't use sticky-bottom for page content. The task input now lives at the top of the task list (standard Todoist/Things pattern), not stuck to the bottom.
+
+### Wind-down page: use local index tracking, NOT backend `remaining`
+The wind-down page reuses `TriageCard` but must NOT check `result.remaining` or `result.triage_complete` from triage actions. Those values reflect morning triage state across all buckets, not wind-down state. Instead, track `currentIndex` locally and advance through the `tasks[]` array. When `currentIndex >= tasks.length - 1`, redirect to `/today`.
+
+### Always add try/catch to async handlers that set loading state
+If `setLoading(true)` runs before an API call and the call fails without a catch, `loading` stays `true` permanently, disabling the button forever. Every `async function handleX()` that sets loading needs a try/catch that resets loading on failure. Pattern:
+```tsx
+async function handleDelete() {
+  if (loading) return;
+  setLoading(true);
+  try {
+    await deleteTask(task.id);
+    onMutate();
+  } catch (err) {
+    console.error("Failed to delete:", err);
+    setLoading(false);
+  }
+}
+```
+
+### Archived tasks: backend already supports it
+`GET /tasks?status=archived` works out of the box — the task listing endpoint accepts status as a query param, and `TaskStatus.archived` is already in the enum. The frontend `getTasks({ status: "archived" })` also works. The archived tasks view on the Someday page was 38 lines of JSX with zero backend changes. **Lesson:** Check existing API capabilities before planning new endpoints.
+
+### Inline read-only rendering vs reusable component
+`TaskItem` is 410 lines of interactive state (editing, subtasks, delete, domain picker). For the archived tasks view (read-only: text + domain dot + bucket label + age), inline JSX is simpler than threading a `readOnly` prop through 10+ conditional branches. Don't force reuse when the use case is fundamentally different.
+
+### Native `<details>/<summary>` for disclosure
+Use native HTML `<details>` instead of `useState` toggles for collapsible sections. Zero JavaScript, accessible by default, semantically correct. Style with Tailwind. Used for the archived tasks disclosure on the Someday page.
 
 ## What's Deferred (NOT v0.1.0)
 
