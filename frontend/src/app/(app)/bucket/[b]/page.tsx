@@ -77,6 +77,9 @@ export default function BucketPage() {
         <span className="text-xs text-text-muted">{pending.length} tasks</span>
       </div>
 
+      {/* Task input */}
+      <TaskInput bucket={bucket} domains={domains} onCreated={refresh} />
+
       {/* Tasks */}
       <div className="flex-1">
         {pending.length === 0 && completed.length === 0 && (
@@ -100,11 +103,6 @@ export default function BucketPage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Task input */}
-      <div className="sticky bottom-0 bg-bg-root pb-2">
-        <TaskInput bucket={bucket} domains={domains} onCreated={refresh} />
       </div>
     </div>
   );
