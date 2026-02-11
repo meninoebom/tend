@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getTriageQueue, getMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type NavIconName = "triage" | "today" | "soon" | "later" | "someday" | "settings";
+type NavIconName = "triage" | "winddown" | "today" | "soon" | "later" | "someday" | "settings";
 
 function NavIcon({ name, className }: { name: NavIconName; className?: string }) {
   const props = {
@@ -21,6 +21,8 @@ function NavIcon({ name, className }: { name: NavIconName; className?: string })
   switch (name) {
     case "triage":
       return <svg {...props}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>;
+    case "winddown":
+      return <svg {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>;
     case "today":
       return <svg {...props}><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>;
     case "soon":
@@ -36,15 +38,6 @@ function NavIcon({ name, className }: { name: NavIconName; className?: string })
   }
 }
 
-const NAV_ITEMS: { href: string; label: string; icon: NavIconName }[] = [
-  { href: "/triage", label: "Triage", icon: "triage" },
-  { href: "/today", label: "Today", icon: "today" },
-  { href: "/bucket/soon", label: "Soon", icon: "soon" },
-  { href: "/bucket/later", label: "Later", icon: "later" },
-  { href: "/bucket/someday", label: "Someday", icon: "someday" },
-  { href: "/settings", label: "Settings", icon: "settings" },
-];
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -53,6 +46,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const onboardingVerified = useRef(false);
 
   const skipGates = pathname === "/triage" || pathname === "/settings" || pathname === "/onboarding";
+
+  const navItems: { href: string; label: string; icon: NavIconName }[] = [
+    triageChecked
+      ? { href: "/winddown", label: "Wind down", icon: "winddown" }
+      : { href: "/triage", label: "Triage", icon: "triage" },
+    { href: "/today", label: "Today", icon: "today" },
+    { href: "/bucket/soon", label: "Soon", icon: "soon" },
+    { href: "/bucket/later", label: "Later", icon: "later" },
+    { href: "/bucket/someday", label: "Someday", icon: "someday" },
+    { href: "/settings", label: "Settings", icon: "settings" },
+  ];
 
   // Onboarding gate: redirect to /onboarding if not completed (runs before triage gate)
   useEffect(() => {
@@ -118,7 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {!hideNav && (
         <nav className="sticky bottom-0 bg-bg-card border-t border-border">
           <div className="flex justify-around max-w-lg mx-auto">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const isActive = pathname === item.href;
 
               return (
