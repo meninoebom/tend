@@ -150,16 +150,6 @@ export default function TodayPage() {
       <div className="sticky bottom-0 bg-bg-root pb-2">
         <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
       </div>
-
-      {/* Wind down */}
-      {tasks.some((t) => t.status === "pending") && (
-        <button
-          onClick={() => router.push("/winddown")}
-          className="text-sm text-text-muted hover:text-text-secondary transition-colors text-center py-2"
-        >
-          Wind down for the day
-        </button>
-      )}
     </div>
   );
 }

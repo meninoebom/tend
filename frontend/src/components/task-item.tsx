@@ -238,8 +238,13 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
   async function handleDelete() {
     if (loading) return;
     setLoading(true);
-    await deleteTask(task.id);
-    onMutate();
+    try {
+      await deleteTask(task.id);
+      onMutate();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+      setLoading(false);
+    }
   }
 
   return (
