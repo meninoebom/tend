@@ -152,12 +152,14 @@ export default function TodayPage() {
       </div>
 
       {/* Wind down */}
-      <button
-        onClick={() => router.push("/winddown")}
-        className="text-sm text-text-muted hover:text-text-secondary transition-colors text-center py-2"
-      >
-        Wind down for the day
-      </button>
+      {tasks.some((t) => t.status === "pending") && (
+        <button
+          onClick={() => router.push("/winddown")}
+          className="text-sm text-text-muted hover:text-text-secondary transition-colors text-center py-2"
+        >
+          Wind down for the day
+        </button>
+      )}
     </div>
   );
 }
