@@ -11,6 +11,7 @@ export default function WinddownPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     getWinddown()
@@ -20,6 +21,7 @@ export default function WinddownPage() {
       })
       .catch((err) => {
         console.error("Failed to load winddown tasks:", err);
+        setError(true);
         setLoading(false);
       });
   }, []);
@@ -36,6 +38,22 @@ export default function WinddownPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-text-muted">Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <p className="text-base text-text-secondary">
+          Couldn&apos;t load your tasks.
+        </p>
+        <button
+          onClick={() => router.push("/today")}
+          className="text-sm text-accent-blue hover:underline"
+        >
+          Back to Today
+        </button>
       </div>
     );
   }
