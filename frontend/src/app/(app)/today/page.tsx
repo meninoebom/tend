@@ -117,7 +117,10 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* Pending tasks */}
+      {/* Task input */}
+      <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
+
+      {/* Task list */}
       <div className="flex-1">
         {pending.length === 0 && completed.length === 0 && (
           <div className="text-center py-12 px-4">
@@ -125,7 +128,7 @@ export default function TodayPage() {
               Nothing on your plate today.
             </p>
             <p className="text-sm text-text-muted mt-1">
-              Add a task below, or check back after morning triage.
+              Add a task above, or check back after morning triage.
             </p>
           </div>
         )}
@@ -144,11 +147,6 @@ export default function TodayPage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Task input */}
-      <div className="sticky bottom-0 bg-bg-root pb-2">
-        <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
       </div>
     </div>
   );
