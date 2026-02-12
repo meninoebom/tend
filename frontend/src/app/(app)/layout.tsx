@@ -9,7 +9,7 @@ type NavIconName = "winddown" | "today" | "soon" | "later" | "someday" | "settin
 
 function NavIcon({ name, className }: { name: NavIconName; className?: string }) {
   const props = {
-    className: cn("h-5 w-5", className),
+    className: cn("h-[18px] w-[18px]", className),
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -104,41 +104,77 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const showContent = skipGates || (onboardingChecked && triageChecked);
   const hideNav = pathname === "/onboarding";
 
+  const mainNavItems = navItems.filter((item) => item.icon !== "settings");
+  const settingsItem = navItems.find((item) => item.icon === "settings")!;
+
   return (
-    <div className="flex flex-col min-h-screen bg-bg-root">
-      <main className="flex-1">
-        {showContent ? children : (
-          <div className="flex min-h-screen items-center justify-center">
-            <p className="text-sm text-text-muted">Loading...</p>
-          </div>
-        )}
-      </main>
-
-      {/* Bottom nav */}
+    <div className="flex min-h-screen bg-bg-root">
+      {/* Left sidebar */}
       {!hideNav && (
-        <nav className="sticky bottom-0 bg-bg-card border-t border-border">
-          <div className="flex justify-around max-w-lg mx-auto">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
+        <nav className="fixed inset-y-0 left-0 w-56 bg-bg-card flex flex-col">
+          {/* App wordmark */}
+          <div className="px-6 pt-7 pb-5 mb-1">
+            <span className="text-[15px] font-semibold tracking-[0.15em] uppercase text-text-secondary">
+              Tend
+            </span>
+          </div>
 
+          {/* Main nav items */}
+          <div className="flex flex-col gap-0.5 px-3">
+            {mainNavItems.map((item) => {
+              const isActive = pathname === item.href;
               return (
                 <button
                   key={item.href}
                   onClick={() => router.push(item.href)}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex flex-col items-center gap-1 py-2.5 px-3 text-xs transition-colors min-h-[44px]",
-                    isActive ? "text-text-primary" : "text-text-muted hover:text-text-secondary",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150",
+                    isActive
+                      ? "bg-bg-hover text-text-primary font-medium"
+                      : "text-text-muted hover:text-text-secondary hover:bg-bg-hover/50",
                   )}
                 >
-                  <NavIcon name={item.icon} />
+                  <NavIcon
+                    name={item.icon}
+                    className={cn(isActive && "text-accent-blue")}
+                  />
                   <span>{item.label}</span>
                 </button>
               );
             })}
           </div>
+
+          {/* Settings — pushed to bottom */}
+          <div className="mt-auto mx-3 pt-3 pb-4 border-t border-border/50">
+            <button
+              onClick={() => router.push(settingsItem.href)}
+              aria-current={pathname === settingsItem.href ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 w-full",
+                pathname === settingsItem.href
+                  ? "bg-bg-hover text-text-primary font-medium"
+                  : "text-text-muted hover:text-text-secondary hover:bg-bg-hover/50",
+              )}
+            >
+              <NavIcon
+                name={settingsItem.icon}
+                className={cn(pathname === settingsItem.href && "text-accent-blue")}
+              />
+              <span>{settingsItem.label}</span>
+            </button>
+          </div>
         </nav>
       )}
+
+      {/* Main content */}
+      <main className={cn("flex-1 min-w-0", !hideNav && "ml-56")}>
+        {showContent ? children : (
+          <div className="flex min-h-screen items-center justify-center">
+            <p className="text-sm text-text-muted">Loading...</p>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
