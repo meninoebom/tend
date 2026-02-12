@@ -31,6 +31,9 @@ export default function TodayPage() {
       setDomains(d);
       setNudge(n);
       setLoading(false);
+    }).catch((err) => {
+      console.error("Failed to load today:", err);
+      setLoading(false);
     });
   }, []);
 

@@ -29,6 +29,9 @@ export default function SettingsPage() {
       setDomains(d);
       setUser(u);
       setLoading(false);
+    }).catch((err) => {
+      console.error("Failed to load settings:", err);
+      setLoading(false);
     });
   }, []);
 

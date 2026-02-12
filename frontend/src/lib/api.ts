@@ -27,6 +27,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.location.href = "/login";
+      return new Promise(() => {}) as T; // halt further execution during redirect
+    }
     const body = await res.json().catch(() => ({}));
     throw new ApiError(res.status, body.code ?? "unknown", body.message ?? "Request failed");
   }

@@ -40,6 +40,7 @@ async function handler(
       method: req.method,
       headers,
       body: req.method !== "GET" && req.method !== "DELETE" ? await req.text() : undefined,
+      signal: AbortSignal.timeout(15000),
     });
 
     // Stream the response back

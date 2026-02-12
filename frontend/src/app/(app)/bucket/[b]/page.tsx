@@ -47,6 +47,9 @@ export default function BucketPage() {
       setDomains(d);
       setArchivedTasks(archived);
       setLoading(false);
+    }).catch((err) => {
+      console.error("Failed to load bucket:", err);
+      setLoading(false);
     });
   }, [bucket, isValid, isSomeday]);
 
