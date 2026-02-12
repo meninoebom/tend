@@ -1,13 +1,24 @@
 import uuid
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from jose import JWTError, jwt
 from sqlmodel import Session, select
 
+from app.core.config import settings
 from app.core.deps import get_db
 from app.core.errors import AppError, NotFoundError
-from app.core.security import get_current_user_id
+from app.core.rate_limit import limiter
+from app.core.security import ALGORITHM, get_current_user_id
 from app.models.user import User
-from app.schemas.user_schemas import UserCreate, UserResponse, UserUpdate, UserVerify
+from app.schemas.user_schemas import (
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+    UserVerify,
+)
 from app.services import domain_service
 
 router = APIRouter(tags=["account"])
@@ -25,7 +36,9 @@ def _to_response(user: User) -> UserResponse:
 
 
 @router.post("/users", response_model=UserResponse, status_code=201)
+@limiter.limit("5/minute")
 def create_user(
+    request: Request,
     body: UserCreate,
     db: Session = Depends(get_db),
 ):
@@ -34,10 +47,16 @@ def create_user(
 
     email = body.email.strip().lower()
 
-    # Handle double-click race: return existing user instead of 500
     existing = db.exec(select(User).where(User.email == email)).first()
     if existing:
-        return _to_response(existing)
+        # Email already registered. Reject with 409 to prevent:
+        # 1. Auth bypass (old code returned the user without verifying password)
+        # 2. User enumeration (old code returned different created_at/onboarding state)
+        raise AppError(
+            code="email_taken",
+            message="An account with this email already exists",
+            status_code=409,
+        )
 
     password_hash = None
     if body.password:
@@ -61,7 +80,9 @@ def create_user(
 
 
 @router.post("/users/verify", response_model=UserResponse)
+@limiter.limit("10/minute")
 def verify_user(
+    request: Request,
     body: UserVerify,
     db: Session = Depends(get_db),
 ):
@@ -70,7 +91,14 @@ def verify_user(
 
     email = body.email.strip().lower()
     user = db.exec(select(User).where(User.email == email)).first()
+
+    # Dummy hash to prevent timing-based user enumeration.
+    # Without this, "user not found" returns ~0ms (no bcrypt) vs
+    # "wrong password" returns ~100ms (bcrypt runs), leaking user existence.
+    _DUMMY_HASH = b"$2b$12$LJ3m4ys3Lz0YPmDqMN.JYOXBOvWYx0YXvKjK9Y8nF4W8xk8Z6m9e"
+
     if user is None or user.password_hash is None:
+        bcrypt.checkpw(b"dummy", _DUMMY_HASH)
         raise AppError(
             code="invalid_credentials",
             message="Invalid email or password",
@@ -130,3 +158,109 @@ def delete_me(
         raise NotFoundError("User not found")
     db.delete(user)
     db.flush()
+
+
+def _create_reset_token(user_id: uuid.UUID) -> str:
+    """Create a signed JWT for password reset (1-hour expiry)."""
+    payload = {
+        "sub": str(user_id),
+        "purpose": "password_reset",
+        "exp": datetime.utcnow() + timedelta(hours=1),
+        "iat": datetime.utcnow(),
+    }
+    return jwt.encode(payload, settings.internal_jwt_secret, algorithm=ALGORITHM)
+
+
+def _verify_reset_token(token: str) -> uuid.UUID:
+    """Validate a password reset JWT and return the user ID."""
+    try:
+        payload = jwt.decode(token, settings.internal_jwt_secret, algorithms=[ALGORITHM])
+    except JWTError:
+        raise AppError(
+            code="invalid_token",
+            message="Invalid or expired reset link",
+            status_code=400,
+        )
+
+    if payload.get("purpose") != "password_reset":
+        raise AppError(
+            code="invalid_token",
+            message="Invalid or expired reset link",
+            status_code=400,
+        )
+
+    try:
+        return uuid.UUID(payload["sub"])
+    except (KeyError, ValueError):
+        raise AppError(
+            code="invalid_token",
+            message="Invalid or expired reset link",
+            status_code=400,
+        )
+
+
+def _send_reset_email(to: str, token: str) -> None:
+    """Send password reset email via Resend."""
+    import resend
+
+    resend.api_key = settings.resend_api_key
+    reset_url = f"{settings.frontend_url}/reset-password?token={token}"
+
+    resend.Emails.send({
+        "from": "Tend <noreply@tend.gvempire.com>",
+        "to": [to],
+        "subject": "Reset your Tend password",
+        "html": (
+            f"<p>You requested a password reset for your Tend account.</p>"
+            f'<p><a href="{reset_url}">Click here to reset your password</a></p>'
+            f"<p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>"
+        ),
+    })
+
+
+@router.post("/users/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Request a password reset email. Always returns 200 to prevent user enumeration."""
+    email = body.email.strip().lower()
+    user = db.exec(select(User).where(User.email == email)).first()
+
+    if user is not None and user.password_hash is not None:
+        token = _create_reset_token(user.id)
+        if settings.resend_api_key:
+            _send_reset_email(email, token)
+
+    return {"message": "If an account exists with that email, a reset link has been sent."}
+
+
+@router.post("/users/reset-password")
+@limiter.limit("5/minute")
+def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Reset password using a valid reset token."""
+    import bcrypt
+
+    user_id = _verify_reset_token(body.token)
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise AppError(
+            code="invalid_token",
+            message="Invalid or expired reset link",
+            status_code=400,
+        )
+
+    user.password_hash = bcrypt.hashpw(
+        body.new_password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+    db.add(user)
+    db.flush()
+
+    return {"message": "Password has been reset successfully."}

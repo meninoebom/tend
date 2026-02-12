@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import APIRouter, Depends, Header
 from sqlmodel import Session
 
@@ -10,7 +12,9 @@ router = APIRouter(prefix="/reaper", tags=["reaper"])
 
 
 def _verify_reaper_key(x_reaper_key: str | None = Header(default=None)) -> None:
-    if x_reaper_key is None or x_reaper_key != settings.reaper_api_key:
+    if x_reaper_key is None or not hmac.compare_digest(
+        x_reaper_key.encode(), settings.reaper_api_key.encode()
+    ):
         raise AppError(code="unauthorized", message="Invalid reaper key", status_code=401)
 
 

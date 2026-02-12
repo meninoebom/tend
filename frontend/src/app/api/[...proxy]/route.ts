@@ -53,8 +53,8 @@ async function handler(
   } catch (err) {
     console.error("Proxy error:", err);
     return NextResponse.json(
-      { error: "Proxy error", detail: String(err) },
-      { status: 500 },
+      { error: "Internal server error" },
+      { status: 502 },
     );
   }
 }
