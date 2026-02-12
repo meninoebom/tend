@@ -8,7 +8,7 @@ Tend is a "conscious todo app" — it forces a daily morning triage where you de
 
 **Prototype:** Tauri v2 desktop app (Rust backend + vanilla TS frontend + SQLite) in `src-tauri/` and `src/`. Fully functional single-user app. Reference only.
 
-**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). Remaining ops work: reaper cron scheduling.
+**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). v0.2.0 security hardening + password reset done. Remaining ops work: reaper cron scheduling, make backend private on Railway.
 
 ## Key Documents
 
@@ -53,6 +53,15 @@ Services NEVER call `db.commit()`. The `get_db()` dependency owns commit/rollbac
 ### Daily Stats Upsert
 Composite PK (user_id, date). Use `INSERT ... ON CONFLICT DO UPDATE` (raw SQL via SQLAlchemy `insert().on_conflict_do_update()`).
 
+### Rate Limiting (v0.2.0)
+slowapi with in-memory storage. Auth endpoints (signup/login) are called server-to-server from Next.js, so `get_remote_address` sees the Next.js IP — rate limits are effectively global (5 signups/min, 10 logins/min total). Resets on deploy. Disabled in tests via `RATE_LIMIT_ENABLED=false`. Limiter lives in `core/rate_limit.py` to avoid circular imports.
+
+### Password Reset (v0.2.0)
+JWT-based tokens, no database migration. Token encodes `{sub: user_id, purpose: "password_reset", exp: +1hr}` signed with `INTERNAL_JWT_SECRET`. The `purpose` claim prevents proxy JWTs from being used as reset tokens. Email sent via Resend SDK. Forgot-password always returns 200 to prevent user enumeration.
+
+### Unauthenticated API Routes
+The main `[...proxy]` catch-all requires a NextAuth session. Endpoints that must work without auth (password reset, etc.) need their own routes in `frontend/src/app/api/` that forward to the backend directly. Same pattern as `auth.ts` calling `/users` and `/users/verify`.
+
 ## Project Structure
 
 ```
@@ -60,9 +69,9 @@ tend/
 ├── frontend/           # Next.js app (Railway)
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── (auth)/     # login, signup
+│   │   │   ├── (auth)/     # login, signup, forgot-password, reset-password
 │   │   │   ├── (app)/      # triage, today, winddown, bucket/[b], settings
-│   │   │   └── api/        # NextAuth + proxy catch-all + debug
+│   │   │   └── api/        # NextAuth + proxy catch-all + password-reset
 │   │   ├── components/     # triage-card, task-item, task-input, domain-badge
 │   │   ├── lib/            # api.ts, api-types.ts, utils.ts, backend-jwt.ts
 │   │   └── auth.ts         # NextAuth v5 config
@@ -71,7 +80,7 @@ tend/
 ├── backend/            # FastAPI app (Railway)
 │   ├── app/
 │   │   ├── api/        # routes: tasks, triage, domains, stats, reaper, account
-│   │   ├── core/       # config, deps (get_db), security (JWT validation), errors
+│   │   ├── core/       # config, deps (get_db), security, errors, rate_limit
 │   │   ├── models/     # user, task, domain, daily_stat, enums
 │   │   ├── schemas/    # request/response Pydantic models
 │   │   └── services/   # task_service, triage_service, domain_service, stats_service, reaper_service
@@ -150,7 +159,9 @@ Both services deploy to Railway in a single project with managed PostgreSQL. Key
 - **Node 20** — Set via `frontend/.node-version` for Railway Nixpacks (Next.js 16 requires >= 20.9.0).
 - **NextAuth on Railway** — Requires `AUTH_TRUST_HOST=true` and explicit `NEXTAUTH_SECRET`.
 - **Shared variables** — `INTERNAL_JWT_SECRET` is a Railway Shared Variable used by both frontend and backend.
-- **Debug endpoint** — `frontend/src/app/api/debug/route.ts` reports env var status. Remove before production.
+- ~~**Debug endpoint** — removed in v0.2.0 (was leaking backend URL)~~
+- **New v0.2.0 env vars** — `RESEND_API_KEY` (backend), `FRONTEND_URL` (backend, for reset email links)
+- **Make backend private** — TODO: Remove public domain from backend service in Railway dashboard. All traffic should go through Next.js proxy. Only expose webhook endpoints publicly if needed later.
 
 Full details: `docs/solutions/deployment-issues/railway-two-service-deployment.md`
 
