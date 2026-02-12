@@ -1,10 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session, select
 
 from app.core.deps import get_db
 from app.core.errors import AppError, NotFoundError
+from app.core.rate_limit import limiter
 from app.core.security import get_current_user_id
 from app.models.user import User
 from app.schemas.user_schemas import UserCreate, UserResponse, UserUpdate, UserVerify
@@ -25,7 +26,9 @@ def _to_response(user: User) -> UserResponse:
 
 
 @router.post("/users", response_model=UserResponse, status_code=201)
+@limiter.limit("5/minute")
 def create_user(
+    request: Request,
     body: UserCreate,
     db: Session = Depends(get_db),
 ):
@@ -34,10 +37,16 @@ def create_user(
 
     email = body.email.strip().lower()
 
-    # Handle double-click race: return existing user instead of 500
     existing = db.exec(select(User).where(User.email == email)).first()
     if existing:
-        return _to_response(existing)
+        # Email already registered. Reject with 409 to prevent:
+        # 1. Auth bypass (old code returned the user without verifying password)
+        # 2. User enumeration (old code returned different created_at/onboarding state)
+        raise AppError(
+            code="email_taken",
+            message="An account with this email already exists",
+            status_code=409,
+        )
 
     password_hash = None
     if body.password:
@@ -61,7 +70,9 @@ def create_user(
 
 
 @router.post("/users/verify", response_model=UserResponse)
+@limiter.limit("10/minute")
 def verify_user(
+    request: Request,
     body: UserVerify,
     db: Session = Depends(get_db),
 ):
@@ -70,7 +81,14 @@ def verify_user(
 
     email = body.email.strip().lower()
     user = db.exec(select(User).where(User.email == email)).first()
+
+    # Dummy hash to prevent timing-based user enumeration.
+    # Without this, "user not found" returns ~0ms (no bcrypt) vs
+    # "wrong password" returns ~100ms (bcrypt runs), leaking user existence.
+    _DUMMY_HASH = b"$2b$12$LJ3m4ys3Lz0YPmDqMN.JYOXBOvWYx0YXvKjK9Y8nF4W8xk8Z6m9e"
+
     if user is None or user.password_hash is None:
+        bcrypt.checkpw(b"dummy", _DUMMY_HASH)
         raise AppError(
             code="invalid_credentials",
             message="Invalid email or password",

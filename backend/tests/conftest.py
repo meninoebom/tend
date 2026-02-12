@@ -1,14 +1,18 @@
+import os
 import uuid
 from collections.abc import Generator
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlmodel import Session
+# Disable rate limiting before importing app (limiter reads this at import time)
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
-from app.core.deps import get_db
-from app.core.security import get_current_user_id
-from app.main import app
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlmodel import Session  # noqa: E402
+
+from app.core.deps import get_db  # noqa: E402
+from app.core.security import get_current_user_id  # noqa: E402
+from app.main import app  # noqa: E402
 from app.models.domain import Domain
 from app.models.enums import AuthProvider, BucketType, TaskStatus
 from app.models.task import Task

@@ -25,6 +25,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, auth_provider: "email" }),
           });
+          if (res.status === 409) {
+            // Email already registered — don't leak this, just fail generically
+            return null;
+          }
           if (!res.ok) return null;
           const user = await res.json();
           return { id: user.id, email: user.email };
