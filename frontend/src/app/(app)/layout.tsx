@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getTriageQueue, getMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type NavIconName = "triage" | "winddown" | "today" | "soon" | "later" | "someday" | "settings";
+type NavIconName = "winddown" | "today" | "soon" | "later" | "someday" | "settings";
 
 function NavIcon({ name, className }: { name: NavIconName; className?: string }) {
   const props = {
@@ -19,8 +19,6 @@ function NavIcon({ name, className }: { name: NavIconName; className?: string })
     "aria-hidden": true as const,
   };
   switch (name) {
-    case "triage":
-      return <svg {...props}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>;
     case "winddown":
       return <svg {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>;
     case "today":
@@ -48,13 +46,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const skipGates = pathname === "/triage" || pathname === "/settings" || pathname === "/onboarding";
 
   const navItems: { href: string; label: string; icon: NavIconName }[] = [
-    triageChecked
-      ? { href: "/winddown", label: "Wind down", icon: "winddown" }
-      : { href: "/triage", label: "Triage", icon: "triage" },
     { href: "/today", label: "Today", icon: "today" },
     { href: "/bucket/soon", label: "Soon", icon: "soon" },
     { href: "/bucket/later", label: "Later", icon: "later" },
     { href: "/bucket/someday", label: "Someday", icon: "someday" },
+    { href: "/winddown", label: "Wind down", icon: "winddown" },
     { href: "/settings", label: "Settings", icon: "settings" },
   ];
 
