@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import type { TriageQueue } from "@/lib/api-types";
 import { getTriageQueue, getMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { TriageModal } from "@/components/triage-modal";
+import { WinddownModal } from "@/components/winddown-modal";
 
 type NavIconName = "winddown" | "today" | "soon" | "later" | "someday" | "settings";
 
@@ -41,16 +44,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [triageChecked, setTriageChecked] = useState(false);
+  const [showTriageModal, setShowTriageModal] = useState(false);
+  const [showWinddownModal, setShowWinddownModal] = useState(false);
+  const [triageQueue, setTriageQueue] = useState<TriageQueue | undefined>(undefined);
   const onboardingVerified = useRef(false);
 
-  const skipGates = pathname === "/triage" || pathname === "/settings" || pathname === "/onboarding";
+  const skipGates = pathname === "/triage" || pathname === "/winddown" || pathname === "/settings" || pathname === "/onboarding";
 
   const navItems: { href: string; label: string; icon: NavIconName }[] = [
     { href: "/today", label: "Today", icon: "today" },
     { href: "/bucket/soon", label: "Soon", icon: "soon" },
     { href: "/bucket/later", label: "Later", icon: "later" },
     { href: "/bucket/someday", label: "Someday", icon: "someday" },
-    { href: "/winddown", label: "Wind down", icon: "winddown" },
     { href: "/settings", label: "Settings", icon: "settings" },
   ];
 
@@ -80,7 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [pathname, router, skipGates]);
 
-  // Triage gate: redirect to /triage if not complete (only after onboarding confirmed)
+  // Triage gate: open modal if triage needed (only after onboarding confirmed)
   useEffect(() => {
     if (skipGates || !onboardingChecked) return;
     let cancelled = false;
@@ -88,10 +93,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .then((q) => {
         if (cancelled) return;
         if (!q.triage_complete && q.tasks.length > 0) {
-          router.replace("/triage");
-        } else {
-          setTriageChecked(true);
+          setTriageQueue(q);
+          setShowTriageModal(true);
         }
+        setTriageChecked(true);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -103,12 +108,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const showContent = skipGates || (onboardingChecked && triageChecked);
   const hideNav = pathname === "/onboarding";
+  const modalOpen = showTriageModal || showWinddownModal;
 
   const mainNavItems = navItems.filter((item) => item.icon !== "settings");
   const settingsItem = navItems.find((item) => item.icon === "settings")!;
 
   return (
-    <div className="flex min-h-screen bg-bg-root">
+    <div className={cn("flex min-h-screen bg-bg-root", modalOpen && "overflow-hidden")}>
       {/* Left sidebar */}
       {!hideNav && (
         <nav className="fixed inset-y-0 left-0 w-56 bg-bg-card flex flex-col">
@@ -143,6 +149,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </button>
               );
             })}
+
+            {/* Wind down — action button, not a nav link */}
+            <button
+              onClick={() => setShowWinddownModal(true)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 text-text-muted hover:text-text-secondary hover:bg-bg-hover/50"
+            >
+              <NavIcon name="winddown" />
+              <span>Wind down</span>
+            </button>
           </div>
 
           {/* Settings — pushed to bottom */}
@@ -175,6 +190,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </main>
+
+      {/* Ritual modals */}
+      {showTriageModal && (
+        <TriageModal
+          onComplete={() => setShowTriageModal(false)}
+          initialQueue={triageQueue}
+        />
+      )}
+      {showWinddownModal && (
+        <WinddownModal onComplete={() => setShowWinddownModal(false)} />
+      )}
     </div>
   );
 }

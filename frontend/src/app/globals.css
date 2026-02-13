@@ -23,6 +23,12 @@ body {
     sans-serif;
 }
 
+/* Ritual overlay entrance */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Task action buttons: visible on touch, hover-reveal on mouse */
 @media (hover: hover) {
   .hover-action {
