@@ -16,16 +16,20 @@ def main():
     scheme = db_url.split("://")[0] if "://" in db_url else "NO_SCHEME"
     print(f"DATABASE_URL scheme: {scheme}, length: {len(db_url)}")
 
-    # Validate secrets (skip in local dev where defaults are used)
+    # Validate secrets
     jwt_secret = os.environ.get("INTERNAL_JWT_SECRET", "")
-    if jwt_secret and len(jwt_secret) < 32:
-        print("FATAL: INTERNAL_JWT_SECRET must be at least 32 characters")
+    if not jwt_secret or len(jwt_secret) < 32:
+        print("FATAL: INTERNAL_JWT_SECRET must be set and at least 32 characters")
         sys.exit(1)
 
     reaper_key = os.environ.get("REAPER_API_KEY", "")
     if reaper_key == "change-me":
         print("FATAL: REAPER_API_KEY is still the default 'change-me'")
         sys.exit(1)
+
+    # Warn if password reset email is silently disabled
+    if not os.environ.get("RESEND_API_KEY"):
+        print("WARNING: RESEND_API_KEY not set — password reset emails will be silently skipped")
 
     # Run migrations
     print("Running alembic upgrade head...")

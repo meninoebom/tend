@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 from app.api import account, domains, reaper, stats, tasks, triage
 from app.core.config import settings
@@ -50,4 +54,5 @@ def health_check():
             conn.execute(text("SELECT 1"))
         return {"status": "healthy"}
     except Exception:
+        logger.exception("Health check failed: database unreachable")
         return {"status": "degraded"}

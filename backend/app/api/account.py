@@ -1,9 +1,12 @@
+import logging
 import uuid
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from jose import JWTError, jwt
 from sqlmodel import Session, select
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.core.deps import get_db
@@ -232,7 +235,10 @@ def forgot_password(
     if user is not None and user.password_hash is not None:
         token = _create_reset_token(user.id)
         if settings.resend_api_key:
-            _send_reset_email(email, token)
+            try:
+                _send_reset_email(email, token)
+            except Exception:
+                logger.exception("Failed to send password reset email")
 
     return {"message": "If an account exists with that email, a reset link has been sent."}
 

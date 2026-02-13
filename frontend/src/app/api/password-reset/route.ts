@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json().catch(() => ({}));
     return NextResponse.json(data, { status: res.status });
-  } catch {
+  } catch (err) {
+    console.error("Password reset proxy error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 502 });
   }
 }
