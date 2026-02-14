@@ -136,4 +136,8 @@ export async function deleteMe(): Promise<void> {
   return request<void>("me", { method: "DELETE" });
 }
 
+export async function sendFeedback(message: string): Promise<void> {
+  await request("feedback", { method: "POST", body: JSON.stringify({ message }) });
+}
+
 export { ApiError };

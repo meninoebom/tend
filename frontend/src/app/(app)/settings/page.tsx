@@ -10,6 +10,7 @@ import {
   deleteDomain,
   getMe,
   deleteMe,
+  sendFeedback,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PRESET_COLORS, MAX_DOMAINS } from "@/lib/constants";
@@ -23,6 +24,8 @@ export default function SettingsPage() {
   const [editColor, setEditColor] = useState("");
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   const refresh = useCallback(() => {
     Promise.all([getDomains(), getMe()]).then(([d, u]) => {
@@ -69,6 +72,19 @@ export default function SettingsPage() {
     setEditingId(domain.id);
     setEditName(domain.name);
     setEditColor(domain.color);
+  }
+
+  async function handleSendFeedback() {
+    if (!feedbackText.trim() || feedbackStatus === "sending") return;
+    setFeedbackStatus("sending");
+    try {
+      await sendFeedback(feedbackText.trim());
+      setFeedbackText("");
+      setFeedbackStatus("sent");
+    } catch (err) {
+      console.error("Failed to send feedback:", err);
+      setFeedbackStatus("error");
+    }
   }
 
   if (loading) {
@@ -199,6 +215,39 @@ export default function SettingsPage() {
           className="text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors"
         >
           Sign out
+        </button>
+      </section>
+
+      {/* Feedback */}
+      <section className="space-y-3 pt-4 border-t border-border">
+        <h2 className="text-sm font-medium text-text-secondary">Feedback</h2>
+        <textarea
+          value={feedbackText}
+          onChange={(e) => {
+            setFeedbackText(e.target.value);
+            if (feedbackStatus !== "idle") setFeedbackStatus("idle");
+          }}
+          placeholder="What's on your mind?"
+          maxLength={2000}
+          rows={3}
+          className="w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none resize-none"
+        />
+        <button
+          onClick={handleSendFeedback}
+          disabled={!feedbackText.trim() || feedbackStatus === "sending"}
+          className={cn(
+            "text-sm rounded-lg px-4 py-2 transition-colors",
+            feedbackStatus === "sent"
+              ? "text-accent-green border border-accent-green/30"
+              : feedbackStatus === "error"
+                ? "text-accent-red border border-accent-red/30"
+                : "text-text-secondary border border-border hover:bg-bg-hover disabled:opacity-30",
+          )}
+        >
+          {feedbackStatus === "sending" && "Sending..."}
+          {feedbackStatus === "sent" && "Sent to Brandon — thanks!"}
+          {feedbackStatus === "error" && "Something went wrong"}
+          {feedbackStatus === "idle" && "Send feedback"}
         </button>
       </section>
 

@@ -1,9 +1,11 @@
+import html
 import logging
 import uuid
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from jose import JWTError, jwt
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 logger = logging.getLogger(__name__)
@@ -270,3 +272,42 @@ def reset_password(
     db.flush()
 
     return {"message": "Password has been reset successfully."}
+
+
+# --- Feedback ---
+
+
+class FeedbackRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
+@router.post("/feedback", status_code=202)
+@limiter.limit("3/minute")
+def send_feedback(
+    request: Request,
+    body: FeedbackRequest,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Send user feedback via email."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise NotFoundError("User not found")
+
+    if not settings.resend_api_key:
+        return {"message": "Feedback received."}
+
+    import resend
+
+    resend.api_key = settings.resend_api_key
+    resend.Emails.send({
+        "from": "Tend <noreply@tend.gvempire.com>",
+        "to": ["brandon@tendyourgarden.app"],
+        "subject": f"Feedback from {user.email}",
+        "html": (
+            f"<p><strong>From:</strong> {html.escape(user.email)}</p>"
+            f"<p><strong>Message:</strong></p>"
+            f"<p>{html.escape(body.message)}</p>"
+        ),
+    })
+    return {"message": "Feedback sent."}
