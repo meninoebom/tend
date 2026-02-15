@@ -6,8 +6,11 @@ export default auth((req) => {
 
   // Public routes that don't require auth
   const isPublicRoute =
+    pathname === "/" ||
     pathname === "/login" ||
     pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
     pathname.startsWith("/api/auth");
 
   // Redirect authenticated users away from auth pages
