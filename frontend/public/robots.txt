@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /today
+Disallow: /bucket/
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /triage
+Disallow: /winddown
+Disallow: /api/
+
+Sitemap: https://tendyourgarden.app/sitemap.xml
