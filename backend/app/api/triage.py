@@ -22,9 +22,13 @@ def get_triage_queue(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     # Compost stale tasks before building the triage queue.
-    # Failures here should never block triage — log and continue.
+    # Savepoint ensures a composter failure rolls back cleanly
+    # without corrupting the session for the triage query below.
     try:
-        composter_service.run_composter(db, user_id)
+        with db.begin_nested():
+            count = composter_service.run_composter(db, user_id)
+        if count:
+            logger.info("Composted %d stale task(s) for user %s", count, user_id)
     except Exception:
         logger.exception("Composting failed for user %s", user_id)
 

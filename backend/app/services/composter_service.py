@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timedelta
 
@@ -6,12 +7,15 @@ from sqlmodel import Session, select, update
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
 
+logger = logging.getLogger(__name__)
+
 
 def run_composter(db: Session, user_id: uuid.UUID) -> int:
     """Compost stale tasks for a single user. Two passes:
 
     1. Compost top-level pending tasks not in today bucket where created_at > 30 days ago
-    2. Compost orphaned children of composted parents
+    2. Compost orphaned children — any pending child whose parent is archived
+       (whether composted in this run or previously)
 
     Called automatically during triage — no cron job needed.
     """
