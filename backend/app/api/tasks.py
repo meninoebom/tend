@@ -97,6 +97,8 @@ def update_task(
         kwargs["bucket"] = body.bucket
     if "domain_id" in body.model_fields_set:
         kwargs["domain_id"] = body.domain_id
+    if body.status is not None:
+        kwargs["status"] = body.status
     task = task_service.update_task(db, user_id, task_id, **kwargs)
     return _to_response(task)
 

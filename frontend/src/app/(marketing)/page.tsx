@@ -101,9 +101,9 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="rounded-xl border border-border bg-bg-card p-5 space-y-2">
-              <h3 className="text-sm font-semibold text-accent-green">Weed</h3>
+              <h3 className="text-sm font-semibold text-accent-green">Compost</h3>
               <p className="text-sm text-text-secondary leading-relaxed">
-                Tasks untouched for 30 days are automatically archived. Gone.
+                Tasks untouched for 30 days return to the soil. Restore them or let them go.
               </p>
             </div>
             <div className="rounded-xl border border-border bg-bg-card p-5 space-y-2">

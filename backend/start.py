@@ -22,11 +22,6 @@ def main():
         print("FATAL: INTERNAL_JWT_SECRET must be set and at least 32 characters")
         sys.exit(1)
 
-    reaper_key = os.environ.get("REAPER_API_KEY", "")
-    if reaper_key == "change-me":
-        print("FATAL: REAPER_API_KEY is still the default 'change-me'")
-        sys.exit(1)
-
     # Warn if password reset email is silently disabled
     if not os.environ.get("RESEND_API_KEY"):
         print("WARNING: RESEND_API_KEY not set — password reset emails will be silently skipped")

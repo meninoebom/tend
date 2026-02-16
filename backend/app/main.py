@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-from app.api import account, domains, reaper, stats, tasks, triage
+from app.api import account, domains, stats, tasks, triage
 from app.core.config import settings
 from app.core.deps import engine
 from app.core.errors import AppError, app_error_handler
@@ -22,7 +22,6 @@ app.include_router(tasks.router)
 app.include_router(triage.router)
 app.include_router(domains.router)
 app.include_router(stats.router)
-app.include_router(reaper.router)
 app.include_router(account.router)
 
 # Error handlers
@@ -43,7 +42,7 @@ app.add_middleware(
     allow_origins=settings.allowed_origins.split(","),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Reaper-Key"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 

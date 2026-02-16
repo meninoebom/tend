@@ -17,6 +17,7 @@ class TaskUpdate(BaseModel):
     text: str | None = None
     bucket: BucketType | None = None
     domain_id: uuid.UUID | None = None
+    status: TaskStatus | None = None
 
 
 class DomainBrief(BaseModel):

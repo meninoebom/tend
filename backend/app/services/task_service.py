@@ -115,6 +115,7 @@ def update_task(
     text: str | None = None,
     bucket: BucketType | None = None,
     domain_id: uuid.UUID | None | object = _UNSET,
+    status: TaskStatus | None = None,
 ) -> Task:
     task = get_task(db, user_id, task_id)
 
@@ -130,6 +131,11 @@ def update_task(
         task.bucket = bucket
     if domain_id is not _UNSET:
         task.domain_id = domain_id
+    if status is not None:
+        # Restoring an archived task: reset triaged_at so it enters triage
+        if task.status == TaskStatus.archived and status == TaskStatus.pending:
+            task.triaged_at = None
+        task.status = status
 
     task.updated_at = datetime.utcnow()
     db.add(task)

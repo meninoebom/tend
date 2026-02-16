@@ -66,7 +66,7 @@ export async function createTask(body: {
 
 export async function updateTask(
   id: string,
-  body: { text?: string; bucket?: BucketType; domain_id?: string | null },
+  body: { text?: string; bucket?: BucketType; domain_id?: string | null; status?: TaskStatus },
 ): Promise<Task> {
   return request<Task>(`tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 }

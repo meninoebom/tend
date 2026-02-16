@@ -2,20 +2,20 @@
 
 ## What is Tend?
 
-Tend is a "conscious todo app" — it forces a daily morning triage where you decide what matters today. Core concepts: forced triage, honest nudge (shows your actual completion average), domain bucketing (up to 5 life domains), auto-archive reaper (30-day cleanup), and one-level sub-tasks.
+Tend is a "conscious todo app" — it forces a daily morning triage where you decide what matters today. Core concepts: forced triage, honest nudge (shows your actual completion average), domain bucketing (up to 5 life domains), auto-composting (30-day cleanup), and one-level sub-tasks.
 
 ## Current State
 
 **Prototype:** Tauri v2 desktop app (Rust backend + vanilla TS frontend + SQLite) in `src-tauri/` and `src/`. Fully functional single-user app. Reference only.
 
-**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). v0.2.0 security hardening + password reset done. Remaining ops work: reaper cron scheduling, make backend private on Railway.
+**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway with custom domain. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). v0.2.0 security hardening + password reset done. Composting runs automatically per-user during triage (no cron needed).
 
 ## Key Documents
 
 - **PRD:** `docs/PRD.md` (v2.0, 19 sections) — the definitive product spec
 - **Implementation plan:** `docs/plans/2026-02-06-feat-tend-web-v0.1.0-mvp-plan.md` — v0.1.0 MVP, 6 phases
 - **UI playground:** `docs/tend-playground.html` — interactive design reference (dark theme tokens, all 4 screens)
-- **Prototype reference:** `src-tauri/src/commands.rs` (business logic), `src-tauri/src/reaper.rs` (auto-archive)
+- **Prototype reference:** `src-tauri/src/commands.rs` (business logic), `src-tauri/src/reaper.rs` (auto-archive, old naming)
 
 ## Architecture (v0.1.0)
 
@@ -79,11 +79,11 @@ tend/
 │   └── .node-version       # Node 20 for Railway Nixpacks
 ├── backend/            # FastAPI app (Railway)
 │   ├── app/
-│   │   ├── api/        # routes: tasks, triage, domains, stats, reaper, account
+│   │   ├── api/        # routes: tasks, triage, domains, stats, account
 │   │   ├── core/       # config, deps (get_db), security, errors, rate_limit
 │   │   ├── models/     # user, task, domain, daily_stat, enums
 │   │   ├── schemas/    # request/response Pydantic models
-│   │   └── services/   # task_service, triage_service, domain_service, stats_service, reaper_service
+│   │   └── services/   # task_service, triage_service, domain_service, stats_service, composter_service
 │   ├── alembic/        # migrations (date-prefixed filenames)
 │   ├── tests/          # 55 tests, shared DB with rollback per test
 │   ├── start.py        # Railway startup: validate env, run migrations, start uvicorn
@@ -161,7 +161,7 @@ Both services deploy to Railway in a single project with managed PostgreSQL. Key
 - **Shared variables** — `INTERNAL_JWT_SECRET` is a Railway Shared Variable used by both frontend and backend.
 - ~~**Debug endpoint** — removed in v0.2.0 (was leaking backend URL)~~
 - **New v0.2.0 env vars** — `RESEND_API_KEY` (backend), `FRONTEND_URL` (backend, for reset email links)
-- **Make backend private** — TODO: Remove public domain from backend service in Railway dashboard. All traffic should go through Next.js proxy. Only expose webhook endpoints publicly if needed later.
+- **Custom domain setup** — Use ALIAS or CNAME flattening for apex domains (DNS provider dependent). After domain is live, update `NEXTAUTH_URL` (frontend) and `FRONTEND_URL` (backend) env vars, then remove the public `.railway.app` domain from backend service. All traffic flows through Next.js proxy. See README.md for detailed DNS setup instructions.
 
 Full details: `docs/solutions/deployment-issues/railway-two-service-deployment.md`
 
