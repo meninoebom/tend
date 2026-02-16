@@ -28,6 +28,20 @@ export function ageColor(days: number, bucket: string): string {
   return "text-text-muted";
 }
 
+export function formatCompostAge(updatedAt: string): string {
+  const ms = Date.now() - new Date(updatedAt).getTime();
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  if (days === 0) return "composted today";
+  if (days === 1) return "composted 1 day ago";
+  if (days < 7) return `composted ${days} days ago`;
+  if (days < 14) return "composted 1 week ago";
+  const weeks = Math.floor(days / 7);
+  if (days < 30) return `composted ${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return "composted 1 month ago";
+  return `composted ${months} months ago`;
+}
+
 export function cn(...classes: (string | false | undefined | null)[]): string {
   return classes.filter(Boolean).join(" ");
 }

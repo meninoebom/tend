@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -8,7 +9,9 @@ from app.core.deps import get_db
 from app.core.security import get_current_user_id
 from app.schemas.task_schemas import TaskResponse
 from app.schemas.triage_schemas import TriageQueueResponse, TriageRequest, TriageResultResponse
-from app.services import triage_service
+from app.services import composter_service, triage_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/triage", tags=["triage"])
 
@@ -18,6 +21,17 @@ def get_triage_queue(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
+    # Compost stale tasks before building the triage queue.
+    # Savepoint ensures a composter failure rolls back cleanly
+    # without corrupting the session for the triage query below.
+    try:
+        with db.begin_nested():
+            count = composter_service.run_composter(db, user_id)
+        if count:
+            logger.info("Composted %d stale task(s) for user %s", count, user_id)
+    except Exception:
+        logger.exception("Composting failed for user %s", user_id)
+
     result = triage_service.get_triage_tasks(db, user_id)
     return TriageQueueResponse(
         tasks=[_to_response(t) for t in result["tasks"]],
