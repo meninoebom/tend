@@ -35,6 +35,7 @@ export default function BucketPage() {
   // Compost interaction state
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
 
   const isValid = VALID_BUCKETS.includes(bucket as (typeof VALID_BUCKETS)[number]);
@@ -99,6 +100,8 @@ export default function BucketPage() {
       setCompostTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (err) {
       console.error("Failed to restore:", err);
+      setErrorId(taskId);
+      setTimeout(() => setErrorId(null), 3000);
     } finally {
       setLoadingId(null);
     }
@@ -113,6 +116,9 @@ export default function BucketPage() {
       setConfirmingId(null);
     } catch (err) {
       console.error("Failed to delete:", err);
+      setErrorId(taskId);
+      setConfirmingId(null);
+      setTimeout(() => setErrorId(null), 3000);
     } finally {
       setLoadingId(null);
     }
@@ -205,9 +211,15 @@ export default function BucketPage() {
                           />
                         )}
                         <span className="flex-1 text-text-muted">{task.text}</span>
-                        <span className="text-xs text-text-muted shrink-0">
-                          {formatCompostAge(task.updated_at)}
-                        </span>
+                        {errorId === task.id ? (
+                          <span className="text-xs text-accent-red shrink-0">
+                            Something went wrong
+                          </span>
+                        ) : (
+                          <span className="text-xs text-text-muted shrink-0">
+                            {formatCompostAge(task.updated_at)}
+                          </span>
+                        )}
                         <button
                           onClick={() => handleRestore(task.id)}
                           disabled={loadingId === task.id}

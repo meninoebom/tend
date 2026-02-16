@@ -132,6 +132,16 @@ def update_task(
     if domain_id is not _UNSET:
         task.domain_id = domain_id
     if status is not None:
+        allowed = {
+            TaskStatus.pending: {TaskStatus.archived},
+            TaskStatus.archived: {TaskStatus.pending},
+        }
+        if status not in allowed.get(task.status, set()):
+            raise AppError(
+                code="invalid_status_transition",
+                message=f"Cannot transition from {task.status.value} to {status.value}",
+                status_code=422,
+            )
         # Restoring an archived task: reset triaged_at so it enters triage
         if task.status == TaskStatus.archived and status == TaskStatus.pending:
             task.triaged_at = None

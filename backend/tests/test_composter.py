@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
@@ -92,3 +92,55 @@ class TestComposter:
 
         db.refresh(task)
         assert task.status == TaskStatus.pending
+
+    def test_exactly_30_days_not_composted(self, client, test_user, db):
+        """Task created just under 30 days ago is NOT composted (strict < comparison)."""
+        just_under_30 = datetime.utcnow() - timedelta(days=29, hours=23)
+        task = Task(
+            user_id=test_user.id,
+            text="Boundary task",
+            bucket=BucketType.soon,
+            status=TaskStatus.pending,
+            created_at=just_under_30,
+        )
+        db.add(task)
+        db.flush()
+
+        r = client.get("/triage")
+        assert r.status_code == 200
+
+        db.refresh(task)
+        assert task.status == TaskStatus.pending
+
+    def test_restore_resets_triaged_at(self, client, test_user, db):
+        """Restoring an archived task resets triaged_at so it enters triage."""
+        task = Task(
+            user_id=test_user.id,
+            text="Archived task",
+            bucket=BucketType.soon,
+            status=TaskStatus.archived,
+            triaged_at=date.today(),
+        )
+        db.add(task)
+        db.flush()
+
+        r = client.patch(f"/tasks/{task.id}", json={"status": "pending"})
+        assert r.status_code == 200
+
+        db.refresh(task)
+        assert task.status == TaskStatus.pending
+        assert task.triaged_at is None
+
+    def test_invalid_status_transition_rejected(self, client, test_user, db):
+        """Cannot transition complete→pending via PATCH."""
+        task = Task(
+            user_id=test_user.id,
+            text="Done task",
+            bucket=BucketType.today,
+            status=TaskStatus.complete,
+        )
+        db.add(task)
+        db.flush()
+
+        r = client.patch(f"/tasks/{task.id}", json={"status": "pending"})
+        assert r.status_code == 422
