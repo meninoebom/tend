@@ -13,6 +13,7 @@ import {
   sendFeedback,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/theme-provider";
 import { PRESET_COLORS, MAX_DOMAINS } from "@/lib/constants";
 
 export default function SettingsPage() {
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const refresh = useCallback(() => {
     Promise.all([getDomains(), getMe()]).then(([d, u]) => {
@@ -202,6 +204,17 @@ export default function SettingsPage() {
         ) : (
           <p className="text-xs text-text-muted">Maximum 5 domains reached.</p>
         )}
+      </section>
+
+      {/* Appearance */}
+      <section className="space-y-3 pt-4 border-t border-border">
+        <h2 className="text-sm font-medium text-text-secondary">Appearance</h2>
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-3 text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors"
+        >
+          {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        </button>
       </section>
 
       {/* Account */}
