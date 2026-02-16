@@ -25,7 +25,7 @@ export default function LandingPage() {
             like a garden
           </h1>
           <p className="mt-5 text-lg text-text-secondary leading-relaxed">
-            A quiet todo app for what matters today&mdash;and nothing else.
+            A quiet app for what matters today&mdash;and nothing else.
           </p>
           <Link
             href="/signup"
@@ -39,8 +39,10 @@ export default function LandingPage() {
         <section className="max-w-lg text-center pb-20">
           <p className="text-sm text-text-muted leading-relaxed">
             Most todo apps help you capture everything. You end up with 47 tasks
-            and a vague sense of guilt. What if the problem isn&apos;t
-            you&mdash;it&apos;s the app?
+            and a vague sense of guilt.
+          </p>
+          <p className="text-sm text-text-muted leading-relaxed mt-4">
+            No inbox. No backlog. No someday-maybe.
           </p>
         </section>
 
@@ -62,9 +64,9 @@ export default function LandingPage() {
             </div>
             <div className="text-center space-y-3">
               <div className="text-2xl">☀️</div>
-              <h3 className="text-sm font-semibold text-text-primary">Focus</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Just today</h3>
               <p className="text-sm text-text-secondary leading-relaxed">
-                Your Today list is just what you chose. Nothing else.
+                Your list is only what you chose this morning. Nothing else.
               </p>
             </div>
             <div className="text-center space-y-3">
@@ -107,8 +109,7 @@ export default function LandingPage() {
             <div className="rounded-xl border border-border bg-bg-card p-5 space-y-2">
               <h3 className="text-sm font-semibold text-accent-green">Grow</h3>
               <p className="text-sm text-text-secondary leading-relaxed">
-                See your actual completion rate. No streaks, no guilt&mdash;just
-                an honest number.
+                No score. No streak. Just the shape of your days, over time.
               </p>
             </div>
           </div>
@@ -117,7 +118,7 @@ export default function LandingPage() {
         {/* Founder + CTA */}
         <section className="max-w-md text-center pb-24">
           <p className="text-sm text-text-muted mb-8">
-            Built by one person who wanted a simpler way to plan each day.
+            Built by one person who kept abandoning todo apps.
           </p>
           <Link
             href="/signup"

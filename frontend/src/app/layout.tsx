@@ -3,14 +3,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Tend — A quiet todo app for what matters today",
+    default: "Tend — A quiet app for what matters today",
     template: "%s | Tend",
   },
   description:
-    "Tend is a simple, intentional todo app. Each morning, choose what matters. Your Today list shows only what you picked. Tasks untouched for 30 days are automatically removed.",
+    "Each morning, choose what matters. Your Today list shows only what you picked. Tasks untouched for 30 days are automatically removed.",
   metadataBase: new URL("https://tendyourgarden.app"),
   openGraph: {
-    title: "Tend — A quiet todo app for what matters today",
+    title: "Tend — A quiet app for what matters today",
     description:
       "Each morning, choose what matters. Everything else falls away.",
     url: "https://tendyourgarden.app",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tend — A quiet todo app for what matters today",
+    title: "Tend — A quiet app for what matters today",
     description:
       "Each morning, choose what matters. Everything else falls away.",
     images: ["/og-image.png"],
