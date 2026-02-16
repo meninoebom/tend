@@ -23,7 +23,7 @@ Tend is a "conscious todo app" — it forces a daily morning triage where you de
 Browser → Next.js (Railway) → FastAPI (Railway) → PostgreSQL (Railway)
 ```
 
-- **Frontend:** Next.js App Router, TypeScript strict, Tailwind CSS, dark theme only
+- **Frontend:** Next.js App Router, TypeScript strict, Tailwind CSS, light/dark theme toggle
 - **Backend:** FastAPI (sync, not async), SQLModel, Alembic migrations
 - **Auth:** NextAuth.js v5 (email/password only for v0.1.0), proxy-signed JWT (60s TTL, `jose` library)
 - **Two separate secrets:** `NEXTAUTH_SECRET` for sessions, `INTERNAL_JWT_SECRET` for proxy JWT
@@ -85,7 +85,7 @@ tend/
 │   │   ├── schemas/    # request/response Pydantic models
 │   │   └── services/   # task_service, triage_service, domain_service, stats_service, composter_service
 │   ├── alembic/        # migrations (date-prefixed filenames)
-│   ├── tests/          # 55 tests, shared DB with rollback per test
+│   ├── tests/          # 75 tests, shared DB with rollback per test
 │   ├── start.py        # Railway startup: validate env, run migrations, start uvicorn
 │   └── railway.toml
 ├── docs/               # PRD, plans, playground, solutions/learnings
@@ -201,6 +201,12 @@ async function handleDelete() {
 ### Native `<details>/<summary>` for disclosure
 Use native HTML `<details>` instead of `useState` toggles for collapsible sections. Zero JavaScript, accessible by default, semantically correct. Style with Tailwind. Used for the archived tasks disclosure on the Someday page.
 
-## What's Deferred (NOT v0.1.0)
+### Composting (auto-archive)
+Stale tasks (>30 days, non-today bucket) are automatically archived per-user during `GET /triage`. No cron job needed — the composter runs inside a `db.begin_nested()` savepoint so failures never block triage. Two passes: (1) stale top-level tasks, (2) orphaned children of any archived parent. Status transition validation enforces `pending↔archived` only via PATCH; `complete_task()` has its own endpoint.
 
-Google OAuth, password reset/change, rate limiting, keyboard shortcuts, optimistic UI, import endpoint, DB triggers, Sentry, welcome-back messages. All documented in the Future Considerations section of the plan.
+### Light/Dark Theme
+`ThemeProvider` in `frontend/src/components/theme-provider.tsx` wraps the app. Theme stored in `localStorage`, toggled via class on `<html>`. Tailwind v4 `@theme` (NOT `@theme inline`) generates CSS `var()` references that respond to runtime overrides in `globals.css`. `suppressHydrationWarning` on `<html>` prevents React mismatch.
+
+## What's Deferred
+
+Google OAuth, keyboard shortcuts, optimistic UI, import endpoint, DB triggers, Sentry, welcome-back messages. All documented in the Future Considerations section of the plan.
