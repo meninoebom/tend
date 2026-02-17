@@ -34,6 +34,10 @@ export default function OnboardingPage() {
     { text: "", domainId: undefined as string | undefined },
   ]);
 
+  function addTaskInput() {
+    setTasks((prev) => [...prev, { text: "", domainId: undefined }]);
+  }
+
   // Guard: redirect if already onboarded
   useEffect(() => {
     getMe()
@@ -304,6 +308,14 @@ export default function OnboardingPage() {
               );
             })}
           </div>
+
+          <button
+            type="button"
+            onClick={addTaskInput}
+            className="self-center text-sm text-accent-blue hover:text-accent-blue/80 transition-colors px-3 py-1.5"
+          >
+            + Add another
+          </button>
 
           <div className="flex flex-col items-center gap-3 mt-2">
             {error && (
