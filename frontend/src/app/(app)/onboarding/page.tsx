@@ -17,6 +17,7 @@ import { PRESET_COLORS } from "@/lib/constants";
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [showTriageReady, setShowTriageReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +124,9 @@ export default function OnboardingPage() {
         );
       }
       await updateMe({ has_completed_onboarding: true });
-      router.replace("/today");
+      // Show "Ready to triage?" screen instead of immediately redirecting
+      setCompleting(false);
+      setShowTriageReady(true);
     } catch (err) {
       console.error("Onboarding failed:", err);
       setError("Something went wrong. Please try again.");
@@ -135,6 +138,29 @@ export default function OnboardingPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-text-muted">Loading...</p>
+      </div>
+    );
+  }
+
+  // "Ready to triage?" screen after onboarding completes
+  if (showTriageReady) {
+    return (
+      <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-12 gap-8 justify-center items-center text-center">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold text-text-primary">Almost there</h1>
+          <p className="text-lg text-text-secondary">
+            Next, let's triage. You'll decide which tasks matter today.
+          </p>
+          <p className="text-sm text-text-muted">
+            This takes about 2 minutes.
+          </p>
+        </div>
+        <button
+          onClick={() => router.replace("/today")}
+          className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
+        >
+          Go to triage
+        </button>
       </div>
     );
   }
