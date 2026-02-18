@@ -310,7 +310,12 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => cycleDomain(i)}
-                      className="shrink-0 h-5 w-5 rounded-full border border-border hover:border-text-secondary transition-colors flex items-center justify-center"
+                      className={cn(
+                        "shrink-0 h-5 w-5 rounded-full hover:border-text-secondary transition-colors flex items-center justify-center",
+                        activeDomain
+                          ? "border border-border"
+                          : "border border-dashed border-text-muted"
+                      )}
                       title={activeDomain ? `${activeDomain.name} (click to change)` : "Click to set domain"}
                     >
                       {activeDomain ? (
@@ -334,6 +339,12 @@ export default function OnboardingPage() {
               );
             })}
           </div>
+
+          {domains.length > 0 && (
+            <p className="text-xs text-text-muted text-center">
+              Tip: click the circle next to a task to set its domain
+            </p>
+          )}
 
           <button
             type="button"
