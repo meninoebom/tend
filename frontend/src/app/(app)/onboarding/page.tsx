@@ -134,10 +134,6 @@ export default function OnboardingPage() {
     }
   }
 
-  function proceedToTriage() {
-    router.replace("/today");
-  }
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -160,7 +156,7 @@ export default function OnboardingPage() {
           </p>
         </div>
         <button
-          onClick={proceedToTriage}
+          onClick={() => router.replace("/today")}
           className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
         >
           Go to triage
