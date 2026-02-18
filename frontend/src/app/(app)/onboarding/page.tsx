@@ -125,6 +125,7 @@ export default function OnboardingPage() {
       }
       await updateMe({ has_completed_onboarding: true });
       // Show "Ready to triage?" screen instead of immediately redirecting
+      setCompleting(false);
       setShowTriageReady(true);
     } catch (err) {
       console.error("Onboarding failed:", err);
