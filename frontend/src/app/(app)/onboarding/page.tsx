@@ -147,19 +147,19 @@ export default function OnboardingPage() {
     return (
       <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-12 gap-8 justify-center items-center text-center">
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-text-primary">Almost there</h1>
+          <h1 className="text-3xl font-bold text-text-primary">You&apos;re all set</h1>
           <p className="text-lg text-text-secondary">
-            Next, let's triage. You'll decide which tasks matter today.
+            Your tasks are ready to go. Tomorrow and every morning, you&apos;ll triage them to decide what matters.
           </p>
           <p className="text-sm text-text-muted">
-            This takes about 2 minutes.
+            Head to Today to get started.
           </p>
         </div>
         <button
           onClick={() => router.replace("/today")}
           className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
         >
-          Go to triage
+          Go to Today
         </button>
       </div>
     );
