@@ -37,7 +37,8 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
         setIsFirstTriage(!user.has_triaged_before);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Failed to load triage queue:", err);
         onComplete(); // fail open
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -87,7 +88,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
             </p>
           </div>
           <button
-            onClick={() => onComplete()}
+            onClick={onComplete}
             className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
           >
             Go to Today
