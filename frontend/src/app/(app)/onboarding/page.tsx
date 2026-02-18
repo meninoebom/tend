@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PRESET_COLORS } from "@/lib/constants";
+import { OnboardingDomainPicker } from "@/components/onboarding-domain-picker";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -95,21 +96,6 @@ export default function OnboardingPage() {
 
   function updateTask(index: number, field: "text" | "domainId", value: string | undefined) {
     setTasks((prev) => prev.map((t, i) => (i === index ? { ...t, [field]: value } : t)));
-  }
-
-  function cycleDomain(index: number) {
-    if (domains.length === 0) return;
-    const current = tasks[index].domainId;
-    if (!current) {
-      updateTask(index, "domainId", domains[0].id);
-    } else {
-      const idx = domains.findIndex((d) => d.id === current);
-      if (idx === domains.length - 1) {
-        updateTask(index, "domainId", undefined);
-      } else {
-        updateTask(index, "domainId", domains[idx + 1].id);
-      }
-    }
   }
 
   async function finishOnboarding(withTasks: boolean) {
@@ -294,57 +280,33 @@ export default function OnboardingPage() {
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold text-text-primary">What&apos;s on your mind?</h1>
             <p className="text-sm text-text-secondary">
-              Add a few things you need to deal with. You can always add more later.
+              Add a few things you need to deal with. Domains help you see where your energy goes &mdash; assign one if you like.
             </p>
           </div>
 
           <div className="space-y-3">
-            {tasks.map((task, i) => {
-              const activeDomain = domains.find((d) => d.id === task.domainId);
-              return (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 rounded-lg bg-bg-card border border-border px-3 py-2.5"
-                >
-                  {domains.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => cycleDomain(i)}
-                      className={cn(
-                        "shrink-0 h-5 w-5 rounded-full hover:border-text-secondary transition-colors flex items-center justify-center",
-                        activeDomain
-                          ? "border border-border"
-                          : "border border-dashed border-text-muted"
-                      )}
-                      title={activeDomain ? `${activeDomain.name} (click to change)` : "Click to set domain"}
-                    >
-                      {activeDomain ? (
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: activeDomain.color }}
-                        />
-                      ) : (
-                        <span className="text-text-muted text-[10px]">+</span>
-                      )}
-                    </button>
-                  )}
-                  <input
-                    value={task.text}
-                    onChange={(e) => updateTask(i, "text", e.target.value)}
-                    placeholder={["e.g. Review quarterly goals", "e.g. Schedule dentist", "e.g. Read that article"][i]}
-                    maxLength={500}
-                    className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+            {tasks.map((task, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded-lg bg-bg-card border border-border px-3 py-2.5"
+              >
+                {domains.length > 0 && (
+                  <OnboardingDomainPicker
+                    currentDomainId={task.domainId}
+                    domains={domains}
+                    onChange={(domainId) => updateTask(i, "domainId", domainId)}
                   />
-                </div>
-              );
-            })}
+                )}
+                <input
+                  value={task.text}
+                  onChange={(e) => updateTask(i, "text", e.target.value)}
+                  placeholder={["e.g. Review quarterly goals", "e.g. Schedule dentist", "e.g. Read that article"][i]}
+                  maxLength={500}
+                  className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+                />
+              </div>
+            ))}
           </div>
-
-          {domains.length > 0 && (
-            <p className="text-xs text-text-muted text-center">
-              Tip: click the circle next to a task to set its domain
-            </p>
-          )}
 
           <button
             type="button"
