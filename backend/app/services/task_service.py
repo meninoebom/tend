@@ -28,6 +28,7 @@ def create_task(
     bucket: BucketType = BucketType.today,
     domain_id: uuid.UUID | None = None,
     parent_id: uuid.UUID | None = None,
+    skip_triage_stamp: bool = False,
 ) -> Task:
     if len(text) > 500:
         raise AppError(
@@ -64,7 +65,7 @@ def create_task(
         status=TaskStatus.pending,
         domain_id=domain_id,
         parent_id=parent_id,
-        triaged_at=date.today(),  # prevent re-triggering triage gate
+        triaged_at=None if skip_triage_stamp else date.today(),
     )
     db.add(task)
     db.flush()

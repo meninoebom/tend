@@ -11,6 +11,7 @@ class TaskCreate(BaseModel):
     bucket: BucketType = BucketType.today
     domain_id: uuid.UUID | None = None
     parent_id: uuid.UUID | None = None
+    skip_triage_stamp: bool = False
 
 
 class TaskUpdate(BaseModel):

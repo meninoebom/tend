@@ -106,7 +106,7 @@ export default function OnboardingPage() {
       if (withTasks) {
         const toCreate = tasks.filter((t) => t.text.trim());
         await Promise.all(
-          toCreate.map((t) => createTask({ text: t.text.trim(), bucket: "today", domain_id: t.domainId })),
+          toCreate.map((t) => createTask({ text: t.text.trim(), bucket: "today", domain_id: t.domainId, skip_triage_stamp: true })),
         );
       }
       await updateMe({ has_completed_onboarding: true });
@@ -128,24 +128,21 @@ export default function OnboardingPage() {
     );
   }
 
-  // "Ready to triage?" screen after onboarding completes
+  // Post-onboarding: prompt first triage
   if (showTriageReady) {
     return (
       <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-12 gap-8 justify-center items-center text-center">
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-text-primary">You&apos;re all set</h1>
+          <h1 className="text-3xl font-bold text-text-primary">Let&apos;s do your first triage</h1>
           <p className="text-lg text-text-secondary">
-            Your tasks are ready to go. Tomorrow and every morning, you&apos;ll triage them to decide what matters.
-          </p>
-          <p className="text-sm text-text-muted">
-            Head to Today to get started.
+            Each morning, you&apos;ll review your tasks and decide what matters today. It takes about 30 seconds.
           </p>
         </div>
         <button
           onClick={() => router.replace("/today")}
           className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
         >
-          Go to Today
+          Start Triage
         </button>
       </div>
     );

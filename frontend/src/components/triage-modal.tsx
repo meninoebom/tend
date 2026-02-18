@@ -17,6 +17,8 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
   const [loading, setLoading] = useState(!initialQueue);
   const [showHints, setShowHints] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
+  const [isFirstTriage, setIsFirstTriage] = useState(false);
+  const [showFirstComplete, setShowFirstComplete] = useState(false);
 
   useEffect(() => {
     const queuePromise = initialQueue
@@ -32,6 +34,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
         setQueue(q);
         setShowHints(!user.has_triaged_before);
         setShowExplainer(!user.has_triaged_before);
+        setIsFirstTriage(!user.has_triaged_before);
         setLoading(false);
       })
       .catch(() => {
@@ -41,7 +44,11 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
 
   function handleAction(result: { triage_complete: boolean; remaining: number }) {
     if (result.triage_complete || result.remaining === 0 || !queue || currentIndex >= queue.tasks.length - 1) {
-      onComplete();
+      if (isFirstTriage) {
+        setShowFirstComplete(true);
+      } else {
+        onComplete();
+      }
       return;
     }
     setCurrentIndex((i) => i + 1);
@@ -71,7 +78,22 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
 
   return (
     <RitualOverlay>
-      {showExplainer ? (
+      {showFirstComplete ? (
+        <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
+          <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
+            <h2 className="text-xl font-semibold text-text-primary">That&apos;s your morning triage</h2>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Tomorrow and every morning, you&apos;ll do this again. It keeps your Today list intentional.
+            </p>
+          </div>
+          <button
+            onClick={() => onComplete()}
+            className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
+          >
+            Go to Today
+          </button>
+        </div>
+      ) : showExplainer ? (
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">Morning Triage</h2>

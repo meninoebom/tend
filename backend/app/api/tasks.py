@@ -70,6 +70,15 @@ def create_task(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
+    # Only honor skip_triage_stamp during onboarding (prevents abuse after onboarding)
+    skip_stamp = False
+    if body.skip_triage_stamp:
+        from app.models.user import User
+
+        user = db.get(User, user_id)
+        if user and not user.has_completed_onboarding:
+            skip_stamp = True
+
     task = task_service.create_task(
         db,
         user_id,
@@ -77,6 +86,7 @@ def create_task(
         bucket=body.bucket,
         domain_id=body.domain_id,
         parent_id=body.parent_id,
+        skip_triage_stamp=skip_stamp,
     )
     # Reload with relationships for response
     task = task_service.get_task(db, user_id, task.id)

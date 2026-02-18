@@ -60,6 +60,7 @@ export async function createTask(body: {
   bucket?: BucketType;
   domain_id?: string;
   parent_id?: string;
+  skip_triage_stamp?: boolean;
 }): Promise<Task> {
   return request<Task>("tasks", { method: "POST", body: JSON.stringify(body) });
 }
