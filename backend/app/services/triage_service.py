@@ -101,9 +101,6 @@ def triage_task(
         task_service.complete_task(db, user_id, task_id)
 
     elif action == "kill":
-        task.triaged_at = today  # stamp before delete for consistency
-        db.add(task)
-        db.flush()
         task_service.delete_task(db, user_id, task_id)
 
     # Check if triage is now complete

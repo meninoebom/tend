@@ -1,6 +1,7 @@
 from datetime import date
 
-from app.models.enums import BucketType
+from app.models.enums import BucketType, TaskStatus
+from app.models.task import Task
 
 
 class TestTriageFlow:
@@ -55,6 +56,42 @@ class TestTriageFlow:
         r = client.post(f"/triage/{task.id}", json={"action": "kill"})
         assert r.status_code == 200
         assert r.json()["action"] == "kill"
+
+    def test_triage_kill_task_with_children(self, client, test_user, test_tasks, db):
+        """Kill a parent task — children should be cascade-deleted too."""
+        parent = test_tasks[0]
+        child = Task(
+            user_id=test_user.id,
+            text="Child task",
+            bucket=parent.bucket,
+            parent_id=parent.id,
+            status=TaskStatus.pending,
+        )
+        db.add(child)
+        db.flush()
+        child_id = child.id
+
+        r = client.post(f"/triage/{parent.id}", json={"action": "kill"})
+        assert r.status_code == 200
+        assert r.json()["action"] == "kill"
+
+        # Parent gone
+        r2 = client.get(f"/tasks/{parent.id}")
+        assert r2.status_code == 404
+
+        # Child cascade-deleted
+        r3 = client.get(f"/tasks/{child_id}")
+        assert r3.status_code == 404
+
+    def test_triage_kill_decrements_remaining(self, client, test_user, test_tasks):
+        """Kill should decrement the remaining count."""
+        queue = client.get("/triage").json()
+        initial_count = queue["total_count"]
+
+        task = test_tasks[0]
+        r = client.post(f"/triage/{task.id}", json={"action": "kill"})
+        assert r.status_code == 200
+        assert r.json()["remaining"] == initial_count - 1
 
     def test_triage_rewrite(self, client, test_user, test_tasks, db):
         """When rewritten_text is provided, task text is updated."""

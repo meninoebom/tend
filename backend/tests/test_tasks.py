@@ -117,8 +117,25 @@ class TestTaskCRUD:
         r = client.delete(f"/tasks/{task.id}")
         assert r.status_code == 204
 
-        r = client.get(f"/tasks/{task.id}")
-        assert r.status_code == 404
+    def test_delete_task_cascades_children(self, client, test_user, test_tasks, db):
+        """Deleting a parent task should cascade-delete its children."""
+        parent = test_tasks[0]
+        child = Task(
+            user_id=test_user.id,
+            text="Child task",
+            bucket=BucketType.today,
+            parent_id=parent.id,
+        )
+        db.add(child)
+        db.flush()
+        child_id = child.id
+
+        r = client.delete(f"/tasks/{parent.id}")
+        assert r.status_code == 204
+
+        # Child should be gone too
+        r2 = client.get(f"/tasks/{child_id}")
+        assert r2.status_code == 404
 
     def test_task_age_days(self, client, test_user, test_tasks):
         r = client.get(f"/tasks/{test_tasks[0].id}")

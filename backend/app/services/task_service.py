@@ -190,7 +190,12 @@ def complete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
 
 
 def delete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> None:
+    # Verify task exists and belongs to user
     task = get_task(db, user_id, task_id)
-    # ON DELETE CASCADE handles children at DB level
-    db.delete(task)
+    # Use raw SQL DELETE to avoid ORM cascade + lazy="raise" conflicts.
+    # DB-level ON DELETE CASCADE handles children automatically.
+    from sqlalchemy import delete
+
+    db.expunge(task)
+    db.execute(delete(Task).where(Task.id == task_id))
     db.flush()

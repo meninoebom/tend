@@ -52,5 +52,5 @@ class Task(SQLModel, table=True):
     children: list["Task"] = Relationship(
         back_populates="parent",
         cascade_delete=True,
-        sa_relationship_kwargs={"lazy": "raise"},
+        sa_relationship_kwargs={"lazy": "raise", "passive_deletes": True},
     )
