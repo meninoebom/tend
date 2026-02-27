@@ -19,6 +19,7 @@ Each entry captures what was built, what was learned, and the product thinking b
 | 003 | 2026-02-08 | [Premature Workflow Optimization](003-merge-conflicts-and-workflow-temptation.md) | Process & Tooling |
 | 004 | 2026-02-09 | [Dogfooding, Emotional Attachment, and Christopher Alexander](004-dogfooding-and-listening.md) | UX Design, Product Strategy, Business & Growth |
 | 005 | 2026-02-09 | [The Cost of Code Fell, So Design Review Changed](005-agent-driven-design-review.md) | UX Design, Process & Tooling, Product Strategy |
+| 006 | 2026-02-27 | [Taste as the Loop: Sculpting Code Through Listening](006-taste-as-the-loop.md) | Process & Tooling, Product Strategy, Architecture |
 
 ---
 
@@ -28,13 +29,13 @@ Tracking breadth across the full product-building journey.
 
 | Dimension | Description | Entries |
 |-----------|-------------|---------|
-| Product Strategy | Why build this? Market fit, user needs, prioritization | 001, 004, 005 |
+| Product Strategy | Why build this? Market fit, user needs, prioritization | 001, 004, 005, 006 |
 | UX Design | Interaction patterns, user psychology, affordances | 001, 004, 005 |
-| Architecture | System design, data modeling, scaling trade-offs | 002 |
+| Architecture | System design, data modeling, scaling trade-offs | 002, 006 |
 | Frontend | React/Next.js patterns, state, performance | 001 |
 | Backend | API design, database, service layer patterns | 002 |
 | DevOps | CI/CD, deployment, infrastructure, monitoring | — |
 | Security & Privacy | Auth, data protection, threat modeling | — |
 | Testing & Quality | Test strategy, coverage, confidence levels | — |
-| Process & Tooling | Git workflow, AI-assisted dev, planning methods | 001, 003, 005 |
+| Process & Tooling | Git workflow, AI-assisted dev, planning methods | 001, 003, 005, 006 |
 | Business & Growth | Distribution, monetization, metrics, market | 004 |
