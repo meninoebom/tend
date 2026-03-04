@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-from app.api import account, domains, stats, tasks, triage
+from app.api import account, billing, domains, stats, tasks, triage
 from app.core.config import settings
 from app.core.deps import engine
 from app.core.errors import AppError, app_error_handler
@@ -23,6 +23,7 @@ app.include_router(triage.router)
 app.include_router(domains.router)
 app.include_router(stats.router)
 app.include_router(account.router)
+app.include_router(billing.router)
 
 # Error handlers
 app.add_exception_handler(AppError, app_error_handler)
