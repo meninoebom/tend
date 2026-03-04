@@ -118,27 +118,31 @@ def handle_webhook(payload: bytes, sig_header: str, db: Session) -> dict:
     event_type = event["type"]
 
     if event_type == "checkout.session.completed":
-        session = event["data"]["object"]
-        customer_id = session.get("customer")
-        if customer_id:
-            _update_status_by_customer(db, customer_id, "active")
-            return {"event": event_type, "action": "set_active"}
+        customer_id = event["data"]["object"].get("customer")
+        if not customer_id:
+            logger.warning("Webhook %s: missing customer_id", event_type)
+            return {"event": event_type, "action": "ignored"}
+        _update_status_by_customer(db, customer_id, "active")
+        return {"event": event_type, "action": "set_active"}
 
     elif event_type == "customer.subscription.updated":
         sub = event["data"]["object"]
         customer_id = sub.get("customer")
+        if not customer_id:
+            logger.warning("Webhook %s: missing customer_id", event_type)
+            return {"event": event_type, "action": "ignored"}
         stripe_status = sub.get("status", "")
         local_status = _STRIPE_STATUS_MAP.get(stripe_status, "free")
-        if customer_id:
-            _update_status_by_customer(db, customer_id, local_status)
-            return {"event": event_type, "action": f"set_{local_status}"}
+        _update_status_by_customer(db, customer_id, local_status)
+        return {"event": event_type, "action": f"set_{local_status}"}
 
     elif event_type == "customer.subscription.deleted":
-        sub = event["data"]["object"]
-        customer_id = sub.get("customer")
-        if customer_id:
-            _update_status_by_customer(db, customer_id, "free")
-            return {"event": event_type, "action": "set_free"}
+        customer_id = event["data"]["object"].get("customer")
+        if not customer_id:
+            logger.warning("Webhook %s: missing customer_id", event_type)
+            return {"event": event_type, "action": "ignored"}
+        _update_status_by_customer(db, customer_id, "free")
+        return {"event": event_type, "action": "set_free"}
 
     return {"event": event_type, "action": "ignored"}
 

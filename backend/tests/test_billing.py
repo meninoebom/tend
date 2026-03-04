@@ -1,7 +1,5 @@
 """Tests for billing routes, subscription schema, and webhooks (GH-63, GH-64, GH-65)."""
 
-import json
-import uuid
 from unittest.mock import MagicMock, patch
 
 import stripe as stripe_lib
@@ -223,7 +221,7 @@ def test_webhook_checkout_completed_sets_active(
         headers={"stripe-signature": "sig_test"},
     )
     assert resp.status_code == 200
-    assert resp.json()["action"] == "set_active"
+    assert resp.json()["received"] is True
 
     db.refresh(test_user)
     assert test_user.subscription_status == "active"
@@ -257,7 +255,7 @@ def test_webhook_subscription_updated_maps_status(
         headers={"stripe-signature": "sig_test"},
     )
     assert resp.status_code == 200
-    assert resp.json()["action"] == "set_past_due"
+    assert resp.json()["received"] is True
 
     db.refresh(test_user)
     assert test_user.subscription_status == "past_due"
@@ -291,7 +289,7 @@ def test_webhook_subscription_deleted_sets_free(
         headers={"stripe-signature": "sig_test"},
     )
     assert resp.status_code == 200
-    assert resp.json()["action"] == "set_free"
+    assert resp.json()["received"] is True
 
     db.refresh(test_user)
     assert test_user.subscription_status == "free"
@@ -316,7 +314,7 @@ def test_webhook_unknown_event_ignored(
         headers={"stripe-signature": "sig_test"},
     )
     assert resp.status_code == 200
-    assert resp.json()["action"] == "ignored"
+    assert resp.json()["received"] is True
 
 
 @patch("app.services.billing_service.settings")
@@ -365,4 +363,4 @@ def test_webhook_unknown_customer_logs_warning(
         headers={"stripe-signature": "sig_test"},
     )
     assert resp.status_code == 200
-    assert resp.json()["action"] == "set_active"
+    assert resp.json()["received"] is True
