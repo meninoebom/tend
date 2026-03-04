@@ -6,14 +6,20 @@ import type { Domain } from "@/lib/api-types";
 import {
   getMe,
   getDomains,
-  updateDomain,
   deleteDomain,
   createTask,
   updateMe,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { PRESET_COLORS } from "@/lib/constants";
 import { OnboardingDomainPicker } from "@/components/onboarding-domain-picker";
+
+const DOMAIN_EXAMPLES: Record<string, string[]> = {
+  Work: ["Review quarterly goals", "Send that follow-up email", "Prep for tomorrow's meeting"],
+  Personal: ["Call mom back", "Order birthday gift", "Fix the leaky faucet"],
+  Health: ["Go for a 20-minute walk", "Book dentist appointment", "Prep meals for the week"],
+  Creative: ["Sketch for 15 minutes", "Write one page", "Record a voice memo idea"],
+  Admin: ["Pay electricity bill", "File that receipt", "Cancel unused subscription"],
+};
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -25,9 +31,7 @@ export default function OnboardingPage() {
 
   // Step 2: domain state
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState("");
+  const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
 
   // Step 3: task inputs
   const [tasks, setTasks] = useState([
@@ -67,31 +71,23 @@ export default function OnboardingPage() {
     if (step === 2) refreshDomains();
   }, [step, refreshDomains]);
 
-  function startEdit(domain: Domain) {
-    setEditingId(domain.id);
-    setEditName(domain.name);
-    setEditColor(domain.color);
+  function toggleDomain(id: string) {
+    setDeselectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
-  async function saveEdit(id: string) {
-    const trimmed = editName.trim();
-    if (!trimmed) return;
-    try {
-      await updateDomain(id, { name: trimmed, color: editColor });
-      setEditingId(null);
-      refreshDomains();
-    } catch (err) {
-      console.error("Failed to save domain:", err);
-    }
-  }
+  const selectedDomains = domains.filter((d) => !deselectedIds.has(d.id));
 
-  async function handleDeleteDomain(id: string) {
-    try {
-      await deleteDomain(id);
-      refreshDomains();
-    } catch (err) {
-      console.error("Failed to delete domain:", err);
-    }
+  function getPlaceholder(index: number): string {
+    const examples = selectedDomains.flatMap(
+      (d) => DOMAIN_EXAMPLES[d.name] || [`Something for ${d.name}`],
+    );
+    if (examples.length === 0) return "e.g. Take out the trash";
+    return `e.g. ${examples[index % examples.length]}`;
   }
 
   function updateTask(index: number, field: "text" | "domainId", value: string | undefined) {
@@ -103,10 +99,21 @@ export default function OnboardingPage() {
     setCompleting(true);
     setError(null);
     try {
+      // Delete deselected domains
+      if (deselectedIds.size > 0) {
+        await Promise.all(
+          Array.from(deselectedIds).map((id) => deleteDomain(id)),
+        );
+      }
       if (withTasks) {
         const toCreate = tasks.filter((t) => t.text.trim());
         await Promise.all(
-          toCreate.map((t) => createTask({ text: t.text.trim(), bucket: "today", domain_id: t.domainId, skip_triage_stamp: true })),
+          toCreate.map((t) => createTask({
+            text: t.text.trim(),
+            bucket: "today",
+            domain_id: t.domainId && deselectedIds.has(t.domainId) ? undefined : t.domainId,
+            skip_triage_stamp: true,
+          })),
         );
       }
       await updateMe({ has_completed_onboarding: true });
@@ -183,88 +190,57 @@ export default function OnboardingPage() {
       {step === 2 && (
         <div className="flex flex-col gap-6">
           <div className="text-center space-y-2">
-            <h1 className="text-2xl font-semibold text-text-primary">Your life domains</h1>
+            <h1 className="text-2xl font-semibold text-text-primary">Choose your life areas</h1>
             <p className="text-sm text-text-secondary">
-              These are your life areas. Rename, recolor, or remove any that don&apos;t fit.
+              Domains show where your energy goes &mdash; so you can spot imbalance before it spots you.
             </p>
           </div>
 
           <div className="space-y-2">
-            {domains.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center gap-3 rounded-lg bg-bg-card border border-border px-3 py-2.5"
-              >
-                {editingId === d.id ? (
-                  <>
-                    <div className="flex gap-1 flex-wrap">
-                      {PRESET_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setEditColor(c)}
-                          className={cn(
-                            "h-5 w-5 rounded-full transition-transform",
-                            editColor === c && "ring-2 ring-text-primary ring-offset-1 ring-offset-bg-card scale-110",
-                          )}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && saveEdit(d.id)}
-                      className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-sm text-text-primary outline-none"
-                      maxLength={30}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => saveEdit(d.id)}
-                      className="text-xs text-accent-green hover:underline"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="text-xs text-text-muted hover:underline"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span
-                      className="h-3 w-3 rounded-full shrink-0"
-                      style={{ backgroundColor: d.color }}
-                    />
-                    <span className="flex-1 text-sm text-text-primary">{d.name}</span>
-                    <button
-                      onClick={() => startEdit(d)}
-                      className="text-xs text-text-muted hover:text-text-secondary"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDomain(d.id)}
-                      className="text-xs text-text-muted hover:text-accent-red"
-                    >
-                      Remove
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
+            {domains.map((d) => {
+              const selected = !deselectedIds.has(d.id);
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => toggleDomain(d.id)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border px-3 py-3 w-full text-left transition-colors",
+                    selected
+                      ? "bg-bg-card border-border"
+                      : "bg-transparent border-border/50 opacity-50",
+                  )}
+                >
+                  <span
+                    className="h-3 w-3 rounded-full shrink-0"
+                    style={{ backgroundColor: d.color }}
+                  />
+                  <span className={cn(
+                    "flex-1 text-sm",
+                    selected ? "text-text-primary" : "text-text-muted",
+                  )}>
+                    {d.name}
+                  </span>
+                  <span className={cn(
+                    "h-5 w-5 rounded border flex items-center justify-center text-xs transition-colors",
+                    selected
+                      ? "bg-accent-blue border-accent-blue text-white"
+                      : "border-border",
+                  )}>
+                    {selected && "✓"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {domains.length === 0 && (
-            <p className="text-sm text-text-muted text-center">
-              No domains. You can add them later in Settings.
-            </p>
-          )}
+          <p className="text-xs text-text-muted text-center">
+            You can rename or customize these later in Settings.
+          </p>
 
           <button
             onClick={() => setStep(3)}
-            className="mt-2 bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors self-center"
+            disabled={selectedDomains.length === 0}
+            className="mt-2 bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors self-center disabled:opacity-50"
           >
             Continue
           </button>
@@ -277,7 +253,7 @@ export default function OnboardingPage() {
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold text-text-primary">What&apos;s on your mind?</h1>
             <p className="text-sm text-text-secondary">
-              Add a few things you need to deal with. Domains help you see where your energy goes &mdash; assign one if you like.
+              Add a few things you need to deal with. Think small &mdash; what could you actually finish today?
             </p>
           </div>
 
@@ -287,17 +263,17 @@ export default function OnboardingPage() {
                 key={i}
                 className="flex items-center gap-2 rounded-lg bg-bg-card border border-border px-3 py-2.5"
               >
-                {domains.length > 0 && (
+                {selectedDomains.length > 0 && (
                   <OnboardingDomainPicker
                     currentDomainId={task.domainId}
-                    domains={domains}
+                    domains={selectedDomains}
                     onChange={(domainId) => updateTask(i, "domainId", domainId)}
                   />
                 )}
                 <input
                   value={task.text}
                   onChange={(e) => updateTask(i, "text", e.target.value)}
-                  placeholder={["e.g. Review quarterly goals", "e.g. Schedule dentist", "e.g. Read that article"][i]}
+                  placeholder={getPlaceholder(i)}
                   maxLength={500}
                   className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
                 />

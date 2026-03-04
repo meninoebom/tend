@@ -169,8 +169,8 @@ export function TriageCard({ task, progress, onAction, showHints = false }: Tria
           className="bg-bg-surface text-text-secondary hover:bg-bg-hover"
         />
         <ActionButton
-          label="Kill"
-          hint={showHints ? "let it go" : undefined}
+          label="Let go"
+          hint={showHints ? "release it" : undefined}
           onClick={() => handleAction("kill")}
           loading={loading}
           className="bg-bg-surface text-accent-red/70 hover:bg-accent-red/10"
