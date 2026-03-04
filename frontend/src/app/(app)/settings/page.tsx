@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Domain, User } from "@/lib/api-types";
@@ -20,6 +20,14 @@ import { useTheme } from "@/components/theme-provider";
 import { PRESET_COLORS, MAX_DOMAINS } from "@/lib/constants";
 
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
