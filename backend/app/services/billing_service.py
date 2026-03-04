@@ -1,7 +1,5 @@
 """Stripe billing service — wraps Stripe API interactions."""
 
-import uuid
-
 import stripe
 from sqlmodel import Session
 
