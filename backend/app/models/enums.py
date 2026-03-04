@@ -17,3 +17,10 @@ class TaskStatus(StrEnum):
 class AuthProvider(StrEnum):
     email = "email"
     google = "google"
+
+
+class SubscriptionStatus(StrEnum):
+    free = "free"
+    active = "active"
+    past_due = "past_due"
+    canceled = "canceled"
