@@ -37,6 +37,8 @@ def _to_response(user: User) -> UserResponse:
         has_completed_onboarding=user.has_completed_onboarding,
         has_triaged_before=user.has_triaged_before,
         created_at=user.created_at,
+        subscription_status=user.subscription_status,
+        is_pro=user.subscription_status in ("active", "past_due"),
     )
 
 

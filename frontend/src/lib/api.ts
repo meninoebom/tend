@@ -1,7 +1,10 @@
 import type {
+  BillingStatus,
   BucketType,
+  CheckoutResponse,
   Domain,
   NudgeStats,
+  PortalResponse,
   Task,
   TaskStatus,
   TriageAction,
@@ -139,6 +142,19 @@ export async function deleteMe(): Promise<void> {
 
 export async function sendFeedback(message: string): Promise<void> {
   await request("feedback", { method: "POST", body: JSON.stringify({ message }) });
+}
+
+// Billing
+export async function createCheckout(): Promise<CheckoutResponse> {
+  return request<CheckoutResponse>("billing/checkout", { method: "POST" });
+}
+
+export async function createPortalSession(): Promise<PortalResponse> {
+  return request<PortalResponse>("billing/portal", { method: "POST" });
+}
+
+export async function getBillingStatus(): Promise<BillingStatus> {
+  return request<BillingStatus>("billing/status");
 }
 
 export { ApiError };

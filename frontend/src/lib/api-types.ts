@@ -75,4 +75,20 @@ export interface User {
   has_completed_onboarding: boolean;
   has_triaged_before: boolean;
   created_at: string;
+  subscription_status: "free" | "active" | "past_due" | "canceled";
+  is_pro: boolean;
+}
+
+// Billing
+export interface CheckoutResponse {
+  checkout_url: string;
+}
+
+export interface PortalResponse {
+  portal_url: string;
+}
+
+export interface BillingStatus {
+  subscription_status: "free" | "active" | "past_due" | "canceled";
+  is_pro: boolean;
 }

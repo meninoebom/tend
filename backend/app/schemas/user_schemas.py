@@ -26,6 +26,8 @@ class UserResponse(BaseModel):
     has_completed_onboarding: bool
     has_triaged_before: bool
     created_at: datetime
+    subscription_status: str = "free"
+    is_pro: bool = False
 
 
 class UserVerify(BaseModel):
