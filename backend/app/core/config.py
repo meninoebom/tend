@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     internal_jwt_secret: str = "change-me"
     resend_api_key: str = ""
     frontend_url: str = "http://localhost:3000"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

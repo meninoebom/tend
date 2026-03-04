@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.enums import AuthProvider
+from app.models.enums import AuthProvider, SubscriptionStatus
 
 
 class User(SQLModel, table=True):
@@ -19,6 +19,11 @@ class User(SQLModel, table=True):
     has_completed_onboarding: bool = Field(default=False)
     has_triaged_before: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    stripe_customer_id: str | None = Field(default=None, unique=True, index=True)
+    subscription_status: str = Field(
+        default="free",
+        sa_column=Column(String, nullable=False, server_default="free"),
+    )
 
     # Relationships — lazy="raise" prevents N+1 queries
     tasks: list["Task"] = Relationship(  # noqa: F821
