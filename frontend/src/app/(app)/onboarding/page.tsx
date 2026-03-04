@@ -13,6 +13,14 @@ import {
 import { cn } from "@/lib/utils";
 import { OnboardingDomainPicker } from "@/components/onboarding-domain-picker";
 
+const DOMAIN_EXAMPLES: Record<string, string[]> = {
+  Work: ["Review quarterly goals", "Send that follow-up email", "Prep for tomorrow's meeting"],
+  Personal: ["Call mom back", "Order birthday gift", "Fix the leaky faucet"],
+  Health: ["Go for a 20-minute walk", "Book dentist appointment", "Prep meals for the week"],
+  Creative: ["Sketch for 15 minutes", "Write one page", "Record a voice memo idea"],
+  Admin: ["Pay electricity bill", "File that receipt", "Cancel unused subscription"],
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -74,21 +82,10 @@ export default function OnboardingPage() {
 
   const selectedDomains = domains.filter((d) => !deselectedIds.has(d.id));
 
-  // Domain-aware placeholder examples for step 3
-  const DOMAIN_EXAMPLES: Record<string, string[]> = {
-    Work: ["Review quarterly goals", "Send that follow-up email", "Prep for tomorrow's meeting"],
-    Personal: ["Call mom back", "Order birthday gift", "Fix the leaky faucet"],
-    Health: ["Go for a 20-minute walk", "Book dentist appointment", "Prep meals for the week"],
-    Creative: ["Sketch for 15 minutes", "Write one page", "Record a voice memo idea"],
-    Admin: ["Pay electricity bill", "File that receipt", "Cancel unused subscription"],
-  };
-
   function getPlaceholder(index: number): string {
-    const examples: string[] = [];
-    for (const d of selectedDomains) {
-      const domainExamples = DOMAIN_EXAMPLES[d.name] || [`Something for ${d.name}`];
-      examples.push(...domainExamples);
-    }
+    const examples = selectedDomains.flatMap(
+      (d) => DOMAIN_EXAMPLES[d.name] || [`Something for ${d.name}`],
+    );
     if (examples.length === 0) return "e.g. Take out the trash";
     return `e.g. ${examples[index % examples.length]}`;
   }
@@ -111,7 +108,12 @@ export default function OnboardingPage() {
       if (withTasks) {
         const toCreate = tasks.filter((t) => t.text.trim());
         await Promise.all(
-          toCreate.map((t) => createTask({ text: t.text.trim(), bucket: "today", domain_id: t.domainId, skip_triage_stamp: true })),
+          toCreate.map((t) => createTask({
+            text: t.text.trim(),
+            bucket: "today",
+            domain_id: t.domainId && deselectedIds.has(t.domainId) ? undefined : t.domainId,
+            skip_triage_stamp: true,
+          })),
         );
       }
       await updateMe({ has_completed_onboarding: true });
@@ -209,10 +211,7 @@ export default function OnboardingPage() {
                   )}
                 >
                   <span
-                    className={cn(
-                      "h-3 w-3 rounded-full shrink-0 transition-opacity",
-                      !selected && "opacity-30",
-                    )}
+                    className="h-3 w-3 rounded-full shrink-0"
                     style={{ backgroundColor: d.color }}
                   />
                   <span className={cn(
