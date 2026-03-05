@@ -1,10 +1,11 @@
 import uuid
 
 from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.deps import get_db
 from app.core.security import get_current_user_id
+from app.models.user import User
 from app.schemas.domain_schemas import DomainCreate, DomainResponse, DomainUpdate
 from app.services import domain_service
 
@@ -35,7 +36,9 @@ def create_domain(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    domain = domain_service.create_domain(db, user_id, name=body.name, color=body.color)
+    user = db.exec(select(User).where(User.id == user_id)).one()
+    is_pro = user.subscription_status in ("active", "past_due")
+    domain = domain_service.create_domain(db, user_id, name=body.name, color=body.color, is_pro=is_pro)
     return _to_response(domain)
 
 

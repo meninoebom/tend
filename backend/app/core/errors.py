@@ -20,10 +20,10 @@ class ForbiddenError(AppError):
 
 
 class DomainLimitReachedError(AppError):
-    def __init__(self):
+    def __init__(self, limit: int = 5):
         super().__init__(
             code="domain_limit_reached",
-            message="Maximum of 5 domains allowed",
+            message=f"Maximum of {limit} domains allowed",
             status_code=422,
         )
 
