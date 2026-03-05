@@ -255,6 +255,9 @@ export default function OnboardingPage() {
             <p className="text-sm text-text-secondary">
               Add a few things you need to deal with. Think small &mdash; what could you actually finish today?
             </p>
+            {selectedDomains.length > 0 && (
+              <p className="text-xs text-text-muted">Tap ⊕ to assign a life area</p>
+            )}
           </div>
 
           <div className="space-y-3">
