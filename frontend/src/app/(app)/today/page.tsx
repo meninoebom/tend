@@ -17,10 +17,6 @@ export default function TodayPage() {
   const [nudge, setNudge] = useState<NudgeStats | null>(null);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showNudgeAnnotation] = useState(
-    () => typeof window !== "undefined" && !localStorage.getItem("tend:nudge_annotation_shown"),
-  );
-
   const refresh = useCallback(() => {
     Promise.all([
       getTasks({ bucket: BUCKET }),
@@ -38,13 +34,6 @@ export default function TodayPage() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
-
-  // Mark nudge annotation as shown (one-time)
-  useEffect(() => {
-    if (showNudgeAnnotation && nudge && nudge.today_count > 0) {
-      localStorage.setItem("tend:nudge_annotation_shown", "true");
-    }
-  }, [showNudgeAnnotation, nudge]);
 
   const filtered = domainFilter
     ? tasks.filter((t) => t.domain?.id === domainFilter)
@@ -65,21 +54,20 @@ export default function TodayPage() {
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
       {/* Nudge */}
       {nudge && nudge.today_count > 0 && (
-        <div className="rounded-xl bg-bg-card border border-border px-5 py-5">
+        <div className="rounded-xl bg-gradient-to-r from-accent-blue/5 to-transparent px-5 py-5">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-text-primary">{nudge.today_count}</span>
             <span className="text-base text-text-secondary">
               {nudge.today_count === 1 ? "task" : "tasks"} today
             </span>
           </div>
-          {Math.round(nudge.average_completed) > 0 && (
+          {Math.round(nudge.average_completed) > 0 ? (
             <p className="mt-1 text-sm text-accent-amber">
               You usually finish ~{Math.round(nudge.average_completed)}
             </p>
-          )}
-          {showNudgeAnnotation && (
-            <p className="mt-2 text-xs text-text-muted">
-              (based on your last 30 days &mdash; this gets more accurate over time)
+          ) : (
+            <p className="mt-1 text-sm text-text-muted">
+              Let&apos;s see what you can do.
             </p>
           )}
         </div>
