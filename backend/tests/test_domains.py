@@ -52,3 +52,52 @@ class TestDomainCRUD:
     def test_delete_nonexistent_domain(self, client, test_user):
         r = client.delete(f"/domains/{uuid.uuid4()}")
         assert r.status_code == 404
+
+    def test_pro_user_can_exceed_free_limit(self, client, db, test_user, test_domains):
+        """Pro users can create more than 5 domains."""
+        test_user.subscription_status = "active"
+        db.add(test_user)
+        db.flush()
+
+        # Already have 3, add up to 6 (exceeds free limit of 5)
+        for i in range(3):
+            r = client.post(
+                "/domains", json={"name": f"Extra{i}", "color": "#000000"}
+            )
+            assert r.status_code == 201
+
+    def test_pro_user_limited_at_20(self, client, db, test_user):
+        """Pro users are capped at 20 domains."""
+        test_user.subscription_status = "active"
+        db.add(test_user)
+        db.flush()
+
+        from app.models.domain import Domain
+
+        # Create 20 domains directly
+        for i in range(20):
+            d = Domain(
+                user_id=test_user.id, name=f"D{i}", color="#000000", position=i
+            )
+            db.add(d)
+        db.flush()
+
+        # 21st should fail
+        r = client.post("/domains", json={"name": "TooMany", "color": "#000000"})
+        assert r.status_code == 422
+        assert r.json()["code"] == "domain_limit_reached"
+
+    def test_free_user_error_code(self, client, test_user, test_domains, db):
+        """Free user gets domain_limit_reached with helpful message."""
+        from app.models.domain import Domain
+
+        for i in range(2):
+            d = Domain(
+                user_id=test_user.id, name=f"Extra{i}", color="#000000", position=3 + i
+            )
+            db.add(d)
+        db.flush()
+
+        r = client.post("/domains", json={"name": "TooMany", "color": "#000000"})
+        assert r.status_code == 422
+        assert r.json()["code"] == "domain_limit_reached"

@@ -7,18 +7,23 @@ from app.core.errors import DomainLimitReachedError, NotFoundError
 from app.models.domain import Domain
 
 
+FREE_DOMAIN_LIMIT = 5
+PRO_DOMAIN_LIMIT = 20
+
+
 def create_domain(
     db: Session,
     user_id: uuid.UUID,
     name: str,
     color: str,
+    is_pro: bool = False,
 ) -> Domain:
-    # Enforce max 5 domains
+    limit = PRO_DOMAIN_LIMIT if is_pro else FREE_DOMAIN_LIMIT
     count = db.exec(
         select(func.count()).select_from(Domain).where(Domain.user_id == user_id)
     ).one()
-    if count >= 5:
-        raise DomainLimitReachedError()
+    if count >= limit:
+        raise DomainLimitReachedError(limit=limit)
 
     # Auto-assign next position
     max_pos = db.exec(
