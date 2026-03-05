@@ -17,7 +17,8 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
-import { PRESET_COLORS, MAX_DOMAINS } from "@/lib/constants";
+import { ApiError } from "@/lib/api";
+import { PRESET_COLORS, FREE_DOMAIN_LIMIT, PRO_DOMAIN_LIMIT } from "@/lib/constants";
 
 export default function SettingsPage() {
   return (
@@ -40,6 +41,7 @@ function SettingsContent() {
   const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingSuccess, setBillingSuccess] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -64,13 +66,23 @@ function SettingsContent() {
     }
   }, [searchParams, router]);
 
+  const domainLimit = user?.is_pro ? PRO_DOMAIN_LIMIT : FREE_DOMAIN_LIMIT;
+
   async function handleAddDomain() {
     const trimmed = newName.trim();
-    if (!trimmed || domains.length >= MAX_DOMAINS) return;
-    await createDomain({ name: trimmed, color: newColor });
-    setNewName("");
-    setNewColor(PRESET_COLORS[0]);
-    refresh();
+    if (!trimmed) return;
+    try {
+      await createDomain({ name: trimmed, color: newColor });
+      setNewName("");
+      setNewColor(PRESET_COLORS[0]);
+      refresh();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "domain_limit_reached") {
+        setShowUpgradeModal(true);
+      } else {
+        console.error("Failed to create domain:", err);
+      }
+    }
   }
 
   async function handleSaveEdit(id: string) {
@@ -216,7 +228,7 @@ function SettingsContent() {
         ))}
 
         {/* Add domain */}
-        {domains.length < MAX_DOMAINS ? (
+        {domains.length < domainLimit ? (
           <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-border px-3 py-2">
             <div className="flex gap-1">
               {PRESET_COLORS.map((c) => (
@@ -247,8 +259,19 @@ function SettingsContent() {
               Add
             </button>
           </div>
+        ) : user?.is_pro ? (
+          <p className="text-xs text-text-muted">Maximum {PRO_DOMAIN_LIMIT} domains reached.</p>
         ) : (
-          <p className="text-xs text-text-muted">Maximum 5 domains reached.</p>
+          <button
+            onClick={() => setShowUpgradeModal(true)}
+            className="flex items-center gap-2 w-full rounded-lg bg-amber-500/5 border border-amber-500/20 px-3 py-2.5 text-left transition-colors hover:bg-amber-500/10"
+          >
+            <span className="text-amber-500/70">✦</span>
+            <span className="text-xs text-text-muted">
+              You&apos;re using all {FREE_DOMAIN_LIMIT} domains —{" "}
+              <span className="text-amber-500/80 font-medium">unlock more with Pro</span>
+            </span>
+          </button>
         )}
       </section>
 
@@ -298,7 +321,7 @@ function SettingsContent() {
               <ul className="text-xs text-text-muted space-y-1.5 pt-1 border-t border-border/50">
                 <li className="flex items-start gap-2">
                   <span className="text-amber-500/70 mt-px">✦</span>
-                  <span>Up to 10 life domains (free: 5)</span>
+                  <span>Up to 20 life domains (free: 5)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-500/70 mt-px">✦</span>
@@ -385,6 +408,49 @@ function SettingsContent() {
           Delete account
         </button>
       </section>
+
+      {/* Upgrade modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-bg-card border border-border rounded-xl shadow-lg max-w-sm w-full mx-4 p-6 space-y-4">
+            <h3 className="text-base font-semibold text-text-primary">
+              Unlock more domains
+            </h3>
+            <p className="text-sm text-text-muted">
+              You&apos;re using all {FREE_DOMAIN_LIMIT} free domains. Upgrade to Pro to add up to {PRO_DOMAIN_LIMIT} domains and support Tend&apos;s development.
+            </p>
+            <ul className="text-xs text-text-muted space-y-1.5">
+              <li className="flex items-start gap-2">
+                <span className="text-amber-500/70 mt-px">✦</span>
+                <span>Up to {PRO_DOMAIN_LIMIT} life domains</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-500/70 mt-px">✦</span>
+                <span>Priority support and early access</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-500/70 mt-px">✦</span>
+                <span>Support Tend&apos;s continued development</span>
+              </li>
+            </ul>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="flex-1 text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors"
+              >
+                Not now
+              </button>
+              <button
+                onClick={handleUpgrade}
+                disabled={billingLoading}
+                className="flex-1 text-sm text-white bg-accent-blue rounded-lg px-4 py-2 hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
+              >
+                {billingLoading ? "Loading..." : "Upgrade to Pro"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
