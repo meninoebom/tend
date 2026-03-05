@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { TriageQueue } from "@/lib/api-types";
-import { getTriageQueue, getMe } from "@/lib/api";
+import type { TriageQueue, User } from "@/lib/api-types";
+import { getTriageQueue, getMe, createCheckout } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { TriageModal } from "@/components/triage-modal";
@@ -48,6 +48,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showTriageModal, setShowTriageModal] = useState(false);
   const [showWinddownModal, setShowWinddownModal] = useState(false);
   const [triageQueue, setTriageQueue] = useState<TriageQueue | undefined>(undefined);
+  const [user, setUser] = useState<User | null>(null);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const onboardingVerified = useRef(false);
 
   const { theme, toggle: toggleTheme } = useTheme();
@@ -70,9 +72,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
     let cancelled = false;
     getMe()
-      .then((user) => {
+      .then((u) => {
         if (cancelled) return;
-        if (!user.has_completed_onboarding) {
+        setUser(u);
+        if (!u.has_completed_onboarding) {
           router.replace("/onboarding");
         } else {
           onboardingVerified.current = true;
@@ -162,8 +165,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          {/* Bottom section — theme toggle + settings */}
+          {/* Bottom section — upgrade CTA + theme toggle + settings */}
           <div className="mt-auto mx-3 pt-3 pb-4 border-t border-border/50 flex flex-col gap-0.5">
+            {user && !user.is_pro && (
+              <button
+                onClick={async () => {
+                  if (upgradeLoading) return;
+                  setUpgradeLoading(true);
+                  try {
+                    const { checkout_url } = await createCheckout();
+                    window.location.href = checkout_url;
+                  } catch (err) {
+                    console.error("Failed to create checkout:", err);
+                    setUpgradeLoading(false);
+                  }
+                }}
+                disabled={upgradeLoading}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 w-full text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/5 disabled:opacity-50"
+              >
+                <span className="text-[15px]" aria-hidden>✦</span>
+                <span>{upgradeLoading ? "Loading..." : "Upgrade to Pro"}</span>
+              </button>
+            )}
             <button
               onClick={toggleTheme}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 w-full text-text-muted hover:text-text-secondary hover:bg-bg-hover/50"

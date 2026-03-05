@@ -263,33 +263,52 @@ function SettingsContent() {
             </div>
           )}
 
-          <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-border px-4 py-3">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">
-                {user.is_pro ? "Pro" : "Free"}
-              </p>
-              <p className="text-xs text-text-muted">
-                {user.is_pro
-                  ? "You have access to all features."
-                  : "Upgrade for premium features."}
-              </p>
+          <div className="rounded-lg bg-bg-card border border-border px-4 py-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-text-primary">
+                  {user.is_pro ? "Pro" : "Free"}
+                </p>
+                <p className="text-xs text-text-muted">
+                  {user.is_pro
+                    ? "You have access to all Pro features."
+                    : "Upgrade to unlock more from Tend."}
+                </p>
+              </div>
+              {user.is_pro ? (
+                <button
+                  onClick={handleManageBilling}
+                  disabled={billingLoading}
+                  className="text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors disabled:opacity-50"
+                >
+                  {billingLoading ? "Loading..." : "Manage billing"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleUpgrade}
+                  disabled={billingLoading}
+                  className="text-sm text-white bg-accent-blue rounded-lg px-4 py-2 hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
+                >
+                  {billingLoading ? "Loading..." : "Upgrade to Pro"}
+                </button>
+              )}
             </div>
-            {user.is_pro ? (
-              <button
-                onClick={handleManageBilling}
-                disabled={billingLoading}
-                className="text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors disabled:opacity-50"
-              >
-                {billingLoading ? "Loading..." : "Manage billing"}
-              </button>
-            ) : (
-              <button
-                onClick={handleUpgrade}
-                disabled={billingLoading}
-                className="text-sm text-white bg-accent-blue rounded-lg px-4 py-2 hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
-              >
-                {billingLoading ? "Loading..." : "Upgrade to Pro"}
-              </button>
+
+            {!user.is_pro && (
+              <ul className="text-xs text-text-muted space-y-1.5 pt-1 border-t border-border/50">
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500/70 mt-px">✦</span>
+                  <span>Up to 10 life domains (free: 5)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500/70 mt-px">✦</span>
+                  <span>Priority support and early access to new features</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500/70 mt-px">✦</span>
+                  <span>Support Tend&apos;s continued development</span>
+                </li>
+              </ul>
             )}
           </div>
         </section>
