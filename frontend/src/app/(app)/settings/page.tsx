@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Domain, User } from "@/lib/api-types";
 import {
@@ -11,12 +12,22 @@ import {
   getMe,
   deleteMe,
   sendFeedback,
+  createCheckout,
+  createPortalSession,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { PRESET_COLORS, MAX_DOMAINS } from "@/lib/constants";
 
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +38,11 @@ export default function SettingsPage() {
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingSuccess, setBillingSuccess] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const refresh = useCallback(() => {
     Promise.all([getDomains(), getMe()]).then(([d, u]) => {
@@ -41,6 +56,13 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (searchParams.get("billing") === "success") {
+      setBillingSuccess(true);
+      router.replace("/settings", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   async function handleAddDomain() {
     const trimmed = newName.trim();
@@ -74,6 +96,30 @@ export default function SettingsPage() {
     setEditingId(domain.id);
     setEditName(domain.name);
     setEditColor(domain.color);
+  }
+
+  async function handleUpgrade() {
+    if (billingLoading) return;
+    setBillingLoading(true);
+    try {
+      const { checkout_url } = await createCheckout();
+      window.location.href = checkout_url;
+    } catch (err) {
+      console.error("Failed to create checkout:", err);
+      setBillingLoading(false);
+    }
+  }
+
+  async function handleManageBilling() {
+    if (billingLoading) return;
+    setBillingLoading(true);
+    try {
+      const { portal_url } = await createPortalSession();
+      window.location.href = portal_url;
+    } catch (err) {
+      console.error("Failed to open billing portal:", err);
+      setBillingLoading(false);
+    }
   }
 
   async function handleSendFeedback() {
@@ -205,6 +251,49 @@ export default function SettingsPage() {
           <p className="text-xs text-text-muted">Maximum 5 domains reached.</p>
         )}
       </section>
+
+      {/* Subscription */}
+      {user && (
+        <section className="space-y-3 pt-4 border-t border-border">
+          <h2 className="text-sm font-medium text-text-secondary">Subscription</h2>
+
+          {billingSuccess && (
+            <div className="rounded-lg bg-accent-green/10 border border-accent-green/20 px-3 py-2">
+              <p className="text-sm text-accent-green">Welcome to Pro! Your subscription is active.</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-border px-4 py-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-text-primary">
+                {user.is_pro ? "Pro" : "Free"}
+              </p>
+              <p className="text-xs text-text-muted">
+                {user.is_pro
+                  ? "You have access to all features."
+                  : "Upgrade for premium features."}
+              </p>
+            </div>
+            {user.is_pro ? (
+              <button
+                onClick={handleManageBilling}
+                disabled={billingLoading}
+                className="text-sm text-text-secondary border border-border rounded-lg px-4 py-2 hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
+                {billingLoading ? "Loading..." : "Manage billing"}
+              </button>
+            ) : (
+              <button
+                onClick={handleUpgrade}
+                disabled={billingLoading}
+                className="text-sm text-white bg-accent-blue rounded-lg px-4 py-2 hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
+              >
+                {billingLoading ? "Loading..." : "Upgrade to Pro"}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Appearance */}
       <section className="space-y-3 pt-4 border-t border-border">

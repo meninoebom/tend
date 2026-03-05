@@ -1,7 +1,8 @@
-"""Tests for billing routes and subscription schema (GH-63, GH-65)."""
+"""Tests for billing routes, subscription schema, and webhooks (GH-63, GH-64, GH-65)."""
 
-import uuid
 from unittest.mock import MagicMock, patch
+
+import stripe as stripe_lib
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session
@@ -180,3 +181,186 @@ def test_checkout_503_without_stripe_key(client: TestClient, test_user: User):
     resp = client.post("/billing/checkout")
     assert resp.status_code == 503
     assert resp.json()["code"] == "billing_unavailable"
+
+
+# --- #64: Webhook handler ---
+
+
+def _make_webhook_event(event_type: str, data_object: dict) -> dict:
+    return {
+        "id": "evt_test_123",
+        "type": event_type,
+        "data": {"object": data_object},
+    }
+
+
+@patch("app.services.billing_service.settings")
+@patch("app.services.billing_service.stripe")
+def test_webhook_checkout_completed_sets_active(
+    mock_stripe: MagicMock,
+    mock_settings: MagicMock,
+    client: TestClient,
+    db: Session,
+    test_user: User,
+):
+    """checkout.session.completed sets subscription_status to active."""
+    mock_settings.stripe_webhook_secret = "whsec_test"
+    test_user.stripe_customer_id = "cus_test_wh"
+    db.add(test_user)
+    db.flush()
+
+    event = _make_webhook_event(
+        "checkout.session.completed",
+        {"customer": "cus_test_wh", "subscription": "sub_123"},
+    )
+    mock_stripe.Webhook.construct_event.return_value = event
+
+    resp = client.post(
+        "/billing/webhook",
+        content=b"raw_payload",
+        headers={"stripe-signature": "sig_test"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["received"] is True
+
+    db.refresh(test_user)
+    assert test_user.subscription_status == "active"
+
+
+@patch("app.services.billing_service.settings")
+@patch("app.services.billing_service.stripe")
+def test_webhook_subscription_updated_maps_status(
+    mock_stripe: MagicMock,
+    mock_settings: MagicMock,
+    client: TestClient,
+    db: Session,
+    test_user: User,
+):
+    """customer.subscription.updated maps Stripe status to local enum."""
+    mock_settings.stripe_webhook_secret = "whsec_test"
+    test_user.stripe_customer_id = "cus_test_wh2"
+    test_user.subscription_status = "active"
+    db.add(test_user)
+    db.flush()
+
+    event = _make_webhook_event(
+        "customer.subscription.updated",
+        {"customer": "cus_test_wh2", "status": "past_due"},
+    )
+    mock_stripe.Webhook.construct_event.return_value = event
+
+    resp = client.post(
+        "/billing/webhook",
+        content=b"raw_payload",
+        headers={"stripe-signature": "sig_test"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["received"] is True
+
+    db.refresh(test_user)
+    assert test_user.subscription_status == "past_due"
+
+
+@patch("app.services.billing_service.settings")
+@patch("app.services.billing_service.stripe")
+def test_webhook_subscription_deleted_sets_free(
+    mock_stripe: MagicMock,
+    mock_settings: MagicMock,
+    client: TestClient,
+    db: Session,
+    test_user: User,
+):
+    """customer.subscription.deleted sets status back to free."""
+    mock_settings.stripe_webhook_secret = "whsec_test"
+    test_user.stripe_customer_id = "cus_test_wh3"
+    test_user.subscription_status = "active"
+    db.add(test_user)
+    db.flush()
+
+    event = _make_webhook_event(
+        "customer.subscription.deleted",
+        {"customer": "cus_test_wh3"},
+    )
+    mock_stripe.Webhook.construct_event.return_value = event
+
+    resp = client.post(
+        "/billing/webhook",
+        content=b"raw_payload",
+        headers={"stripe-signature": "sig_test"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["received"] is True
+
+    db.refresh(test_user)
+    assert test_user.subscription_status == "free"
+
+
+@patch("app.services.billing_service.settings")
+@patch("app.services.billing_service.stripe")
+def test_webhook_unknown_event_ignored(
+    mock_stripe: MagicMock,
+    mock_settings: MagicMock,
+    client: TestClient,
+    test_user: User,
+):
+    """Unknown event types return 200 with action=ignored."""
+    mock_settings.stripe_webhook_secret = "whsec_test"
+    event = _make_webhook_event("payment_intent.succeeded", {"id": "pi_123"})
+    mock_stripe.Webhook.construct_event.return_value = event
+
+    resp = client.post(
+        "/billing/webhook",
+        content=b"raw_payload",
+        headers={"stripe-signature": "sig_test"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["received"] is True
+
+
+@patch("app.services.billing_service.settings")
+@patch("app.services.billing_service.stripe")
+def test_webhook_invalid_signature_returns_400(
+    mock_stripe: MagicMock,
+    mock_settings: MagicMock,
+    client: TestClient,
+    test_user: User,
+):
+    """Invalid Stripe signature returns 400."""
+    mock_settings.stripe_webhook_secret = "whsec_test"
+    mock_stripe.Webhook.construct_event.side_effect = (
+        stripe_lib.SignatureVerificationError("bad sig", "sig_header")
+    )
+    mock_stripe.SignatureVerificationError = stripe_lib.SignatureVerificationError
+
+    resp = client.post(
+        "/billing/webhook",
+        content=b"raw_payload",
+        headers={"stripe-signature": "bad_sig"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "invalid_signature"
+
+
+@patch("app.services.billing_service.settings")
+@patch("app.services.billing_service.stripe")
+def test_webhook_unknown_customer_logs_warning(
+    mock_stripe: MagicMock,
+    mock_settings: MagicMock,
+    client: TestClient,
+    test_user: User,
+):
+    """Webhook with unknown customer_id doesn't crash, returns 200."""
+    mock_settings.stripe_webhook_secret = "whsec_test"
+    event = _make_webhook_event(
+        "checkout.session.completed",
+        {"customer": "cus_nonexistent", "subscription": "sub_123"},
+    )
+    mock_stripe.Webhook.construct_event.return_value = event
+
+    resp = client.post(
+        "/billing/webhook",
+        content=b"raw_payload",
+        headers={"stripe-signature": "sig_test"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["received"] is True

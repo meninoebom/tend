@@ -1,12 +1,13 @@
-"""Billing routes: checkout, portal, status."""
+"""Billing routes: checkout, portal, status, webhook."""
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session
 
 from app.core.deps import get_db
 from app.core.errors import NotFoundError
+from app.core.rate_limit import limiter
 from app.core.security import get_current_user_id
 from app.models.user import User
 from app.services import billing_service
@@ -51,3 +52,16 @@ def get_status(
     """Get current subscription status."""
     user = _get_user(db, user_id)
     return billing_service.get_billing_status(user)
+
+
+@router.post("/webhook")
+@limiter.limit("60/minute")
+async def stripe_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Handle Stripe webhook events. Unauthenticated — verified by signature."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    result = billing_service.handle_webhook(payload, sig_header, db)
+    return {"received": True}
