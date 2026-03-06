@@ -6,10 +6,22 @@ from sqlmodel import Session
 
 from app.api.tasks import _to_response
 from app.core.deps import get_db
+from app.core.errors import AppError
 from app.core.security import get_current_user_id
+from app.models.user import User
 from app.schemas.task_schemas import TaskResponse
-from app.schemas.triage_schemas import TriageQueueResponse, TriageRequest, TriageResultResponse
-from app.services import composter_service, triage_service
+from app.schemas.triage_schemas import (
+    BriefingResponse,
+    TriageQueueResponse,
+    TriageRequest,
+    TriageResultResponse,
+)
+from app.services import (
+    briefing_service,
+    composter_service,
+    stats_service,
+    triage_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +50,29 @@ def get_triage_queue(
         total_count=result["total_count"],
         completion_average=result["completion_average"],
         triage_complete=result["triage_complete"],
+    )
+
+
+@router.get("/briefing", response_model=BriefingResponse)
+def get_briefing(
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    user = db.get(User, user_id)
+    is_pro = user.subscription_status in ("active", "past_due")
+    if not is_pro:
+        raise AppError(
+            code="pro_required",
+            message="AI briefing requires a Pro subscription",
+            status_code=403,
+        )
+
+    result = triage_service.get_triage_tasks(db, user_id)
+    nudge = stats_service.get_nudge(db, user_id)
+
+    return briefing_service.generate_briefing(
+        tasks=result["tasks"],
+        nudge_stats=nudge,
     )
 
 

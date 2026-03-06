@@ -1,7 +1,9 @@
 from datetime import date
+from unittest.mock import patch
 
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
+from app.schemas.triage_schemas import BriefingResponse
 
 
 class TestTriageFlow:
@@ -116,3 +118,46 @@ class TestTriageFlow:
         r = client.get("/triage/winddown")
         assert r.status_code == 200
         assert len(r.json()) == 5  # All 5 tasks are today+pending
+
+
+class TestBriefingEndpoint:
+    @patch("app.api.triage.briefing_service.generate_briefing")
+    def test_pro_user_gets_briefing(
+        self, mock_gen, client, test_user, test_tasks, db
+    ):
+        test_user.subscription_status = "active"
+        db.flush()
+
+        mock_gen.return_value = BriefingResponse(
+            summary="5 tasks",
+            domain_balance="Heavy on Work",
+            calibration="You average 4",
+        )
+
+        r = client.get("/triage/briefing")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["summary"] == "5 tasks"
+        assert data["domain_balance"] == "Heavy on Work"
+        assert data["calibration"] == "You average 4"
+        mock_gen.assert_called_once()
+
+    def test_free_user_gets_403(self, client, test_user):
+        r = client.get("/triage/briefing")
+        assert r.status_code == 403
+        assert r.json()["code"] == "pro_required"
+
+    @patch("app.api.triage.briefing_service.generate_briefing")
+    def test_empty_briefing_returns_200(
+        self, mock_gen, client, test_user, db
+    ):
+        test_user.subscription_status = "active"
+        db.flush()
+
+        mock_gen.return_value = BriefingResponse()
+
+        r = client.get("/triage/briefing")
+        assert r.status_code == 200
+        assert r.json()["summary"] == ""
+        assert r.json()["domain_balance"] == ""
+        assert r.json()["calibration"] == ""
