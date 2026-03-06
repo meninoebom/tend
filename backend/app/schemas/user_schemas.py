@@ -30,6 +30,11 @@ class UserResponse(BaseModel):
     is_pro: bool = False
 
 
+class OAuthUser(BaseModel):
+    email: str
+    auth_provider: AuthProvider = AuthProvider.google
+
+
 class UserVerify(BaseModel):
     email: str
     password: str
