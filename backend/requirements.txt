@@ -6,14 +6,21 @@ annotated-doc==0.0.4
     # via fastapi
 annotated-types==0.7.0
     # via pydantic
+anthropic==0.84.0
+    # via tend-backend (pyproject.toml)
 anyio==4.12.1
     # via
+    #   anthropic
+    #   httpx
     #   starlette
     #   watchfiles
 bcrypt==5.0.0
     # via tend-backend (pyproject.toml)
 certifi==2026.1.4
-    # via requests
+    # via
+    #   httpcore
+    #   httpx
+    #   requests
 cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.4
@@ -24,18 +31,31 @@ cryptography==46.0.4
     # via python-jose
 deprecated==1.3.1
     # via limits
+distro==1.9.0
+    # via anthropic
+docstring-parser==0.17.0
+    # via anthropic
 ecdsa==0.19.1
     # via python-jose
 fastapi==0.128.3
     # via tend-backend (pyproject.toml)
 h11==0.16.0
-    # via uvicorn
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
 httptools==0.7.1
     # via uvicorn
+httpx==0.28.1
+    # via anthropic
 idna==3.11
     # via
     #   anyio
+    #   httpx
     #   requests
+jiter==0.13.0
+    # via anthropic
 limits==5.8.0
     # via slowapi
 mako==1.3.10
@@ -54,6 +74,7 @@ pycparser==3.0
     # via cffi
 pydantic==2.12.5
     # via
+    #   anthropic
     #   fastapi
     #   pydantic-settings
     #   sqlmodel
@@ -81,6 +102,8 @@ six==1.17.0
     # via ecdsa
 slowapi==0.1.9
     # via tend-backend (pyproject.toml)
+sniffio==1.3.1
+    # via anthropic
 sqlalchemy==2.0.46
     # via
     #   alembic
@@ -94,6 +117,7 @@ stripe==14.4.0
 typing-extensions==4.15.0
     # via
     #   alembic
+    #   anthropic
     #   fastapi
     #   limits
     #   pydantic
