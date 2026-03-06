@@ -27,6 +27,12 @@ class TriageQueueResponse(BaseModel):
     triage_complete: bool
 
 
+class BriefingResponse(BaseModel):
+    summary: str = ""
+    domain_balance: str = ""
+    calibration: str = ""
+
+
 class TriageResultResponse(BaseModel):
     task_id: uuid.UUID
     action: TriageAction
