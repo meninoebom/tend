@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import type { TriageQueue, User } from "@/lib/api-types";
 import { getTriageQueue, getMe, createCheckout } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -217,6 +218,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className={cn(pathname === settingsItem.href && "text-accent-blue")}
               />
               <span>{settingsItem.label}</span>
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 w-full text-text-muted hover:text-text-secondary hover:bg-bg-hover/50"
+            >
+              <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>Sign out</span>
             </button>
           </div>
         </nav>
