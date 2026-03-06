@@ -59,6 +59,13 @@ export interface TriageResult {
   remaining: number;
 }
 
+// Briefing
+export interface BriefingResponse {
+  summary: string;
+  domain_balance: string;
+  calibration: string;
+}
+
 // Stats
 export interface NudgeStats {
   today_count: number;
