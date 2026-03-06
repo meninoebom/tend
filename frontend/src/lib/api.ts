@@ -1,5 +1,6 @@
 import type {
   BillingStatus,
+  BriefingResponse,
   BucketType,
   CheckoutResponse,
   Domain,
@@ -96,6 +97,10 @@ export async function submitTriage(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function getTriageBriefing(): Promise<BriefingResponse> {
+  return request<BriefingResponse>("triage/briefing");
 }
 
 export async function getWinddown(): Promise<Task[]> {
