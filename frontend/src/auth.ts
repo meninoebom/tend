@@ -63,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const res = await fetch(`${backendUrl}/users/oauth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, auth_provider: "google" }),
+          body: JSON.stringify({ email: user.email }),
         });
         if (!res.ok) return false;
         const backendUser = await res.json();

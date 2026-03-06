@@ -15,6 +15,7 @@ from app.core.deps import get_db
 from app.core.errors import AppError, NotFoundError
 from app.core.rate_limit import limiter
 from app.core.security import ALGORITHM, get_current_user_id
+from app.models.enums import AuthProvider
 from app.models.user import User
 from app.schemas.user_schemas import (
     ForgotPasswordRequest,
@@ -104,7 +105,7 @@ def oauth_user(
     user = User(
         email=email,
         password_hash=None,
-        auth_provider=body.auth_provider,
+        auth_provider=AuthProvider.google,
     )
     db.add(user)
     db.flush()

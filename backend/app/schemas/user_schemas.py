@@ -32,7 +32,6 @@ class UserResponse(BaseModel):
 
 class OAuthUser(BaseModel):
     email: str
-    auth_provider: AuthProvider = AuthProvider.google
 
 
 class UserVerify(BaseModel):

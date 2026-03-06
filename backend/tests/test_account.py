@@ -81,7 +81,7 @@ class TestAccount:
 class TestOAuth:
     def test_oauth_creates_new_user(self, client, db):
         """OAuth with new email creates a user."""
-        r = client.post("/users/oauth", json={"email": "new@gmail.com", "auth_provider": "google"})
+        r = client.post("/users/oauth", json={"email": "new@gmail.com"})
         assert r.status_code == 200
         data = r.json()
         assert data["email"] == "new@gmail.com"
@@ -93,7 +93,7 @@ class TestOAuth:
         client.post("/users", json={"email": "existing@tend.app", "password": "password123"})
 
         # Now OAuth with same email
-        r = client.post("/users/oauth", json={"email": "existing@tend.app", "auth_provider": "google"})
+        r = client.post("/users/oauth", json={"email": "existing@tend.app"})
         assert r.status_code == 200
         data = r.json()
         assert data["email"] == "existing@tend.app"
@@ -102,13 +102,13 @@ class TestOAuth:
 
     def test_oauth_case_insensitive_email(self, client, db):
         """OAuth email matching is case-insensitive."""
-        client.post("/users/oauth", json={"email": "User@Gmail.com", "auth_provider": "google"})
-        r = client.post("/users/oauth", json={"email": "user@gmail.com", "auth_provider": "google"})
+        client.post("/users/oauth", json={"email": "User@Gmail.com"})
+        r = client.post("/users/oauth", json={"email": "user@gmail.com"})
         assert r.status_code == 200
 
     def test_oauth_creates_default_domains(self, client, db):
         """New OAuth user gets default domains."""
-        r = client.post("/users/oauth", json={"email": "domains@gmail.com", "auth_provider": "google"})
+        r = client.post("/users/oauth", json={"email": "domains@gmail.com"})
         assert r.status_code == 200
         # Verify domains were created by checking the count indirectly
         # (can't call /domains without auth override, but the endpoint succeeded)
