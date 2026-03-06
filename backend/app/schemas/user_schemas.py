@@ -30,6 +30,10 @@ class UserResponse(BaseModel):
     is_pro: bool = False
 
 
+class OAuthUser(BaseModel):
+    email: str
+
+
 class UserVerify(BaseModel):
     email: str
     password: str

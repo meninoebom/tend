@@ -15,9 +15,11 @@ from app.core.deps import get_db
 from app.core.errors import AppError, NotFoundError
 from app.core.rate_limit import limiter
 from app.core.security import ALGORITHM, get_current_user_id
+from app.models.enums import AuthProvider
 from app.models.user import User
 from app.schemas.user_schemas import (
     ForgotPasswordRequest,
+    OAuthUser,
     ResetPasswordRequest,
     UserCreate,
     UserResponse,
@@ -80,6 +82,34 @@ def create_user(
     db.flush()
 
     # Create 5 default domains
+    domain_service.create_default_domains(db, user.id)
+
+    db.refresh(user)
+    return _to_response(user)
+
+
+@router.post("/users/oauth", response_model=UserResponse)
+@limiter.limit("10/minute")
+def oauth_user(
+    request: Request,
+    body: OAuthUser,
+    db: Session = Depends(get_db),
+):
+    """Find or create a user for OAuth sign-in. Auto-links if email exists."""
+    email = body.email.strip().lower()
+
+    existing = db.exec(select(User).where(User.email == email)).first()
+    if existing:
+        return _to_response(existing)
+
+    user = User(
+        email=email,
+        password_hash=None,
+        auth_provider=AuthProvider.google,
+    )
+    db.add(user)
+    db.flush()
+
     domain_service.create_default_domains(db, user.id)
 
     db.refresh(user)

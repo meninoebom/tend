@@ -1,8 +1,13 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -51,6 +56,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && user.email) {
+        // Find or create user in our backend, get our backend user ID
+        const backendUrl = process.env.BACKEND_URL;
+        const res = await fetch(`${backendUrl}/users/oauth`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email }),
+        });
+        if (!res.ok) return false;
+        const backendUser = await res.json();
+        // Store backend user ID on the user object for the jwt callback
+        user.id = backendUser.id;
+      }
+      return true;
+    },
     jwt({ token, user }) {
       // On initial sign-in, persist user.id into the JWT
       if (user) {
