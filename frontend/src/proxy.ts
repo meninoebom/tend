@@ -13,8 +13,8 @@ export default auth((req) => {
     pathname === "/reset-password" ||
     pathname.startsWith("/api/auth");
 
-  // Redirect authenticated users away from auth pages
-  if (isLoggedIn && (pathname === "/login" || pathname === "/signup")) {
+  // Redirect authenticated users away from auth/marketing pages into the app
+  if (isLoggedIn && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
     return Response.redirect(new URL("/today", req.nextUrl.origin));
   }
 
