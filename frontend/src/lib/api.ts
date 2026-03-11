@@ -4,6 +4,7 @@ import type {
   BucketType,
   CheckoutResponse,
   Domain,
+  MITSuggestion,
   NudgeStats,
   PortalResponse,
   Task,
@@ -109,6 +110,10 @@ export async function getTriageBriefing(): Promise<BriefingResponse> {
 
 export async function getWinddown(): Promise<Task[]> {
   return request<Task[]>("triage/winddown");
+}
+
+export async function getMITSuggestion(): Promise<MITSuggestion | null> {
+  return request<MITSuggestion | null>("triage/mit-suggestion");
 }
 
 // Domains

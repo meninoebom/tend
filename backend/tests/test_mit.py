@@ -136,6 +136,32 @@ class TestMitEndpoint:
         resp = client.post(f"/tasks/{task.id}/mit")
         assert resp.status_code == 422
 
+    def test_mit_suggestion_endpoint_returns_suggestion(
+        self, client, db, test_user, test_tasks
+    ):
+        # test_tasks has 2 today tasks; add a third to reach the 3-task threshold
+        extra = Task(
+            user_id=test_user.id,
+            text="Extra today task",
+            bucket=BucketType.today,
+            status=TaskStatus.pending,
+        )
+        db.add(extra)
+        db.flush()
+        resp = client.get("/triage/mit-suggestion")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "task_id" in data
+        assert "task_text" in data
+        assert "reason" in data
+
+    def test_mit_suggestion_endpoint_returns_null_few_tasks(
+        self, client, db, test_user, test_tasks
+    ):
+        # test_tasks has only 2 today tasks — below threshold
+        resp = client.get("/triage/mit-suggestion")
+        assert resp.status_code == 204
+
     def test_tasks_list_includes_is_mit(self, client, db, test_user, test_tasks):
         task = test_tasks[0]
         # Set MIT first

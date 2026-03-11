@@ -1,8 +1,8 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, Response
+from sqlmodel import Session, select
 
 from app.api.tasks import _to_response
 from app.core.deps import get_db
@@ -10,8 +10,11 @@ from app.core.errors import AppError
 from app.core.security import get_current_user_id
 from app.models.user import User
 from app.schemas.task_schemas import TaskResponse
+from app.models.enums import BucketType, TaskStatus
+from app.models.task import Task
 from app.schemas.triage_schemas import (
     BriefingResponse,
+    MITSuggestionResponse,
     TriageQueueResponse,
     TriageRequest,
     TriageResultResponse,
@@ -19,6 +22,7 @@ from app.schemas.triage_schemas import (
 from app.services import (
     briefing_service,
     composter_service,
+    mit_service,
     stats_service,
     triage_service,
 )
@@ -74,6 +78,25 @@ def get_briefing(
         tasks=result["tasks"],
         nudge_stats=nudge,
     )
+
+
+@router.get("/mit-suggestion", response_model=MITSuggestionResponse | None)
+def get_mit_suggestion(
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    tasks = db.exec(
+        select(Task).where(
+            Task.user_id == user_id,
+            Task.bucket == BucketType.today,
+            Task.status == TaskStatus.pending,
+            Task.parent_id.is_(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    suggestion = mit_service.suggest_mit(list(tasks))
+    if suggestion is None:
+        return Response(status_code=204)
+    return suggestion
 
 
 @router.post("/{task_id}", response_model=TriageResultResponse)
