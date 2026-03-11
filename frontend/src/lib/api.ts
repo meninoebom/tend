@@ -4,6 +4,7 @@ import type {
   BucketType,
   CheckoutResponse,
   Domain,
+  MITSuggestion,
   NudgeStats,
   PortalResponse,
   Task,
@@ -84,6 +85,10 @@ export async function deleteTask(id: string): Promise<void> {
   return request<void>(`tasks/${id}`, { method: "DELETE" });
 }
 
+export async function setMIT(taskId: string): Promise<Task> {
+  return request<Task>(`tasks/${taskId}/mit`, { method: "POST" });
+}
+
 // Triage
 export async function getTriageQueue(): Promise<TriageQueue> {
   return request<TriageQueue>("triage");
@@ -103,8 +108,12 @@ export async function getTriageBriefing(): Promise<BriefingResponse> {
   return request<BriefingResponse>("triage/briefing");
 }
 
-export async function getWinddown(): Promise<Task[]> {
-  return request<Task[]>("triage/winddown");
+export async function getWinddown(): Promise<{ tasks: Task[]; mit_completed: boolean | null }> {
+  return request<{ tasks: Task[]; mit_completed: boolean | null }>("triage/winddown");
+}
+
+export async function getMITSuggestion(): Promise<MITSuggestion | null> {
+  return request<MITSuggestion | null>("triage/mit-suggestion");
 }
 
 // Domains

@@ -39,3 +39,14 @@ class TriageResultResponse(BaseModel):
     same_text_warning: bool = False
     triage_complete: bool
     remaining: int
+
+
+class WinddownResponse(BaseModel):
+    tasks: list[TaskResponse]
+    mit_completed: bool | None = None
+
+
+class MITSuggestionResponse(BaseModel):
+    task_id: uuid.UUID
+    task_text: str
+    reason: str

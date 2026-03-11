@@ -41,6 +41,14 @@ export interface Task {
   updated_at: string;
   completed_at: string | null;
   age_days: number;
+  is_mit: boolean;
+}
+
+// MIT suggestion from the backend
+export interface MITSuggestion {
+  task_id: string;
+  task_text: string;
+  reason: string;
 }
 
 // Triage

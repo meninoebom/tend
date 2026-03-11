@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BriefingResponse, TriageQueue } from "@/lib/api-types";
-import { getTriageQueue, getMe, getTriageBriefing, createCheckout } from "@/lib/api";
+import type { BriefingResponse, MITSuggestion, Task, TriageQueue } from "@/lib/api-types";
+import { getTriageQueue, getMe, getTriageBriefing, createCheckout, getMITSuggestion, setMIT, getTasks } from "@/lib/api";
 import { TriageCard } from "@/components/triage-card";
 import { RitualOverlay } from "@/components/ritual-overlay";
 import { ProBadge } from "@/components/pro-badge";
+import { MITSelection } from "@/components/mit-selection";
 
 interface TriageModalProps {
   onComplete: () => void;
@@ -25,6 +26,9 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [showFreeTeaser, setShowFreeTeaser] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [showMITSelection, setShowMITSelection] = useState(false);
+  const [mitSuggestion, setMitSuggestion] = useState<MITSuggestion | null>(null);
+  const [todayTasks, setTodayTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     const queuePromise = initialQueue
@@ -76,16 +80,51 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [mitLoading, setMitLoading] = useState(false);
+
+  async function handleTriageFinished() {
+    setMitLoading(true);
+    try {
+      const suggestion = await getMITSuggestion();
+      if (suggestion) {
+        setMitSuggestion(suggestion);
+        const tasks = await getTasks({ bucket: "today" });
+        setTodayTasks(tasks.filter((t) => t.status === "pending"));
+        setMitLoading(false);
+        setShowMITSelection(true);
+        return;
+      }
+    } catch {
+      // MIT suggestion failed — skip silently
+    }
+    setMitLoading(false);
+    if (isFirstTriage) setShowFirstComplete(true);
+    else onComplete();
+  }
+
   function handleAction(result: { triage_complete: boolean; remaining: number }) {
     if (result.triage_complete || result.remaining === 0 || !queue || currentIndex >= queue.tasks.length - 1) {
-      if (isFirstTriage) {
-        setShowFirstComplete(true);
-      } else {
-        onComplete();
-      }
+      handleTriageFinished();
       return;
     }
     setCurrentIndex((i) => i + 1);
+  }
+
+  async function handleMITConfirm(taskId: string) {
+    try {
+      await setMIT(taskId);
+    } catch {
+      // MIT set failed — continue anyway
+    }
+    setShowMITSelection(false);
+    if (isFirstTriage) setShowFirstComplete(true);
+    else onComplete();
+  }
+
+  function handleMITSkip() {
+    setShowMITSelection(false);
+    if (isFirstTriage) setShowFirstComplete(true);
+    else onComplete();
   }
 
   async function handleUpgrade() {
@@ -122,7 +161,18 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
 
   return (
     <RitualOverlay>
-      {showFirstComplete ? (
+      {mitLoading ? (
+        <div className="flex items-center justify-center">
+          <p className="text-sm text-text-muted">Finding your most important task...</p>
+        </div>
+      ) : showMITSelection && mitSuggestion ? (
+        <MITSelection
+          suggestion={mitSuggestion}
+          tasks={todayTasks}
+          onConfirm={handleMITConfirm}
+          onSkip={handleMITSkip}
+        />
+      ) : showFirstComplete ? (
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">That&apos;s your morning triage</h2>

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { Task, Domain, NudgeStats, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, getNudge } from "@/lib/api";
+import { getTasks, getDomains, getNudge, setMIT } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { TaskInput } from "@/components/task-input";
 import { cn } from "@/lib/utils";
@@ -39,8 +39,17 @@ export default function TodayPage() {
     ? tasks.filter((t) => t.domain?.id === domainFilter)
     : tasks;
 
-  const pending = filtered.filter((t) => t.status === "pending");
+  const pending = [...filtered.filter((t) => t.status === "pending")].sort((a, b) => {
+    if (a.is_mit && !b.is_mit) return -1;
+    if (!a.is_mit && b.is_mit) return 1;
+    return 0;
+  });
   const completed = filtered.filter((t) => t.status === "complete");
+
+  async function handleSetMIT(taskId: string) {
+    await setMIT(taskId);
+    refresh();
+  }
 
   if (loading) {
     return (
@@ -124,7 +133,7 @@ export default function TodayPage() {
           </div>
         )}
         {pending.map((task) => (
-          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
+          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} isMIT={task.is_mit} onSetMIT={handleSetMIT} />
         ))}
 
         {/* Completed tasks */}

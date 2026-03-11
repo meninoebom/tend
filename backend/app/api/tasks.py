@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.core.deps import get_db
 from app.core.security import get_current_user_id
+from app.core.errors import AppError
 from app.models.enums import BucketType, TaskStatus
 from app.schemas.task_schemas import (
     DomainBrief,
@@ -13,12 +14,12 @@ from app.schemas.task_schemas import (
     TaskResponse,
     TaskUpdate,
 )
-from app.services import task_service
+from app.services import mit_service, task_service
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def _to_response(task) -> TaskResponse:
+def _to_response(task, mit_task_id: uuid.UUID | None = None) -> TaskResponse:
     return TaskResponse(
         id=task.id,
         text=task.text,
@@ -39,6 +40,7 @@ def _to_response(task) -> TaskResponse:
         created_at=task.created_at,
         updated_at=task.updated_at,
         completed_at=task.completed_at,
+        is_mit=mit_task_id is not None and task.id == mit_task_id,
     )
 
 
@@ -51,7 +53,8 @@ def list_tasks(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     tasks = task_service.get_tasks(db, user_id, bucket=bucket, status=status, domain_id=domain_id)
-    return [_to_response(t) for t in tasks]
+    mit_id = mit_service.get_today_mit(db, user_id)
+    return [_to_response(t, mit_task_id=mit_id) for t in tasks]
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -131,3 +134,26 @@ def delete_task(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     task_service.delete_task(db, user_id, task_id)
+
+
+@router.post("/{task_id}/mit", response_model=TaskResponse)
+def set_mit(
+    task_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    task = task_service.get_task(db, user_id, task_id)
+    if task.status != TaskStatus.pending:
+        raise AppError(
+            code="task_not_pending",
+            message="Only pending tasks can be set as MIT",
+            status_code=422,
+        )
+    if task.bucket != BucketType.today:
+        raise AppError(
+            code="task_not_today",
+            message="Only today-bucket tasks can be set as MIT",
+            status_code=422,
+        )
+    mit_service.set_mit(db, user_id, task_id)
+    return _to_response(task, mit_task_id=task_id)
