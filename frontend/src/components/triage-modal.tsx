@@ -80,19 +80,24 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [mitLoading, setMitLoading] = useState(false);
+
   async function handleTriageFinished() {
+    setMitLoading(true);
     try {
       const suggestion = await getMITSuggestion();
       if (suggestion) {
         setMitSuggestion(suggestion);
         const tasks = await getTasks({ bucket: "today" });
         setTodayTasks(tasks.filter((t) => t.status === "pending"));
+        setMitLoading(false);
         setShowMITSelection(true);
         return;
       }
     } catch {
       // MIT suggestion failed — skip silently
     }
+    setMitLoading(false);
     if (isFirstTriage) setShowFirstComplete(true);
     else onComplete();
   }
@@ -111,11 +116,13 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
     } catch {
       // MIT set failed — continue anyway
     }
+    setShowMITSelection(false);
     if (isFirstTriage) setShowFirstComplete(true);
     else onComplete();
   }
 
   function handleMITSkip() {
+    setShowMITSelection(false);
     if (isFirstTriage) setShowFirstComplete(true);
     else onComplete();
   }
@@ -154,7 +161,11 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
 
   return (
     <RitualOverlay>
-      {showMITSelection && mitSuggestion ? (
+      {mitLoading ? (
+        <div className="flex items-center justify-center">
+          <p className="text-sm text-text-muted">Finding your most important task...</p>
+        </div>
+      ) : showMITSelection && mitSuggestion ? (
         <MITSelection
           suggestion={mitSuggestion}
           tasks={todayTasks}

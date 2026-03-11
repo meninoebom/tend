@@ -349,7 +349,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
             className="shrink-0 hover-action text-text-muted hover:text-accent-blue text-xs"
             title="Set as most important task"
           >
-            ↑
+            most important
           </button>
         )}
 

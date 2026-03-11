@@ -11,8 +11,8 @@ from app.models.task import Task
 def suggest_mit(tasks: list[Task]) -> dict | None:
     """Suggest the Most Important Task from a list of tasks.
 
-    Returns None if fewer than 3 tasks. Otherwise picks the task most
-    likely to be the "frog" — the one you've been avoiding.
+    Returns None if fewer than 3 tasks. Otherwise picks the task
+    you're most likely avoiding — highest reschedule count, then age.
     """
     if len(tasks) < 3:
         return None
