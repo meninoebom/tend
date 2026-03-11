@@ -13,3 +13,6 @@ class DailyStat(SQLModel, table=True):
     date: dt.date = Field()
     tasks_added: int = Field(default=0)
     tasks_completed: int = Field(default=0)
+    mit_task_id: uuid.UUID | None = Field(
+        default=None, foreign_key="tasks.id", ondelete="SET NULL"
+    )
