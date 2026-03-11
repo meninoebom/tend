@@ -47,6 +47,7 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None
+    is_mit: bool = False
 
     @computed_field
     @property

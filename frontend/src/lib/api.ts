@@ -84,6 +84,10 @@ export async function deleteTask(id: string): Promise<void> {
   return request<void>(`tasks/${id}`, { method: "DELETE" });
 }
 
+export async function setMIT(taskId: string): Promise<Task> {
+  return request<Task>(`tasks/${taskId}/mit`, { method: "POST" });
+}
+
 // Triage
 export async function getTriageQueue(): Promise<TriageQueue> {
   return request<TriageQueue>("triage");

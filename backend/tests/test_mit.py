@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime, timedelta
 
-from app.models.enums import BucketType, TaskStatus
+from app.models.enums import AuthProvider, BucketType, TaskStatus
 from app.models.task import Task
+from app.models.user import User
 from app.services.mit_service import get_today_mit, set_mit, suggest_mit
+from tests.conftest import TEST_USER_ID
 
 
 def _make_task(
@@ -88,3 +90,63 @@ class TestSetAndGetMit:
         task = test_tasks[2]
         set_mit(db, test_user.id, task.id)
         assert get_today_mit(db, test_user.id) == task.id
+
+
+class TestMitEndpoint:
+    def test_set_mit_endpoint_success(self, client, test_user, test_tasks):
+        # test_tasks[0] is "Build frontend" in today bucket
+        task = test_tasks[0]
+        resp = client.post(f"/tasks/{task.id}/mit")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == str(task.id)
+        assert data["is_mit"] is True
+
+    def test_set_mit_endpoint_wrong_user(self, client, db, test_user, test_tasks):
+        # Create a task owned by a different user
+        other_user = User(
+            id=uuid.uuid4(),
+            email="other@tend.app",
+            auth_provider=AuthProvider.email,
+        )
+        db.add(other_user)
+        db.flush()
+        other_task = Task(
+            user_id=other_user.id,
+            text="Other task",
+            bucket=BucketType.today,
+            status=TaskStatus.pending,
+        )
+        db.add(other_task)
+        db.flush()
+        resp = client.post(f"/tasks/{other_task.id}/mit")
+        assert resp.status_code == 404
+
+    def test_set_mit_endpoint_not_pending(self, client, db, test_user, test_tasks):
+        task = test_tasks[0]
+        task.status = TaskStatus.complete
+        db.add(task)
+        db.flush()
+        resp = client.post(f"/tasks/{task.id}/mit")
+        assert resp.status_code == 422
+
+    def test_set_mit_endpoint_wrong_bucket(self, client, test_user, test_tasks):
+        # test_tasks[3] is "Refactor backend" in later bucket
+        task = test_tasks[3]
+        resp = client.post(f"/tasks/{task.id}/mit")
+        assert resp.status_code == 422
+
+    def test_tasks_list_includes_is_mit(self, client, db, test_user, test_tasks):
+        task = test_tasks[0]
+        # Set MIT first
+        client.post(f"/tasks/{task.id}/mit")
+        # List today tasks
+        resp = client.get("/tasks?bucket=today")
+        assert resp.status_code == 200
+        data = resp.json()
+        mit_flags = {t["id"]: t["is_mit"] for t in data}
+        assert mit_flags[str(task.id)] is True
+        # Other today tasks should not be MIT
+        for t in data:
+            if t["id"] != str(task.id):
+                assert t["is_mit"] is False
