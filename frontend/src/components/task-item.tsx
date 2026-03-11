@@ -122,9 +122,11 @@ interface TaskItemProps {
   task: Task;
   domains: Domain[];
   onMutate: () => void;
+  isMIT?: boolean;
+  onSetMIT?: (taskId: string) => void;
 }
 
-export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
+export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -249,7 +251,10 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
 
   return (
     <div className={cn("group", isComplete && "opacity-40")}>
-      <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors">
+      <div className={cn(
+        "flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors",
+        isMIT && "border-l-2 border-accent-blue",
+      )}>
         {/* Complete checkbox */}
         <button
           onClick={handleComplete}
@@ -334,6 +339,17 @@ export function TaskItem({ task, domains, onMutate }: TaskItemProps) {
             title="Edit task"
           >
             ✎
+          </button>
+        )}
+
+        {/* Set as MIT button */}
+        {!isEditing && !isComplete && !isMIT && onSetMIT && (
+          <button
+            onClick={() => onSetMIT(task.id)}
+            className="shrink-0 hover-action text-text-muted hover:text-accent-blue text-xs"
+            title="Set as most important task"
+          >
+            ↑
           </button>
         )}
 

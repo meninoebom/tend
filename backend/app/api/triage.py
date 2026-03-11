@@ -18,6 +18,7 @@ from app.schemas.triage_schemas import (
     TriageQueueResponse,
     TriageRequest,
     TriageResultResponse,
+    WinddownResponse,
 )
 from app.services import (
     briefing_service,
@@ -117,10 +118,19 @@ def triage_task(
     return TriageResultResponse(**result)
 
 
-@router.get("/winddown", response_model=list[TaskResponse])
+@router.get("/winddown", response_model=WinddownResponse)
 def get_winddown(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     tasks = triage_service.get_winddown_tasks(db, user_id)
-    return [_to_response(t) for t in tasks]
+    mit_task_id = mit_service.get_today_mit(db, user_id)
+    mit_completed: bool | None = None
+    if mit_task_id is not None:
+        mit_task = db.get(Task, mit_task_id)
+        if mit_task is not None:
+            mit_completed = mit_task.status == TaskStatus.complete
+    return WinddownResponse(
+        tasks=[_to_response(t) for t in tasks],
+        mit_completed=mit_completed,
+    )

@@ -117,7 +117,9 @@ class TestTriageFlow:
 
         r = client.get("/triage/winddown")
         assert r.status_code == 200
-        assert len(r.json()) == 5  # All 5 tasks are today+pending
+        data = r.json()
+        assert len(data["tasks"]) == 5  # All 5 tasks are today+pending
+        assert data["mit_completed"] is None
 
 
 class TestBriefingEndpoint:

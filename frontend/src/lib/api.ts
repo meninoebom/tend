@@ -108,8 +108,8 @@ export async function getTriageBriefing(): Promise<BriefingResponse> {
   return request<BriefingResponse>("triage/briefing");
 }
 
-export async function getWinddown(): Promise<Task[]> {
-  return request<Task[]>("triage/winddown");
+export async function getWinddown(): Promise<{ tasks: Task[]; mit_completed: boolean | null }> {
+  return request<{ tasks: Task[]; mit_completed: boolean | null }>("triage/winddown");
 }
 
 export async function getMITSuggestion(): Promise<MITSuggestion | null> {

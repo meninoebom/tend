@@ -32,8 +32,8 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
 
   useEffect(() => {
     Promise.all([getWinddown(), getNudge()])
-      .then(([t, n]) => {
-        setTasks(t);
+      .then(([w, n]) => {
+        setTasks(w.tasks);
         setNudge(n);
         setLoading(false);
       })

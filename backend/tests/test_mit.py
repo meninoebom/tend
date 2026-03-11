@@ -5,6 +5,7 @@ from app.models.enums import AuthProvider, BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
 from app.services.mit_service import get_today_mit, set_mit, suggest_mit
+from app.services import task_service
 from tests.conftest import TEST_USER_ID
 
 
@@ -176,3 +177,31 @@ class TestMitEndpoint:
         for t in data:
             if t["id"] != str(task.id):
                 assert t["is_mit"] is False
+
+
+class TestWinddownMit:
+    def test_winddown_includes_mit_completed_none(self, client, test_user, test_tasks):
+        """No MIT set → mit_completed is null."""
+        resp = client.get("/triage/winddown")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["mit_completed"] is None
+
+    def test_winddown_includes_mit_completed_true(self, client, db, test_user, test_tasks):
+        """MIT set and task completed → true."""
+        task = test_tasks[0]
+        client.post(f"/tasks/{task.id}/mit")
+        client.post(f"/tasks/{task.id}/complete")
+        resp = client.get("/triage/winddown")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["mit_completed"] is True
+
+    def test_winddown_includes_mit_completed_false(self, client, db, test_user, test_tasks):
+        """MIT set, task pending → false."""
+        task = test_tasks[0]
+        client.post(f"/tasks/{task.id}/mit")
+        resp = client.get("/triage/winddown")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["mit_completed"] is False
