@@ -144,9 +144,9 @@ export default function BucketPage() {
       <TaskInput bucket={bucket} domains={domains} onCreated={refresh} />
 
       {/* Tasks */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-[120px]">
         {pending.length === 0 && completed.length === 0 && (
-          <div className="text-center py-12 px-4">
+          <div className="text-center py-8 px-4">
             <p className="text-base text-text-secondary">
               {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
             </p>
