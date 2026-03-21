@@ -11,9 +11,10 @@ interface TriageCardProps {
   progress: { current: number; total: number };
   onAction: (result: TriageResult) => void;
   showHints?: boolean;
+  isWinddown?: boolean;
 }
 
-export function TriageCard({ task, progress, onAction, showHints = false }: TriageCardProps) {
+export function TriageCard({ task, progress, onAction, showHints = false, isWinddown = false }: TriageCardProps) {
   const [rewriteMode, setRewriteMode] = useState(false);
   const [rewriteText, setRewriteText] = useState(task.text);
   const [loading, setLoading] = useState(false);
@@ -130,8 +131,8 @@ export function TriageCard({ task, progress, onAction, showHints = false }: Tria
       {/* Action buttons — row 1: bucket choices */}
       <div className="grid grid-cols-4 gap-2 w-full">
         <ActionButton
-          label="Today"
-          hint={showHints ? "do it today" : undefined}
+          label={isWinddown ? "Tomorrow" : "Today"}
+          hint={showHints ? (isWinddown ? "first thing" : "do it today") : undefined}
           onClick={() => handleAction("confirm")}
           loading={loading}
           className="bg-accent-green/15 text-accent-green hover:bg-accent-green/25"

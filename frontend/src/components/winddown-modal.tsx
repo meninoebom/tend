@@ -163,6 +163,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
           task={task}
           progress={{ current: currentIndex + 1, total: tasks.length }}
           onAction={handleAction}
+          isWinddown
         />
       </RitualOverlay>
     );
