@@ -32,12 +32,13 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
   // Options: [undefined (None), domain0, domain1, ...]
   const optionCount = domains.length + 1;
 
+  const [shouldRefocus, setShouldRefocus] = useState(false);
+
   const resetToTyping = useCallback(() => {
     setText("");
     setSelectedIndex(0);
     setPhase("typing");
-    // Focus input on next tick after state update
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setShouldRefocus(true);
   }, []);
 
   const submitTask = useCallback(async (taskText: string, domainIndex: number) => {
@@ -101,6 +102,14 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
       chipContainerRef.current?.focus();
     }
   }, [phase]);
+
+  // Refocus text input after task creation (waits for React to re-enable the input)
+  useEffect(() => {
+    if (shouldRefocus && phase === "typing") {
+      inputRef.current?.focus();
+      setShouldRefocus(false);
+    }
+  }, [shouldRefocus, phase]);
 
   const isDisabled = phase === "submitting";
 
