@@ -121,9 +121,9 @@ export default function TodayPage() {
       <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
 
       {/* Task list */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-[120px]">
         {pending.length === 0 && completed.length === 0 && (
-          <div className="text-center py-12 px-4">
+          <div className="text-center py-8 px-4">
             <p className="text-base text-text-secondary">
               Nothing on your plate today.
             </p>
