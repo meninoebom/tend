@@ -6,6 +6,8 @@ import type { Task, Domain, BucketType } from "@/lib/api-types";
 import { getTasks, getDomains, updateTask, deleteTask } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { TaskInput } from "@/components/task-input";
+import type { TaskInputHandle } from "@/components/task-input";
+import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
 import { formatCompostAge } from "@/lib/utils";
 
 const VALID_BUCKETS = ["soon", "later", "someday"] as const;
@@ -27,6 +29,7 @@ export default function BucketPage() {
   const router = useRouter();
   const bucket = params.b as BucketType;
 
+  const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [compostTasks, setCompostTasks] = useState<Task[]>([]);
@@ -41,6 +44,10 @@ export default function BucketPage() {
   const isValid = VALID_BUCKETS.includes(bucket as (typeof VALID_BUCKETS)[number]);
 
   const isSomeday = bucket === "someday";
+
+  useGlobalShortcut("n", useCallback(() => {
+    taskInputRef.current?.focus();
+  }, []));
 
   const refresh = useCallback(() => {
     if (!isValid) return;
@@ -141,7 +148,7 @@ export default function BucketPage() {
       </div>
 
       {/* Task input */}
-      <TaskInput bucket={bucket} domains={domains} onCreated={refresh} />
+      <TaskInput ref={taskInputRef} bucket={bucket} domains={domains} onCreated={refresh} />
 
       {/* Tasks */}
       <div className="flex-1 min-h-[120px]">

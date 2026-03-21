@@ -1,22 +1,30 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Task, Domain, NudgeStats, BucketType } from "@/lib/api-types";
 import { getTasks, getDomains, getNudge, setMIT } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { TaskInput } from "@/components/task-input";
+import type { TaskInputHandle } from "@/components/task-input";
+import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
 import { cn } from "@/lib/utils";
 
 const BUCKET: BucketType = "today";
 
 export default function TodayPage() {
   const router = useRouter();
+  const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [nudge, setNudge] = useState<NudgeStats | null>(null);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useGlobalShortcut("n", useCallback(() => {
+    taskInputRef.current?.focus();
+  }, []));
+
   const refresh = useCallback(() => {
     Promise.all([
       getTasks({ bucket: BUCKET }),
@@ -118,7 +126,7 @@ export default function TodayPage() {
       )}
 
       {/* Task input */}
-      <TaskInput bucket={BUCKET} domains={domains} onCreated={refresh} />
+      <TaskInput ref={taskInputRef} bucket={BUCKET} domains={domains} onCreated={refresh} />
 
       {/* Task list */}
       <div className="flex-1 min-h-[120px]">

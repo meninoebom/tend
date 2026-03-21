@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { BucketType, Domain } from "@/lib/api-types";
 import { createTask } from "@/lib/api";
 
@@ -12,13 +12,21 @@ interface TaskInputProps {
   onCreated: () => void;
 }
 
-export function TaskInput({ bucket, domains, onCreated }: TaskInputProps) {
+export interface TaskInputHandle {
+  focus: () => void;
+}
+
+export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function TaskInput({ bucket, domains, onCreated }, ref) {
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<Phase>("typing");
   // Index into [undefined, ...domains] where undefined = "None"
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipContainerRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
 
   const hasDomains = domains.length > 0;
   // Options: [undefined (None), domain0, domain1, ...]
@@ -187,4 +195,4 @@ export function TaskInput({ bucket, domains, onCreated }: TaskInputProps) {
       </div>
     </div>
   );
-}
+});
