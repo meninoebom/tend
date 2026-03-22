@@ -253,7 +253,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
     <div className={cn("group", isComplete && "opacity-40")}>
       <div className={cn(
         "flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors",
-        isMIT && "border-l-2 border-accent-blue",
+        isMIT && "bg-accent-blue/8 border border-accent-blue/20",
       )}>
         {/* Complete checkbox */}
         <button
@@ -329,6 +329,13 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
           >
             {task.text}
           </button>
+        )}
+
+        {/* MIT label */}
+        {isMIT && !isComplete && (
+          <span className="shrink-0 text-[10px] font-medium text-accent-blue/70 uppercase tracking-wider">
+            Most important
+          </span>
         )}
 
         {/* Edit button (hover affordance for tasks with children) */}
