@@ -92,12 +92,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, router, skipGates]);
 
   // Triage gate: open modal if triage needed (only after onboarding confirmed)
-  useEffect(() => {
+  function checkTriage() {
     if (skipGates || !onboardingChecked) return;
-    let cancelled = false;
     getTriageQueue()
       .then((q) => {
-        if (cancelled) return;
         if (!q.triage_complete && q.tasks.length > 0) {
           setTriageQueue(q);
           setShowTriageModal(true);
@@ -105,12 +103,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setTriageChecked(true);
       })
       .catch((err) => {
-        if (cancelled) return;
         console.error("Triage check failed:", err);
         setTriageChecked(true);
       });
-    return () => { cancelled = true; };
-  }, [pathname, router, skipGates, onboardingChecked]);
+  }
+
+  useEffect(() => {
+    checkTriage();
+  }, [pathname, skipGates, onboardingChecked]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-check triage when a stale tab becomes visible again
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        checkTriage();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }); // no deps — always uses latest skipGates/onboardingChecked via closure
 
   const showContent = skipGates || (onboardingChecked && triageChecked);
   const hideNav = pathname === "/onboarding";
