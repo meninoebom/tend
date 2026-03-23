@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
@@ -46,13 +45,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var d=document.documentElement;try{var t=localStorage.getItem("theme");if(t==="light")d.classList.add("light")}catch(e){}d.classList.add("theme-ready")})()`,
-          }}
-        />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
