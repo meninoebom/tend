@@ -48,6 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [triageChecked, setTriageChecked] = useState(false);
   const [showTriageModal, setShowTriageModal] = useState(false);
   const [showWinddownModal, setShowWinddownModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [triageQueue, setTriageQueue] = useState<TriageQueue | undefined>(undefined);
   const [user, setUser] = useState<User | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
@@ -245,7 +246,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className={cn("flex-1 min-w-0", !hideNav && "ml-56")}>
-        {showContent ? children : (
+        {showContent ? <div key={refreshKey}>{children}</div> : (
           <div className="flex min-h-screen items-center justify-center">
             <p className="text-sm text-text-muted">Loading...</p>
           </div>
@@ -255,12 +256,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Ritual modals */}
       {showTriageModal && (
         <TriageModal
-          onComplete={() => setShowTriageModal(false)}
+          onComplete={() => { setShowTriageModal(false); setRefreshKey((k) => k + 1); }}
           initialQueue={triageQueue}
         />
       )}
       {showWinddownModal && (
-        <WinddownModal onComplete={() => setShowWinddownModal(false)} />
+        <WinddownModal onComplete={() => { setShowWinddownModal(false); setRefreshKey((k) => k + 1); }} />
       )}
     </div>
   );
