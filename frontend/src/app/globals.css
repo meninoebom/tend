@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Prevent flash of wrong theme on hard refresh */
+html:not(.theme-ready) { opacity: 0; }
+
 @theme {
   --color-bg-root: #0a0a0a;
   --color-bg-card: #1a1a1a;

@@ -45,11 +45,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `html:not(.theme-ready) { opacity: 0; }`,
-          }}
-        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var d=document.documentElement;try{var t=localStorage.getItem("theme");if(t==="light")d.classList.add("light")}catch(e){}d.classList.add("theme-ready")})()`,
