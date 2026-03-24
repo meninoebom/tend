@@ -225,10 +225,14 @@ export async function streamChatMessage(
 
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
-      const data = JSON.parse(line.slice(6));
-      if (data.token) onToken(data.token);
-      if (data.done) onDone(data.context_summary ?? "");
-      if (data.error) onError(data.error);
+      try {
+        const data = JSON.parse(line.slice(6));
+        if (data.token) onToken(data.token);
+        if (data.done) onDone(data.context_summary ?? "");
+        if (data.error) onError(data.error);
+      } catch {
+        continue;
+      }
     }
   }
 }

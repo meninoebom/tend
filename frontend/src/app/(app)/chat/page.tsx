@@ -153,7 +153,7 @@ export default function ChatPage() {
           </div>
         ))}
 
-        {loading && (
+        {loading && (!messages.length || messages[messages.length - 1]?.content === "") && (
           <div className="flex justify-start">
             <div className="bg-bg-card rounded-xl px-4 py-2.5">
               <span className="text-sm text-text-muted animate-pulse">Thinking...</span>

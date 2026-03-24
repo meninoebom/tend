@@ -23,6 +23,8 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 def _gather_chat_context(db: Session, user_id: uuid.UUID):
     """Gather task data, domains, stats, and MIT for chat context."""
     user = db.get(User, user_id)
+    if not user:
+        raise AppError(code="not_found", message="User not found", status_code=404)
     is_pro = user.subscription_status in ("active", "past_due")
     if not is_pro:
         raise AppError(
@@ -93,10 +95,14 @@ def chat(
 def chat_stream(
     request: Request,
     body: ChatRequest,
-    db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    tasks, domains, nudge, mit_task, context_summary = _gather_chat_context(db, user_id)
+    # Use manual session so it's closed before streaming begins.
+    # This avoids holding a DB connection for the full AI response duration.
+    from app.core.deps import engine
+
+    with Session(engine) as db:
+        tasks, domains, nudge, mit_task, context_summary = _gather_chat_context(db, user_id)
     history = [{"role": m.role, "content": m.content} for m in body.history]
 
     stream = chat_service.generate_response_stream(
