@@ -167,3 +167,68 @@ class TestGenerateResponse:
         )
 
         assert result is None
+
+
+class TestChatEndpoint:
+    @patch("app.services.chat_service.get_anthropic_client")
+    def test_chat_returns_reply(self, mock_get_client, client, db, test_user, test_tasks):
+        test_user.subscription_status = "active"
+        db.flush()
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text="Focus on Build frontend.")]
+        )
+
+        resp = client.post("/chat", json={"message": "What should I do?"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["reply"] == "Focus on Build frontend."
+        assert "pending" in data["context_summary"]
+
+    def test_chat_blocked_for_free_user(self, client, db, test_user):
+        test_user.subscription_status = "free"
+        db.flush()
+
+        resp = client.post("/chat", json={"message": "Hello"})
+        assert resp.status_code == 403
+        assert resp.json()["code"] == "pro_required"
+
+    def test_chat_empty_message_rejected(self, client, db, test_user):
+        test_user.subscription_status = "active"
+        db.flush()
+
+        resp = client.post("/chat", json={"message": "   "})
+        assert resp.status_code == 422
+
+    @patch("app.services.chat_service.get_anthropic_client")
+    def test_chat_503_when_ai_unavailable(self, mock_get_client, client, db, test_user):
+        test_user.subscription_status = "active"
+        db.flush()
+        mock_get_client.return_value = None
+
+        resp = client.post("/chat", json={"message": "Hello"})
+        assert resp.status_code == 503
+        assert resp.json()["code"] == "ai_unavailable"
+
+    @patch("app.services.chat_service.get_anthropic_client")
+    def test_chat_with_history(self, mock_get_client, client, db, test_user):
+        test_user.subscription_status = "active"
+        db.flush()
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text="You're welcome.")]
+        )
+
+        resp = client.post("/chat", json={
+            "message": "Thanks",
+            "history": [
+                {"role": "user", "content": "Hi"},
+                {"role": "assistant", "content": "Hello!"},
+            ],
+        })
+        assert resp.status_code == 200
+        assert resp.json()["reply"] == "You're welcome."
