@@ -119,6 +119,35 @@ def assemble_chat_context(
     return "\n".join(lines)
 
 
+def _build_messages(
+    tasks: list[Task],
+    domains: list[Domain],
+    nudge_stats: dict,
+    mit_task: Task | None,
+    message: str,
+    history: list[dict],
+) -> list[dict]:
+    """Build the message list for the AI API call."""
+    context = assemble_chat_context(tasks, domains, nudge_stats, mit_task)
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"[Current task data — use this to ground your responses]\n\n{context}",
+        },
+        {
+            "role": "assistant",
+            "content": "Got it. I have your current task data. What would you like to know?",
+        },
+    ]
+
+    for msg in history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+
+    messages.append({"role": "user", "content": message})
+    return messages
+
+
 def generate_response(
     tasks: list[Task],
     domains: list[Domain],
@@ -132,27 +161,7 @@ def generate_response(
     if client is None:
         return None
 
-    context = assemble_chat_context(tasks, domains, nudge_stats, mit_task)
-
-    # Build messages: context as first user message, then history, then current message
-    messages = []
-
-    # Inject context as a system-level user message
-    messages.append({
-        "role": "user",
-        "content": f"[Current task data — use this to ground your responses]\n\n{context}",
-    })
-    messages.append({
-        "role": "assistant",
-        "content": "Got it. I have your current task data. What would you like to know?",
-    })
-
-    # Append conversation history
-    for msg in history:
-        messages.append({"role": msg["role"], "content": msg["content"]})
-
-    # Append current message
-    messages.append({"role": "user", "content": message})
+    messages = _build_messages(tasks, domains, nudge_stats, mit_task, message, history)
 
     try:
         response = client.messages.create(
@@ -165,3 +174,30 @@ def generate_response(
     except Exception:
         logger.warning("Chat response generation failed", exc_info=True)
         return None
+
+
+def generate_response_stream(
+    tasks: list[Task],
+    domains: list[Domain],
+    nudge_stats: dict,
+    mit_task: Task | None,
+    message: str,
+    history: list[dict],
+):
+    """Generate a streaming AI response. Returns None if client unavailable, else a generator."""
+    client = get_anthropic_client()
+    if client is None:
+        return None
+
+    messages = _build_messages(tasks, domains, nudge_stats, mit_task, message, history)
+
+    def token_generator():
+        with client.messages.stream(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=500,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+        ) as stream:
+            yield from stream.text_stream
+
+    return token_generator()

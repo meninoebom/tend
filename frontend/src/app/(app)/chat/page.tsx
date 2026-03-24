@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, getMe, createCheckout } from "@/lib/api";
+import { streamChatMessage, getMe, createCheckout } from "@/lib/api";
 import { ApiError } from "@/lib/api";
 import type { ChatMessage, User } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -41,19 +41,34 @@ export default function ChatPage() {
 
     const userMsg: ChatMessage = { role: "user", content: message };
     const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    // Add placeholder assistant message for streaming
+    const assistantMsg: ChatMessage = { role: "assistant", content: "" };
+    setMessages([...updatedMessages, assistantMsg]);
 
     try {
-      const response = await sendChatMessage(message, messages);
-      const assistantMsg: ChatMessage = { role: "assistant", content: response.reply };
-      setMessages([...updatedMessages, assistantMsg]);
+      await streamChatMessage(
+        message,
+        messages, // history is previous messages (before this turn)
+        (token) => {
+          assistantMsg.content += token;
+          setMessages([...updatedMessages, { ...assistantMsg }]);
+        },
+        () => {
+          // Stream complete — final state already set by last token
+          setLoading(false);
+          inputRef.current?.focus();
+        },
+        (errorMsg) => {
+          setError(errorMsg);
+          setLoading(false);
+        },
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError("Something went wrong. Please try again.");
       }
-    } finally {
       setLoading(false);
       inputRef.current?.focus();
     }

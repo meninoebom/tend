@@ -1,6 +1,8 @@
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
@@ -18,14 +20,8 @@ from app.services import chat_service, mit_service, stats_service
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("", response_model=ChatResponse)
-@limiter.limit("20/minute")
-def chat(
-    request: Request,
-    body: ChatRequest,
-    db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
-):
+def _gather_chat_context(db: Session, user_id: uuid.UUID):
+    """Gather task data, domains, stats, and MIT for chat context."""
     user = db.get(User, user_id)
     is_pro = user.subscription_status in ("active", "past_due")
     if not is_pro:
@@ -35,7 +31,6 @@ def chat(
             status_code=403,
         )
 
-    # Gather task data
     tasks = list(
         db.exec(
             select(Task)
@@ -54,16 +49,25 @@ def chat(
 
     nudge = stats_service.get_nudge(db, user_id)
 
-    # Get MIT
     mit_task_id = mit_service.get_today_mit(db, user_id)
     mit_task = db.get(Task, mit_task_id) if mit_task_id else None
 
-    # Build context summary
     pending_count = sum(1 for t in tasks if t.status == TaskStatus.pending)
-    domain_count = len(domains)
-    context_summary = f"Based on {pending_count} pending tasks across {domain_count} domains"
+    context_summary = f"Based on {pending_count} pending tasks across {len(domains)} domains"
 
-    # Generate response
+    return tasks, domains, nudge, mit_task, context_summary
+
+
+@router.post("", response_model=ChatResponse)
+@limiter.limit("20/minute")
+def chat(
+    request: Request,
+    body: ChatRequest,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    tasks, domains, nudge, mit_task, context_summary = _gather_chat_context(db, user_id)
+
     history = [{"role": m.role, "content": m.content} for m in body.history]
     reply = chat_service.generate_response(
         tasks=tasks,
@@ -82,3 +86,45 @@ def chat(
         )
 
     return ChatResponse(reply=reply, context_summary=context_summary)
+
+
+@router.post("/stream")
+@limiter.limit("20/minute")
+def chat_stream(
+    request: Request,
+    body: ChatRequest,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    tasks, domains, nudge, mit_task, context_summary = _gather_chat_context(db, user_id)
+    history = [{"role": m.role, "content": m.content} for m in body.history]
+
+    stream = chat_service.generate_response_stream(
+        tasks=tasks,
+        domains=domains,
+        nudge_stats=nudge,
+        mit_task=mit_task,
+        message=body.message,
+        history=history,
+    )
+
+    if stream is None:
+        raise AppError(
+            code="ai_unavailable",
+            message="AI chat is temporarily unavailable. Please try again later.",
+            status_code=503,
+        )
+
+    def event_generator():
+        try:
+            for token in stream:
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'context_summary': context_summary})}\n\n"
+        except Exception:
+            yield f"data: {json.dumps({'error': 'Stream interrupted'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
