@@ -9,7 +9,7 @@ from app.core.errors import AppError
 from app.core.rate_limit import limiter
 from app.core.security import get_current_user_id
 from app.models.domain import Domain
-from app.models.enums import BucketType, TaskStatus
+from app.models.enums import TaskStatus
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.chat_schemas import ChatRequest, ChatResponse

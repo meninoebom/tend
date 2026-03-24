@@ -2,6 +2,8 @@ import type {
   BillingStatus,
   BriefingResponse,
   BucketType,
+  ChatMessage,
+  ChatResponse,
   CheckoutResponse,
   Domain,
   MITSuggestion,
@@ -169,6 +171,17 @@ export async function createPortalSession(): Promise<PortalResponse> {
 
 export async function getBillingStatus(): Promise<BillingStatus> {
   return request<BillingStatus>("billing/status");
+}
+
+// Chat
+export async function sendChatMessage(
+  message: string,
+  history: ChatMessage[],
+): Promise<ChatResponse> {
+  return request<ChatResponse>("chat", {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
 }
 
 export { ApiError };
