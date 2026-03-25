@@ -129,9 +129,9 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
       <RitualOverlay>
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
-            <h2 className="text-xl font-semibold text-text-primary">Wind down</h2>
+            <h2 className="text-xl font-semibold text-text-primary">Review my day</h2>
             <p className="text-sm text-text-secondary leading-relaxed">
-              Let&apos;s close out the day.
+              Walk through your open tasks and decide what stays.
               {total > 0 && (
                 <> You completed <span className="text-text-primary font-medium">{completed} of {total}</span> task{total !== 1 ? "s" : ""}.</>
               )}
@@ -180,7 +180,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
     <RitualOverlay>
       <div className="flex flex-col items-center gap-6 px-4 w-full max-w-md mx-auto">
         <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-5 text-center">
-          <h2 className="text-xl font-semibold text-text-primary">Day closed</h2>
+          <h2 className="text-xl font-semibold text-text-primary">Review complete</h2>
           {summaryLines.length > 0 && (
             <ul className="space-y-1.5">
               {summaryLines.map((line) => (
@@ -189,7 +189,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
             </ul>
           )}
           <p className="text-xs text-text-muted">
-            Today is clear. See you tomorrow.
+            You&apos;re all sorted.
           </p>
         </div>
         <button
