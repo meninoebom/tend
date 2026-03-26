@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import type { Task, Domain, NudgeStats, BucketType } from "@/lib/api-types";
 import { getTasks, getDomains, getNudge, setMIT } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
@@ -13,7 +12,6 @@ import { cn } from "@/lib/utils";
 const BUCKET: BucketType = "today";
 
 export default function TodayPage() {
-  const router = useRouter();
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);

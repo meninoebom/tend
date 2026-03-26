@@ -5,8 +5,6 @@ from app.models.enums import AuthProvider, BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
 from app.services.mit_service import get_today_mit, set_mit, suggest_mit
-from app.services import task_service
-from tests.conftest import TEST_USER_ID
 
 
 def _make_task(
@@ -137,9 +135,7 @@ class TestMitEndpoint:
         resp = client.post(f"/tasks/{task.id}/mit")
         assert resp.status_code == 422
 
-    def test_mit_suggestion_endpoint_returns_suggestion(
-        self, client, db, test_user, test_tasks
-    ):
+    def test_mit_suggestion_endpoint_returns_suggestion(self, client, db, test_user, test_tasks):
         # test_tasks has 2 today tasks; add a third to reach the 3-task threshold
         extra = Task(
             user_id=test_user.id,

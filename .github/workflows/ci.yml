@@ -23,7 +23,8 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: |
-          pip install -e ".[dev]" --quiet
+          pip install -e . --quiet
+          pip install ruff pytest httpx --quiet
 
       - name: Ruff lint
         working-directory: backend

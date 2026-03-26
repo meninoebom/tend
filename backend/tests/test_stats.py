@@ -1,5 +1,3 @@
-
-
 class TestStats:
     def test_nudge_no_tasks(self, client, test_user):
         r = client.get("/stats/nudge")

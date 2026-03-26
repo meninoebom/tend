@@ -8,8 +8,6 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-logger = logging.getLogger(__name__)
-
 from app.core.config import settings
 from app.core.deps import get_db
 from app.core.errors import AppError, NotFoundError
@@ -27,6 +25,8 @@ from app.schemas.user_schemas import (
     UserVerify,
 )
 from app.services import domain_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["account"])
 
@@ -69,9 +69,9 @@ def create_user(
 
     password_hash = None
     if body.password:
-        password_hash = bcrypt.hashpw(
-            body.password.encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
+        password_hash = bcrypt.hashpw(body.password.encode("utf-8"), bcrypt.gensalt()).decode(
+            "utf-8"
+        )
 
     user = User(
         email=email,
@@ -132,19 +132,17 @@ def verify_user(
     # Dummy hash to prevent timing-based user enumeration.
     # Without this, "user not found" returns ~0ms (no bcrypt) vs
     # "wrong password" returns ~100ms (bcrypt runs), leaking user existence.
-    _DUMMY_HASH = b"$2b$12$LJ3m4ys3Lz0YPmDqMN.JYOXBOvWYx0YXvKjK9Y8nF4W8xk8Z6m9e"
+    _dummy_hash = b"$2b$12$LJ3m4ys3Lz0YPmDqMN.JYOXBOvWYx0YXvKjK9Y8nF4W8xk8Z6m9e"
 
     if user is None or user.password_hash is None:
-        bcrypt.checkpw(b"dummy", _DUMMY_HASH)
+        bcrypt.checkpw(b"dummy", _dummy_hash)
         raise AppError(
             code="invalid_credentials",
             message="Invalid email or password",
             status_code=401,
         )
 
-    if not bcrypt.checkpw(
-        body.password.encode("utf-8"), user.password_hash.encode("utf-8")
-    ):
+    if not bcrypt.checkpw(body.password.encode("utf-8"), user.password_hash.encode("utf-8")):
         raise AppError(
             code="invalid_credentials",
             message="Invalid email or password",
@@ -243,16 +241,19 @@ def _send_reset_email(to: str, token: str) -> None:
     resend.api_key = settings.resend_api_key
     reset_url = f"{settings.frontend_url}/reset-password?token={token}"
 
-    resend.Emails.send({
-        "from": "Tend <noreply@tend.gvempire.com>",
-        "to": [to],
-        "subject": "Reset your Tend password",
-        "html": (
-            f"<p>You requested a password reset for your Tend account.</p>"
-            f'<p><a href="{reset_url}">Click here to reset your password</a></p>'
-            f"<p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>"
-        ),
-    })
+    resend.Emails.send(
+        {
+            "from": "Tend <noreply@tend.gvempire.com>",
+            "to": [to],
+            "subject": "Reset your Tend password",
+            "html": (
+                f"<p>You requested a password reset for your Tend account.</p>"
+                f'<p><a href="{reset_url}">Click here to reset your password</a></p>'
+                f"<p>This link expires in 1 hour. If you didn't request this, "
+                f"ignore this email.</p>"
+            ),
+        }
+    )
 
 
 @router.post("/users/forgot-password")
@@ -297,9 +298,9 @@ def reset_password(
             status_code=400,
         )
 
-    user.password_hash = bcrypt.hashpw(
-        body.new_password.encode("utf-8"), bcrypt.gensalt()
-    ).decode("utf-8")
+    user.password_hash = bcrypt.hashpw(body.new_password.encode("utf-8"), bcrypt.gensalt()).decode(
+        "utf-8"
+    )
     db.add(user)
     db.flush()
 
@@ -332,14 +333,16 @@ def send_feedback(
     import resend
 
     resend.api_key = settings.resend_api_key
-    resend.Emails.send({
-        "from": "Tend <noreply@tend.gvempire.com>",
-        "to": ["brandon@tendyourgarden.app"],
-        "subject": f"Feedback from {user.email}",
-        "html": (
-            f"<p><strong>From:</strong> {html.escape(user.email)}</p>"
-            f"<p><strong>Message:</strong></p>"
-            f"<p>{html.escape(body.message)}</p>"
-        ),
-    })
+    resend.Emails.send(
+        {
+            "from": "Tend <noreply@tend.gvempire.com>",
+            "to": ["brandon@tendyourgarden.app"],
+            "subject": f"Feedback from {user.email}",
+            "html": (
+                f"<p><strong>From:</strong> {html.escape(user.email)}</p>"
+                f"<p><strong>Message:</strong></p>"
+                f"<p>{html.escape(body.message)}</p>"
+            ),
+        }
+    )
     return {"message": "Feedback sent."}

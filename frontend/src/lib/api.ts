@@ -2,6 +2,8 @@ import type {
   BillingStatus,
   BriefingResponse,
   BucketType,
+  ChatMessage,
+  ChatResponse,
   CheckoutResponse,
   Domain,
   MITSuggestion,
@@ -169,6 +171,70 @@ export async function createPortalSession(): Promise<PortalResponse> {
 
 export async function getBillingStatus(): Promise<BillingStatus> {
   return request<BillingStatus>("billing/status");
+}
+
+// Chat
+export async function sendChatMessage(
+  message: string,
+  history: ChatMessage[],
+): Promise<ChatResponse> {
+  return request<ChatResponse>("chat", {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+}
+
+export async function streamChatMessage(
+  message: string,
+  history: ChatMessage[],
+  onToken: (token: string) => void,
+  onDone: (contextSummary: string) => void,
+  onError: (error: string) => void,
+): Promise<void> {
+  const res = await fetch("/api/chat/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history }),
+  });
+
+  if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.location.href = "/login";
+      return;
+    }
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body.code ?? "unknown", body.message ?? "Request failed");
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    onError("No response stream");
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const data = JSON.parse(line.slice(6));
+        if (data.token) onToken(data.token);
+        if (data.done) onDone(data.context_summary ?? "");
+        if (data.error) onError(data.error);
+      } catch {
+        continue;
+      }
+    }
+  }
 }
 
 export { ApiError };

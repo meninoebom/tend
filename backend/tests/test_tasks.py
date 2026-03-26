@@ -25,9 +25,7 @@ class TestTaskCRUD:
 
     def test_create_subtask(self, client, test_user, test_tasks):
         parent = test_tasks[0]
-        r = client.post(
-            "/tasks", json={"text": "Sub-task", "parent_id": str(parent.id)}
-        )
+        r = client.post("/tasks", json={"text": "Sub-task", "parent_id": str(parent.id)})
         assert r.status_code == 201
         data = r.json()
         assert data["text"] == "Sub-task"
@@ -48,9 +46,7 @@ class TestTaskCRUD:
         db.flush()
 
         # Try to create grandchild
-        r = client.post(
-            "/tasks", json={"text": "Grandchild", "parent_id": str(child.id)}
-        )
+        r = client.post("/tasks", json={"text": "Grandchild", "parent_id": str(child.id)})
         assert r.status_code == 422
 
     def test_create_task_text_too_long(self, client, test_user):

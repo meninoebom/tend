@@ -19,7 +19,7 @@ SYSTEM_PROMPT = (
     "(count, buckets, any frequently deferred tasks)\n"
     '- "domain_balance": One sentence about life-domain distribution '
     "(which domains are heavy, which are empty)\n"
-    '- "calibration": One sentence comparing today\'s load to the user\'s '
+    "- \"calibration\": One sentence comparing today's load to the user's "
     "actual completion average\n\n"
     "Keep each field to 1-2 sentences max. Be honest and direct."
 )
@@ -51,9 +51,7 @@ def assemble_context(tasks: list[Task], nudge_stats: dict) -> str:
     for t in tasks:
         bucket_counts[t.bucket] += 1
     if bucket_counts:
-        bucket_parts = [
-            f"{bucket}: {count}" for bucket, count in bucket_counts.items()
-        ]
+        bucket_parts = [f"{bucket}: {count}" for bucket, count in bucket_counts.items()]
         lines.append(f"By bucket: {', '.join(bucket_parts)}")
 
     # Domain distribution
@@ -65,10 +63,7 @@ def assemble_context(tasks: list[Task], nudge_stats: dict) -> str:
         else:
             no_domain += 1
     if domain_counts:
-        domain_parts = [
-            f"{name}: {count}"
-            for name, count in domain_counts.most_common()
-        ]
+        domain_parts = [f"{name}: {count}" for name, count in domain_counts.most_common()]
         lines.append(f"By domain: {', '.join(domain_parts)}")
     if no_domain:
         lines.append(f"No domain assigned: {no_domain}")
@@ -76,10 +71,7 @@ def assemble_context(tasks: list[Task], nudge_stats: dict) -> str:
     # Frequently deferred tasks
     deferred = [t for t in tasks if t.reschedule_count >= 2]
     if deferred:
-        defer_lines = [
-            f'- "{t.text}" (deferred {t.reschedule_count} times)'
-            for t in deferred[:5]
-        ]
+        defer_lines = [f'- "{t.text}" (deferred {t.reschedule_count} times)' for t in deferred[:5]]
         lines.append("Frequently deferred:\n" + "\n".join(defer_lines))
 
     # Task details
@@ -90,8 +82,7 @@ def assemble_context(tasks: list[Task], nudge_stats: dict) -> str:
             now = datetime.now(UTC).replace(tzinfo=None)
             age = (now - t.created_at).days if t.created_at else 0
             task_lines.append(
-                f"- {t.text} ({t.bucket}{domain_str}, "
-                f"{age}d old, deferred {t.reschedule_count}x)"
+                f"- {t.text} ({t.bucket}{domain_str}, {age}d old, deferred {t.reschedule_count}x)"
             )
         lines.append("Tasks:\n" + "\n".join(task_lines))
 
@@ -99,18 +90,13 @@ def assemble_context(tasks: list[Task], nudge_stats: dict) -> str:
     avg = nudge_stats.get("average_completed", 0)
     today_count = nudge_stats.get("today_count", 0)
     completed = nudge_stats.get("completed_count", 0)
-    lines.append(
-        f"Today's load: {today_count} tasks added, "
-        f"{completed} completed so far"
-    )
+    lines.append(f"Today's load: {today_count} tasks added, {completed} completed so far")
     lines.append(f"30-day completion average: {avg}")
 
     return "\n".join(lines)
 
 
-def generate_briefing(
-    tasks: list[Task], nudge_stats: dict
-) -> BriefingResponse:
+def generate_briefing(tasks: list[Task], nudge_stats: dict) -> BriefingResponse:
     """Generate an AI briefing. Returns empty briefing on any failure."""
     client = get_anthropic_client()
     if client is None:

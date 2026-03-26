@@ -38,7 +38,9 @@ def create_domain(
 ):
     user = db.exec(select(User).where(User.id == user_id)).one()
     is_pro = user.subscription_status in ("active", "past_due")
-    domain = domain_service.create_domain(db, user_id, name=body.name, color=body.color, is_pro=is_pro)
+    domain = domain_service.create_domain(
+        db, user_id, name=body.name, color=body.color, is_pro=is_pro
+    )
     return _to_response(domain)
 
 

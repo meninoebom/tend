@@ -43,8 +43,6 @@ def get_daily_stats(
 ):
     stats = stats_service.get_daily_stats(db, user_id, days=days)
     return [
-        DailyStatResponse(
-            date=s.date, tasks_added=s.tasks_added, tasks_completed=s.tasks_completed
-        )
+        DailyStatResponse(date=s.date, tasks_added=s.tasks_added, tasks_completed=s.tasks_completed)
         for s in stats
     ]

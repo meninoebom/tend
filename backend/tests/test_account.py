@@ -1,5 +1,3 @@
-
-
 class TestAccount:
     def test_create_user(self, client, db):
         r = client.post(
@@ -48,7 +46,9 @@ class TestAccount:
 
     def test_verify_user_wrong_password(self, client, db):
         client.post("/users", json={"email": "verify2@tend.app", "password": "correct123"})
-        r = client.post("/users/verify", json={"email": "verify2@tend.app", "password": "wrong1234"})
+        r = client.post(
+            "/users/verify", json={"email": "verify2@tend.app", "password": "wrong1234"}
+        )
         assert r.status_code == 401
 
     def test_verify_user_not_found(self, client, db):

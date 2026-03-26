@@ -77,9 +77,7 @@ def test_domains(db: Session, test_user: User) -> list[Domain]:
     for i, (name, color) in enumerate(
         [("Work", "#3b82f6"), ("Personal", "#10b981"), ("Health", "#ef4444")]
     ):
-        d = Domain(
-            user_id=test_user.id, name=name, color=color, position=i
-        )
+        d = Domain(user_id=test_user.id, name=name, color=color, position=i)
         db.add(d)
         domains.append(d)
     db.flush()

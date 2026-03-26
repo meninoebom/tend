@@ -107,3 +107,14 @@ export interface BillingStatus {
   subscription_status: "free" | "active" | "past_due" | "canceled";
   is_pro: boolean;
 }
+
+// Chat
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  context_summary: string;
+}

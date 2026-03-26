@@ -86,9 +86,7 @@ def triage_task(
         db.flush()
 
         # Cascade bucket change to children
-        children = list(
-            db.exec(select(Task).where(Task.parent_id == task_id)).all()
-        )
+        children = list(db.exec(select(Task).where(Task.parent_id == task_id)).all())
         for child in children:
             child.bucket = bucket
             db.add(child)

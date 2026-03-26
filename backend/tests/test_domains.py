@@ -19,9 +19,7 @@ class TestDomainCRUD:
         """Cannot exceed 5 domains."""
         # Already have 3 from fixture, add 2 more
         for i, name in enumerate(["Extra1", "Extra2"]):
-            d = Domain(
-                user_id=test_user.id, name=name, color="#000000", position=3 + i
-            )
+            d = Domain(user_id=test_user.id, name=name, color="#000000", position=3 + i)
             db.add(d)
         db.flush()
 
@@ -61,9 +59,7 @@ class TestDomainCRUD:
 
         # Already have 3, add up to 6 (exceeds free limit of 5)
         for i in range(3):
-            r = client.post(
-                "/domains", json={"name": f"Extra{i}", "color": "#000000"}
-            )
+            r = client.post("/domains", json={"name": f"Extra{i}", "color": "#000000"})
             assert r.status_code == 201
 
     def test_pro_user_limited_at_20(self, client, db, test_user):
@@ -76,9 +72,7 @@ class TestDomainCRUD:
 
         # Create 20 domains directly
         for i in range(20):
-            d = Domain(
-                user_id=test_user.id, name=f"D{i}", color="#000000", position=i
-            )
+            d = Domain(user_id=test_user.id, name=f"D{i}", color="#000000", position=i)
             db.add(d)
         db.flush()
 
@@ -92,9 +86,7 @@ class TestDomainCRUD:
         from app.models.domain import Domain
 
         for i in range(2):
-            d = Domain(
-                user_id=test_user.id, name=f"Extra{i}", color="#000000", position=3 + i
-            )
+            d = Domain(user_id=test_user.id, name=f"Extra{i}", color="#000000", position=3 + i)
             db.add(d)
         db.flush()
 

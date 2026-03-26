@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.core.deps import get_db
-from app.core.security import get_current_user_id
 from app.core.errors import AppError
+from app.core.security import get_current_user_id
 from app.models.enums import BucketType, TaskStatus
 from app.schemas.task_schemas import (
     DomainBrief,
@@ -32,9 +32,7 @@ def _to_response(task, mit_task_id: uuid.UUID | None = None) -> TaskResponse:
         else None,
         parent_id=task.parent_id,
         children=[
-            SubTaskResponse(
-                id=c.id, text=c.text, status=c.status, completed_at=c.completed_at
-            )
+            SubTaskResponse(id=c.id, text=c.text, status=c.status, completed_at=c.completed_at)
             for c in task.children
         ],
         created_at=task.created_at,
