@@ -56,7 +56,7 @@ def assemble_chat_context(
 
     # MIT
     if mit_task:
-        lines.append(f"Most important task today: \"{mit_task.text}\"")
+        lines.append(f'Most important task today: "{mit_task.text}"')
 
     # Tasks by bucket
     bucket_counts: Counter = Counter()
@@ -89,7 +89,7 @@ def assemble_chat_context(
     deferred = [t for t in pending if t.reschedule_count >= 2]
     if deferred:
         defer_lines = [
-            f"- \"{t.text}\" (deferred {t.reschedule_count} times)"
+            f'- "{t.text}" (deferred {t.reschedule_count} times)'
             for t in sorted(deferred, key=lambda t: t.reschedule_count, reverse=True)[:5]
         ]
         lines.append("Frequently deferred:\n" + "\n".join(defer_lines))
@@ -102,8 +102,7 @@ def assemble_chat_context(
             now = datetime.now(UTC).replace(tzinfo=None)
             age = (now - t.created_at).days if t.created_at else 0
             task_lines.append(
-                f"- {t.text} ({t.bucket}{domain_str}, "
-                f"{age}d old, deferred {t.reschedule_count}x)"
+                f"- {t.text} ({t.bucket}{domain_str}, {age}d old, deferred {t.reschedule_count}x)"
             )
         lines.append("Pending tasks:\n" + "\n".join(task_lines))
 
@@ -111,9 +110,7 @@ def assemble_chat_context(
     avg = nudge_stats.get("average_completed", 0)
     today_count = nudge_stats.get("today_count", 0)
     completed_count = nudge_stats.get("completed_count", 0)
-    lines.append(
-        f"Today: {today_count} tasks added, {completed_count} completed so far"
-    )
+    lines.append(f"Today: {today_count} tasks added, {completed_count} completed so far")
     lines.append(f"30-day completion average: {avg}")
 
     return "\n".join(lines)

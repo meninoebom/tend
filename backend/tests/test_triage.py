@@ -41,9 +41,7 @@ class TestTriageFlow:
 
     def test_triage_defer_with_bucket(self, client, test_user, test_tasks):
         task = test_tasks[0]
-        r = client.post(
-            f"/triage/{task.id}", json={"action": "defer", "bucket": "later"}
-        )
+        r = client.post(f"/triage/{task.id}", json={"action": "defer", "bucket": "later"})
         assert r.status_code == 200
         assert r.json()["action"] == "defer"
 
@@ -124,9 +122,7 @@ class TestTriageFlow:
 
 class TestBriefingEndpoint:
     @patch("app.api.triage.briefing_service.generate_briefing")
-    def test_pro_user_gets_briefing(
-        self, mock_gen, client, test_user, test_tasks, db
-    ):
+    def test_pro_user_gets_briefing(self, mock_gen, client, test_user, test_tasks, db):
         test_user.subscription_status = "active"
         db.flush()
 
@@ -150,9 +146,7 @@ class TestBriefingEndpoint:
         assert r.json()["code"] == "pro_required"
 
     @patch("app.api.triage.briefing_service.generate_briefing")
-    def test_empty_briefing_returns_200(
-        self, mock_gen, client, test_user, db
-    ):
+    def test_empty_briefing_returns_200(self, mock_gen, client, test_user, db):
         test_user.subscription_status = "active"
         db.flush()
 

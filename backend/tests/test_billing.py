@@ -3,12 +3,10 @@
 from unittest.mock import MagicMock, patch
 
 import stripe as stripe_lib
-
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.models.user import User
-
 
 # --- #65: UserResponse includes subscription fields ---
 
@@ -327,8 +325,8 @@ def test_webhook_invalid_signature_returns_400(
 ):
     """Invalid Stripe signature returns 400."""
     mock_settings.stripe_webhook_secret = "whsec_test"
-    mock_stripe.Webhook.construct_event.side_effect = (
-        stripe_lib.SignatureVerificationError("bad sig", "sig_header")
+    mock_stripe.Webhook.construct_event.side_effect = stripe_lib.SignatureVerificationError(
+        "bad sig", "sig_header"
     )
     mock_stripe.SignatureVerificationError = stripe_lib.SignatureVerificationError
 

@@ -63,5 +63,5 @@ async def stripe_webhook(
     """Handle Stripe webhook events. Unauthenticated — verified by signature."""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
-    result = billing_service.handle_webhook(payload, sig_header, db)
+    billing_service.handle_webhook(payload, sig_header, db)
     return {"received": True}

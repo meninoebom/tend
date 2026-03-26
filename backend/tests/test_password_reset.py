@@ -1,7 +1,5 @@
 """Tests for password reset flow (JWT-based, no migration)."""
 
-from unittest.mock import patch
-
 
 class TestForgotPassword:
     def test_returns_200_for_existing_user(self, client, db):
@@ -29,8 +27,9 @@ class TestResetPassword:
         """Create a user and generate a reset token via the internal function."""
         client.post("/users", json={"email": email, "password": "oldpassword1"})
 
-        from app.api.account import _create_reset_token
         from sqlmodel import select
+
+        from app.api.account import _create_reset_token
         from app.models.user import User
 
         user = db.exec(select(User).where(User.email == email)).first()
@@ -78,13 +77,16 @@ class TestResetPassword:
     def test_expired_token_rejected(self, client, db):
         """Tokens with past expiry should be rejected."""
         from datetime import datetime, timedelta
+
         from jose import jwt
+
         from app.core.config import settings
         from app.core.security import ALGORITHM
 
         client.post("/users", json={"email": "expired@tend.app", "password": "password123"})
 
         from sqlmodel import select
+
         from app.models.user import User
 
         user = db.exec(select(User).where(User.email == "expired@tend.app")).first()
@@ -109,13 +111,16 @@ class TestResetPassword:
     def test_proxy_jwt_rejected_as_reset_token(self, client, db):
         """A regular proxy JWT (no 'purpose' claim) should not work for reset."""
         from datetime import datetime, timedelta
+
         from jose import jwt
+
         from app.core.config import settings
         from app.core.security import ALGORITHM
 
         client.post("/users", json={"email": "proxy@tend.app", "password": "password123"})
 
         from sqlmodel import select
+
         from app.models.user import User
 
         user = db.exec(select(User).where(User.email == "proxy@tend.app")).first()

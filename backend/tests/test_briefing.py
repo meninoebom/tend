@@ -67,26 +67,37 @@ def _make_task(
 
 class TestAssembleContext:
     def test_includes_task_details(self):
-        tasks = [_make_task(
-            "Buy groceries", BucketType.soon, "Personal",
-            reschedule_count=2, age_days=5,
-        )]
-        ctx = assemble_context(tasks, nudge_stats={
-            "average_completed": 4.0,
-            "today_count": 6,
-            "completed_count": 2,
-        })
+        tasks = [
+            _make_task(
+                "Buy groceries",
+                BucketType.soon,
+                "Personal",
+                reschedule_count=2,
+                age_days=5,
+            )
+        ]
+        ctx = assemble_context(
+            tasks,
+            nudge_stats={
+                "average_completed": 4.0,
+                "today_count": 6,
+                "completed_count": 2,
+            },
+        )
         assert "Buy groceries" in ctx
         assert "soon" in ctx.lower()
         assert "Personal" in ctx
         assert "deferred 2" in ctx
 
     def test_includes_nudge_stats(self):
-        ctx = assemble_context([], nudge_stats={
-            "average_completed": 3.5,
-            "today_count": 7,
-            "completed_count": 1,
-        })
+        ctx = assemble_context(
+            [],
+            nudge_stats={
+                "average_completed": 3.5,
+                "today_count": 7,
+                "completed_count": 1,
+            },
+        )
         assert "3.5" in ctx
         assert "7" in ctx
 
@@ -116,11 +127,14 @@ class TestGenerateBriefing:
         )
 
         tasks = [_make_task("Do something")]
-        result = generate_briefing(tasks, nudge_stats={
-            "average_completed": 4.0,
-            "today_count": 5,
-            "completed_count": 0,
-        })
+        result = generate_briefing(
+            tasks,
+            nudge_stats={
+                "average_completed": 4.0,
+                "today_count": 5,
+                "completed_count": 0,
+            },
+        )
 
         assert isinstance(result, BriefingResponse)
         assert result.summary == "5 tasks in queue"

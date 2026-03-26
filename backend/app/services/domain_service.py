@@ -6,7 +6,6 @@ from sqlmodel import Session, select
 from app.core.errors import DomainLimitReachedError, NotFoundError
 from app.models.domain import Domain
 
-
 FREE_DOMAIN_LIMIT = 5
 PRO_DOMAIN_LIMIT = 20
 
@@ -19,9 +18,7 @@ def create_domain(
     is_pro: bool = False,
 ) -> Domain:
     limit = PRO_DOMAIN_LIMIT if is_pro else FREE_DOMAIN_LIMIT
-    count = db.exec(
-        select(func.count()).select_from(Domain).where(Domain.user_id == user_id)
-    ).one()
+    count = db.exec(select(func.count()).select_from(Domain).where(Domain.user_id == user_id)).one()
     if count >= limit:
         raise DomainLimitReachedError(limit=limit)
 
@@ -44,9 +41,7 @@ def create_domain(
 
 def get_domains(db: Session, user_id: uuid.UUID) -> list[Domain]:
     return list(
-        db.exec(
-            select(Domain).where(Domain.user_id == user_id).order_by(Domain.position)
-        ).all()
+        db.exec(select(Domain).where(Domain.user_id == user_id).order_by(Domain.position)).all()
     )
 
 

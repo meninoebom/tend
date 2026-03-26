@@ -7,7 +7,6 @@ from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
 from app.services.chat_service import assemble_chat_context, generate_response
 
-
 USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 DOMAIN_ID = uuid.UUID("00000000-0000-0000-0000-000000000010")
 
@@ -66,7 +65,8 @@ class TestAssembleChatContext:
 
     def test_includes_nudge_stats(self):
         ctx = assemble_chat_context(
-            [], [],
+            [],
+            [],
             {"average_completed": 4.2, "today_count": 7, "completed_count": 3},
             None,
         )
@@ -121,17 +121,19 @@ class TestGenerateResponse:
     def test_passes_history_to_api(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Sure.")]
-        )
+        mock_client.messages.create.return_value = MagicMock(content=[MagicMock(text="Sure.")])
 
         history = [
             {"role": "user", "content": "Hi"},
             {"role": "assistant", "content": "Hello!"},
         ]
         generate_response(
-            tasks=[], domains=[], nudge_stats=EMPTY_STATS,
-            mit_task=None, message="Thanks", history=history,
+            tasks=[],
+            domains=[],
+            nudge_stats=EMPTY_STATS,
+            mit_task=None,
+            message="Thanks",
+            history=history,
         )
 
         call_args = mock_client.messages.create.call_args
@@ -149,8 +151,12 @@ class TestGenerateResponse:
         mock_get_client.return_value = None
 
         result = generate_response(
-            tasks=[], domains=[], nudge_stats=EMPTY_STATS,
-            mit_task=None, message="Hello", history=[],
+            tasks=[],
+            domains=[],
+            nudge_stats=EMPTY_STATS,
+            mit_task=None,
+            message="Hello",
+            history=[],
         )
 
         assert result is None
@@ -162,8 +168,12 @@ class TestGenerateResponse:
         mock_client.messages.create.side_effect = Exception("API down")
 
         result = generate_response(
-            tasks=[], domains=[], nudge_stats=EMPTY_STATS,
-            mit_task=None, message="Hello", history=[],
+            tasks=[],
+            domains=[],
+            nudge_stats=EMPTY_STATS,
+            mit_task=None,
+            message="Hello",
+            history=[],
         )
 
         assert result is None
@@ -223,12 +233,15 @@ class TestChatEndpoint:
             content=[MagicMock(text="You're welcome.")]
         )
 
-        resp = client.post("/chat", json={
-            "message": "Thanks",
-            "history": [
-                {"role": "user", "content": "Hi"},
-                {"role": "assistant", "content": "Hello!"},
-            ],
-        })
+        resp = client.post(
+            "/chat",
+            json={
+                "message": "Thanks",
+                "history": [
+                    {"role": "user", "content": "Hi"},
+                    {"role": "assistant", "content": "Hello!"},
+                ],
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["reply"] == "You're welcome."

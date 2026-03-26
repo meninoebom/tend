@@ -42,11 +42,7 @@ def _gather_chat_context(db: Session, user_id: uuid.UUID):
     )
 
     domains = list(
-        db.exec(
-            select(Domain)
-            .where(Domain.user_id == user_id)
-            .order_by(Domain.position)
-        ).all()
+        db.exec(select(Domain).where(Domain.user_id == user_id).order_by(Domain.position)).all()
     )
 
     nudge = stats_service.get_nudge(db, user_id)

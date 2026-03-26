@@ -100,7 +100,9 @@ def handle_webhook(payload: bytes, sig_header: str, db: Session) -> dict:
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.stripe_webhook_secret,
+            payload,
+            sig_header,
+            settings.stripe_webhook_secret,
         )
     except stripe.SignatureVerificationError:
         raise AppError(
@@ -149,9 +151,7 @@ def handle_webhook(payload: bytes, sig_header: str, db: Session) -> dict:
 
 def _update_status_by_customer(db: Session, customer_id: str, status: str) -> None:
     """Look up user by stripe_customer_id and update subscription_status."""
-    user = db.exec(
-        select(User).where(User.stripe_customer_id == customer_id)
-    ).first()
+    user = db.exec(select(User).where(User.stripe_customer_id == customer_id)).first()
     if user is None:
         logger.warning("Webhook: no user found for customer %s", customer_id)
         return

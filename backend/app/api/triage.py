@@ -8,10 +8,9 @@ from app.api.tasks import _to_response
 from app.core.deps import get_db
 from app.core.errors import AppError
 from app.core.security import get_current_user_id
-from app.models.user import User
-from app.schemas.task_schemas import TaskResponse
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
+from app.models.user import User
 from app.schemas.triage_schemas import (
     BriefingResponse,
     MITSuggestionResponse,

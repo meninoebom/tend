@@ -6,13 +6,13 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-logger = logging.getLogger(__name__)
-
 from app.api import account, billing, chat, domains, stats, tasks, triage
 from app.core.config import settings
 from app.core.deps import engine
 from app.core.errors import AppError, app_error_handler
 from app.core.rate_limit import limiter
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Tend", version="0.2.0")
 app.state.limiter = limiter
