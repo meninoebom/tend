@@ -36,11 +36,15 @@ async function handler(
       headers["Content-Type"] = "application/json";
     }
 
+    // Streaming endpoints (chat) need a longer timeout
+    const isStream = path.includes("/stream");
+    const timeout = isStream ? 120000 : 15000;
+
     const res = await fetch(url.toString(), {
       method: req.method,
       headers,
       body: req.method !== "GET" && req.method !== "DELETE" ? await req.text() : undefined,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(timeout),
     });
 
     // Stream the response back
