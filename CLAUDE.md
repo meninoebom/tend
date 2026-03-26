@@ -207,8 +207,13 @@ Stale tasks (>30 days, non-today bucket) are automatically archived per-user dur
 ### Light/Dark Theme
 `ThemeProvider` in `frontend/src/components/theme-provider.tsx` wraps the app. Theme stored in `localStorage`, toggled via class on `<html>`. Tailwind v4 `@theme` (NOT `@theme inline`) generates CSS `var()` references that respond to runtime overrides in `globals.css`. `suppressHydrationWarning` on `<html>` prevents React mismatch.
 
-## Auto-merge
-PRs in this repo use auto-merge. After creating a PR, run `gh pr merge --auto --squash`.
+## Merging PRs
+
+After creating a PR:
+1. Run `gh pr checks <PR> --watch` to wait for CI to complete (timeout: 5 min)
+2. If checks pass, run `gh pr merge <PR> --squash --delete-branch`
+3. If checks fail, read the failure, fix it, push, and repeat from step 1
+4. Only tell the user "it's deploying" after confirming the merge actually happened via `gh pr view <PR> --json state`
 
 ## What's Deferred
 
