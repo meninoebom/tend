@@ -159,6 +159,15 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
 
   const task = queue.tasks[currentIndex];
 
+  const skipLink = (
+    <button
+      onClick={onComplete}
+      className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+    >
+      Skip for now
+    </button>
+  );
+
   return (
     <RitualOverlay>
       {mitLoading ? (
@@ -228,6 +237,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
           >
             Start triaging
           </button>
+          {skipLink}
         </div>
       ) : showFreeTeaser ? (
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
@@ -254,6 +264,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
           >
             Start triaging
           </button>
+          {skipLink}
         </div>
       ) : showExplainer ? (
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
@@ -271,15 +282,19 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
           >
             Start triaging
           </button>
+          {skipLink}
         </div>
       ) : (
-        <TriageCard
-          key={task.id}
-          task={task}
-          progress={{ current: currentIndex + 1, total: queue.tasks.length }}
-          onAction={handleAction}
-          showHints={showHints}
-        />
+        <div className="flex flex-col items-center gap-4">
+          <TriageCard
+            key={task.id}
+            task={task}
+            progress={{ current: currentIndex + 1, total: queue.tasks.length }}
+            onAction={handleAction}
+            showHints={showHints}
+          />
+          {skipLink}
+        </div>
       )}
     </RitualOverlay>
   );
