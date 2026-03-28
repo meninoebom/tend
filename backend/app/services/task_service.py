@@ -58,6 +58,21 @@ def create_task(
         bucket = BucketType(parent.bucket)
         domain_id = parent.domain_id
 
+    # For top-level Today tasks, assign position after existing ordered tasks
+    position = None
+    if bucket == BucketType.today and parent_id is None:
+        from sqlalchemy import func
+
+        max_pos = db.exec(
+            select(func.max(Task.position)).where(
+                Task.user_id == user_id,
+                Task.bucket == BucketType.today,
+                Task.status == TaskStatus.pending,
+                Task.parent_id.is_(None),
+            )
+        ).first()
+        position = (max_pos + 1) if max_pos is not None else 0
+
     task = Task(
         user_id=user_id,
         text=text.strip(),
@@ -65,6 +80,7 @@ def create_task(
         status=TaskStatus.pending,
         domain_id=domain_id,
         parent_id=parent_id,
+        position=position,
         triaged_at=None if skip_triage_stamp else date.today(),
     )
     db.add(task)
@@ -196,6 +212,50 @@ def complete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
 
     db.refresh(task)
     return task
+
+
+def reorder_tasks(db: Session, user_id: uuid.UUID, task_ids: list[uuid.UUID]) -> int:
+    # Verify all pending Today tasks are included
+    all_today = list(
+        db.exec(
+            select(Task).where(
+                Task.user_id == user_id,
+                Task.bucket == BucketType.today,
+                Task.status == TaskStatus.pending,
+                Task.parent_id.is_(None),
+            )
+        ).all()
+    )
+    if len(task_ids) != len(all_today):
+        raise AppError(
+            code="incomplete_reorder",
+            message="All pending Today tasks must be included in reorder",
+            status_code=400,
+        )
+
+    tasks = list(db.exec(select(Task).where(Task.id.in_(task_ids), Task.user_id == user_id)).all())
+    task_map = {t.id: t for t in tasks}
+
+    for task_id in task_ids:
+        if task_id not in task_map:
+            raise AppError(
+                code="invalid_task",
+                message=f"Task {task_id} not found or does not belong to you",
+                status_code=400,
+            )
+        task = task_map[task_id]
+        if task.bucket != BucketType.today or task.status != TaskStatus.pending:
+            raise AppError(
+                code="invalid_task",
+                message=f"Task {task_id} is not a pending Today task",
+                status_code=400,
+            )
+
+    for i, task_id in enumerate(task_ids):
+        task_map[task_id].position = i
+        db.add(task_map[task_id])
+    db.flush()
+    return len(task_ids)
 
 
 def delete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> None:

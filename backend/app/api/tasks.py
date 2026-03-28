@@ -9,6 +9,7 @@ from app.core.security import get_current_user_id
 from app.models.enums import BucketType, TaskStatus
 from app.schemas.task_schemas import (
     DomainBrief,
+    ReorderRequest,
     SubTaskResponse,
     TaskCreate,
     TaskResponse,
@@ -92,6 +93,16 @@ def create_task(
     # Reload with relationships for response
     task = task_service.get_task(db, user_id, task.id)
     return _to_response(task)
+
+
+@router.patch("/reorder")
+def reorder_tasks(
+    body: ReorderRequest,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    count = task_service.reorder_tasks(db, user_id, body.task_ids)
+    return {"updated": count}
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
