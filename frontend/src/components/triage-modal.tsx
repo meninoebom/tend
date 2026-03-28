@@ -164,7 +164,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
       onClick={onComplete}
       className="text-xs text-text-muted hover:text-text-secondary transition-colors"
     >
-      Skip for now
+      Skip triage
     </button>
   );
 
