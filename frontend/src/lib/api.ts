@@ -89,6 +89,13 @@ export async function setMIT(taskId: string): Promise<Task> {
   return request<Task>(`tasks/${taskId}/mit`, { method: "POST" });
 }
 
+export async function reorderTasks(taskIds: string[]): Promise<{ updated: number }> {
+  return request<{ updated: number }>("tasks/reorder", {
+    method: "PATCH",
+    body: JSON.stringify({ task_ids: taskIds }),
+  });
+}
+
 // Triage
 export async function getTriageQueue(): Promise<TriageQueue> {
   return request<TriageQueue>("triage");
