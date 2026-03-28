@@ -159,12 +159,18 @@ class TestTodayOrdering:
         from datetime import datetime, timedelta
 
         t1 = Task(
-            user_id=test_user.id, text="Older", bucket=BucketType.soon,
-            position=0, created_at=datetime.utcnow() - timedelta(hours=1),
+            user_id=test_user.id,
+            text="Older",
+            bucket=BucketType.soon,
+            position=0,
+            created_at=datetime.utcnow() - timedelta(hours=1),
         )
         t2 = Task(
-            user_id=test_user.id, text="Newer", bucket=BucketType.soon,
-            position=5, created_at=datetime.utcnow(),
+            user_id=test_user.id,
+            text="Newer",
+            bucket=BucketType.soon,
+            position=5,
+            created_at=datetime.utcnow(),
         )
         db.add_all([t1, t2])
         db.flush()
