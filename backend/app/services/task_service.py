@@ -215,6 +215,24 @@ def complete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
 
 
 def reorder_tasks(db: Session, user_id: uuid.UUID, task_ids: list[uuid.UUID]) -> int:
+    # Verify all pending Today tasks are included
+    all_today = list(
+        db.exec(
+            select(Task).where(
+                Task.user_id == user_id,
+                Task.bucket == BucketType.today,
+                Task.status == TaskStatus.pending,
+                Task.parent_id.is_(None),
+            )
+        ).all()
+    )
+    if len(task_ids) != len(all_today):
+        raise AppError(
+            code="incomplete_reorder",
+            message="All pending Today tasks must be included in reorder",
+            status_code=400,
+        )
+
     tasks = list(db.exec(select(Task).where(Task.id.in_(task_ids), Task.user_id == user_id)).all())
     task_map = {t.id: t for t in tasks}
 

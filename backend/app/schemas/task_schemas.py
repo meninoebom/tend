@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, field_validator
 
 from app.models.enums import BucketType, TaskStatus
 
@@ -23,6 +23,15 @@ class TaskUpdate(BaseModel):
 
 class ReorderRequest(BaseModel):
     task_ids: list[uuid.UUID]
+
+    @field_validator("task_ids")
+    @classmethod
+    def validate_task_ids(cls, v: list[uuid.UUID]) -> list[uuid.UUID]:
+        if len(v) == 0:
+            raise ValueError("task_ids must not be empty")
+        if len(v) != len(set(v)):
+            raise ValueError("task_ids must not contain duplicates")
+        return v
 
 
 class DomainBrief(BaseModel):

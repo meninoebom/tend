@@ -246,6 +246,33 @@ class TestReorderTasks:
         texts = [t["text"] for t in r2.json()]
         assert texts == ["A", "B", "New task"]
 
+    def test_reorder_rejects_empty_list(self, client, db, test_user):
+        """Returns 422 for empty task_ids list."""
+        r = client.patch("/tasks/reorder", json={"task_ids": []})
+        assert r.status_code == 422
+
+    def test_reorder_rejects_duplicates(self, client, db, test_user):
+        """Returns 422 for duplicate task IDs."""
+        t = Task(user_id=test_user.id, text="A", bucket=BucketType.today, status=TaskStatus.pending)
+        db.add(t)
+        db.flush()
+        r = client.patch("/tasks/reorder", json={"task_ids": [str(t.id), str(t.id)]})
+        assert r.status_code == 422
+
+    def test_reorder_rejects_partial_list(self, client, db, test_user):
+        """Returns 400 if not all pending Today tasks are included."""
+        t1 = Task(
+            user_id=test_user.id, text="A", bucket=BucketType.today, status=TaskStatus.pending
+        )
+        t2 = Task(
+            user_id=test_user.id, text="B", bucket=BucketType.today, status=TaskStatus.pending
+        )
+        db.add_all([t1, t2])
+        db.flush()
+        # Only send one of two
+        r = client.patch("/tasks/reorder", json={"task_ids": [str(t1.id)]})
+        assert r.status_code == 400
+
     def test_reorder_rejects_other_users_task(self, client, db, test_user):
         """Returns 400 if task belongs to another user."""
         import uuid
