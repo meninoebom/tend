@@ -179,3 +179,87 @@ class TestTodayOrdering:
         texts = [t["text"] for t in r.json()]
         # created_at DESC — newer first
         assert texts == ["Newer", "Older"]
+
+
+class TestReorderTasks:
+    def test_reorder_assigns_positions(self, client, db, test_user):
+        """PATCH /tasks/reorder assigns sequential positions."""
+        tasks = []
+        for text in ["A", "B", "C"]:
+            t = Task(
+                user_id=test_user.id, text=text, bucket=BucketType.today, status=TaskStatus.pending
+            )
+            db.add(t)
+            tasks.append(t)
+        db.flush()
+
+        # Reorder as C, A, B
+        r = client.patch(
+            "/tasks/reorder",
+            json={"task_ids": [str(tasks[2].id), str(tasks[0].id), str(tasks[1].id)]},
+        )
+        assert r.status_code == 200
+        assert r.json()["updated"] == 3
+
+        # Verify ordering
+        r2 = client.get("/tasks", params={"bucket": "today"})
+        texts = [t["text"] for t in r2.json()]
+        assert texts == ["C", "A", "B"]
+
+    def test_reorder_rejects_invalid_task_id(self, client, db, test_user):
+        """Returns 400 for nonexistent task ID."""
+        import uuid
+
+        r = client.patch("/tasks/reorder", json={"task_ids": [str(uuid.uuid4())]})
+        assert r.status_code == 400
+
+    def test_reorder_rejects_wrong_bucket(self, client, db, test_user):
+        """Returns 400 if task is not in Today bucket."""
+        t = Task(
+            user_id=test_user.id,
+            text="Soon task",
+            bucket=BucketType.soon,
+            status=TaskStatus.pending,
+        )
+        db.add(t)
+        db.flush()
+
+        r = client.patch("/tasks/reorder", json={"task_ids": [str(t.id)]})
+        assert r.status_code == 400
+
+    def test_new_today_task_gets_next_position(self, client, db, test_user):
+        """Newly created Today tasks should get position = max + 1."""
+        t1 = Task(user_id=test_user.id, text="A", bucket=BucketType.today, position=0)
+        t2 = Task(user_id=test_user.id, text="B", bucket=BucketType.today, position=1)
+        db.add_all([t1, t2])
+        db.flush()
+
+        r = client.post("/tasks", json={"text": "New task", "bucket": "today"})
+        assert r.status_code == 201
+        # Verify it appears last and has position 2
+        new_task_id = r.json()["id"]
+        db.expire_all()
+        new_task = db.get(Task, uuid.UUID(new_task_id))
+        assert new_task.position == 2
+
+        r2 = client.get("/tasks", params={"bucket": "today"})
+        texts = [t["text"] for t in r2.json()]
+        assert texts == ["A", "B", "New task"]
+
+    def test_reorder_rejects_other_users_task(self, client, db, test_user):
+        """Returns 400 if task belongs to another user."""
+        import uuid
+
+        from app.models.enums import AuthProvider
+        from app.models.user import User
+
+        other = User(id=uuid.uuid4(), email="other@test.com", auth_provider=AuthProvider.email)
+        db.add(other)
+        t = Task(
+            user_id=other.id, text="Not mine", bucket=BucketType.today, status=TaskStatus.pending
+        )
+        db.add(t)
+        db.flush()
+
+        r = client.patch("/tasks/reorder", json={"task_ids": [str(t.id)]})
+        assert r.status_code == 400

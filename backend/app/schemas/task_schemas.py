@@ -21,6 +21,10 @@ class TaskUpdate(BaseModel):
     status: TaskStatus | None = None
 
 
+class ReorderRequest(BaseModel):
+    task_ids: list[uuid.UUID]
+
+
 class DomainBrief(BaseModel):
     id: uuid.UUID
     name: str
