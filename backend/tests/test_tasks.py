@@ -137,3 +137,45 @@ class TestTaskCRUD:
         r = client.get(f"/tasks/{test_tasks[0].id}")
         assert r.status_code == 200
         assert r.json()["age_days"] >= 0
+
+
+class TestTodayOrdering:
+    def test_today_tasks_ordered_by_position(self, client, db, test_user):
+        """Tasks with position values should be ordered position ASC, nulls last."""
+        t1 = Task(user_id=test_user.id, text="Third", bucket=BucketType.today, position=2)
+        t2 = Task(user_id=test_user.id, text="First", bucket=BucketType.today, position=0)
+        t3 = Task(user_id=test_user.id, text="Second", bucket=BucketType.today, position=1)
+        t4 = Task(user_id=test_user.id, text="No position", bucket=BucketType.today, position=None)
+        db.add_all([t1, t2, t3, t4])
+        db.flush()
+
+        r = client.get("/tasks", params={"bucket": "today"})
+        assert r.status_code == 200
+        texts = [t["text"] for t in r.json()]
+        assert texts == ["First", "Second", "Third", "No position"]
+
+    def test_non_today_bucket_ignores_position(self, client, db, test_user):
+        """Bucket views other than Today should not use position ordering."""
+        from datetime import datetime, timedelta
+
+        t1 = Task(
+            user_id=test_user.id,
+            text="Older",
+            bucket=BucketType.soon,
+            position=0,
+            created_at=datetime.utcnow() - timedelta(hours=1),
+        )
+        t2 = Task(
+            user_id=test_user.id,
+            text="Newer",
+            bucket=BucketType.soon,
+            position=5,
+            created_at=datetime.utcnow(),
+        )
+        db.add_all([t1, t2])
+        db.flush()
+
+        r = client.get("/tasks", params={"bucket": "soon"})
+        texts = [t["text"] for t in r.json()]
+        # created_at DESC — newer first
+        assert texts == ["Newer", "Older"]

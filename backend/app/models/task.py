@@ -17,6 +17,7 @@ class Task(SQLModel, table=True):
     bucket: BucketType = Field(sa_column=Column(String, nullable=False, default="today"))
     status: TaskStatus = Field(sa_column=Column(String, nullable=False, default="pending"))
     reschedule_count: int = Field(default=0)
+    position: int | None = Field(default=None)
     triaged_at: date | None = Field(default=None)
 
     # Parent task (one level of sub-tasks)

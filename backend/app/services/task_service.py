@@ -93,7 +93,16 @@ def get_tasks(
     if domain_id is not None:
         query = query.where(Task.domain_id == domain_id)
 
-    query = _load_related(query).order_by(Task.created_at.desc())
+    if bucket == BucketType.today:
+        from sqlalchemy import case
+
+        query = _load_related(query).order_by(
+            case((Task.position.is_(None), 1), else_=0),  # nulls last
+            Task.position.asc(),
+            Task.created_at.desc(),
+        )
+    else:
+        query = _load_related(query).order_by(Task.created_at.desc())
     return list(db.exec(query).all())
 
 
