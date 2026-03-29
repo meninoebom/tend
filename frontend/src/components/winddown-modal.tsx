@@ -24,6 +24,7 @@ interface WinddownModalProps {
 export function WinddownModal({ onComplete }: WinddownModalProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [nudge, setNudge] = useState<NudgeStats | null>(null);
+  const [mitCompleted, setMitCompleted] = useState<boolean | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -34,6 +35,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
     Promise.all([getWinddown(), getNudge()])
       .then(([w, n]) => {
         setTasks(w.tasks);
+        setMitCompleted(w.mit_completed);
         setNudge(n);
         setLoading(false);
       })
@@ -90,21 +92,59 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
     );
   }
 
+  // Shared stats for intro and empty states
+  const completed = nudge?.completed_count ?? 0;
+  const added = nudge?.today_count ?? 0;
+  const average = Math.round(nudge?.average_completed ?? 0);
+
+  function DayStats({ total }: { total: number }) {
+    return (
+      <div className="space-y-2">
+        {/* MIT status */}
+        {mitCompleted === true && (
+          <p className="text-sm text-accent-green">
+            You finished your most important task.
+          </p>
+        )}
+        {mitCompleted === false && (
+          <p className="text-sm text-accent-amber">
+            Your most important task is still open.
+          </p>
+        )}
+
+        {/* Completion ratio */}
+        {total > 0 && (
+          <p className="text-sm text-text-secondary">
+            You completed <span className="text-text-primary font-medium">{completed} of {total}</span> task{total !== 1 ? "s" : ""} today.
+          </p>
+        )}
+
+        {/* Average comparison */}
+        {average > 0 && total > 0 && (
+          <p className="text-sm text-text-muted">
+            {completed > average
+              ? `Above your usual ~${average}.`
+              : completed === average
+                ? `Right at your usual ~${average}.`
+                : `A lighter day than your usual ~${average}.`}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   // --- Empty: nothing to wind down ---
   if (tasks.length === 0) {
-    const completed = nudge?.completed_count ?? 0;
-    const added = nudge?.today_count ?? 0;
-
     return (
       <RitualOverlay>
         <div className="flex flex-col items-center justify-center gap-6 px-4 w-full max-w-md mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">Today is clear</h2>
             {added > 0 ? (
-              <p className="text-sm text-text-secondary leading-relaxed">
-                You completed {completed} of {added} task{added !== 1 ? "s" : ""} today.
-                Everything&apos;s been handled.
-              </p>
+              <>
+                <DayStats total={added} />
+                <p className="text-xs text-text-muted">Everything&apos;s been handled.</p>
+              </>
             ) : (
               <p className="text-sm text-text-secondary leading-relaxed">
                 Nothing left to close out. Nice work.
@@ -121,7 +161,6 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
 
   // --- Intro: reflection before cards ---
   if (phase === "intro") {
-    const completed = nudge?.completed_count ?? 0;
     const remaining = tasks.length;
     const total = completed + remaining;
 
@@ -130,12 +169,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">Review my day</h2>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              Walk through your open tasks and decide what stays.
-              {total > 0 && (
-                <> You completed <span className="text-text-primary font-medium">{completed} of {total}</span> task{total !== 1 ? "s" : ""}.</>
-              )}
-            </p>
+            <DayStats total={total} />
             {remaining > 0 && (
               <p className="text-sm text-text-muted">
                 {remaining} task{remaining !== 1 ? "s" : ""} still open &mdash; where should {remaining === 1 ? "it" : "they"} go?
