@@ -49,7 +49,7 @@ export function SortableTaskItem({
         <button
           {...attributes}
           {...listeners}
-          className="shrink-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover/sortable:opacity-100 hover:!opacity-100 transition-opacity text-text-muted hover:text-text-secondary touch-none"
+          className="shrink-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-30 sm:opacity-0 group-hover/sortable:opacity-100 hover:!opacity-100 transition-opacity text-text-muted hover:text-text-secondary touch-none"
           aria-label="Drag to reorder"
         >
           <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
