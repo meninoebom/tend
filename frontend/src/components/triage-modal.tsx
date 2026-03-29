@@ -31,6 +31,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
   const [mitSuggestion, setMitSuggestion] = useState<MITSuggestion | null>(null);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [showQuote, setShowQuote] = useState(false);
+  const todayQuote = getTodayQuote();
 
   useEffect(() => {
     const queuePromise = initialQueue
@@ -290,10 +291,10 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-8 space-y-4 text-center">
             <p className="text-base text-text-secondary leading-relaxed italic">
-              &ldquo;{getTodayQuote().text}&rdquo;
+              &ldquo;{todayQuote.text}&rdquo;
             </p>
             <p className="text-xs text-text-muted">
-              &mdash; {getTodayQuote().attribution}
+              &mdash; {todayQuote.attribution}
             </p>
           </div>
           <button

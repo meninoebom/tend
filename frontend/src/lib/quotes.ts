@@ -59,7 +59,7 @@ const quotes: Quote[] = [
  */
 export function getTodayQuote(): Quote {
   const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
+  const start = new Date(now.getFullYear(), 0, 1);
   const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
   return quotes[dayOfYear % quotes.length];
 }
