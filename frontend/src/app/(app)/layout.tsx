@@ -95,6 +95,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Triage gate: open modal if triage needed (only after onboarding confirmed)
   function checkTriage() {
     if (skipGates || !onboardingChecked) return;
+
+    // If user already skipped triage this session, don't re-show
+    if (sessionStorage.getItem("triage_skipped_today") === new Date().toDateString()) {
+      setTriageChecked(true);
+      return;
+    }
+
     getTriageQueue()
       .then((q) => {
         if (!q.triage_complete && q.tasks.length > 0) {

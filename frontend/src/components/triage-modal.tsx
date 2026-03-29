@@ -162,9 +162,14 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
 
   const task = queue.tasks[currentIndex];
 
+  function handleSkip() {
+    sessionStorage.setItem("triage_skipped_today", new Date().toDateString());
+    onComplete();
+  }
+
   const skipLink = (
     <button
-      onClick={onComplete}
+      onClick={handleSkip}
       className="text-xs text-text-muted hover:text-text-secondary transition-colors"
     >
       Skip triage
