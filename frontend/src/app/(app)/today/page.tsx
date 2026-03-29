@@ -1,9 +1,26 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import type { Task, Domain, NudgeStats, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, getNudge, setMIT } from "@/lib/api";
+import { getTasks, getDomains, getNudge, setMIT, reorderTasks } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
+import { SortableTaskItem } from "@/components/sortable-task-item";
 import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
@@ -22,6 +39,12 @@ export default function TodayPage() {
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
   }, []));
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const refresh = useCallback(() => {
     Promise.all([
@@ -52,9 +75,42 @@ export default function TodayPage() {
   });
   const completed = filtered.filter((t) => t.status === "complete");
 
+  // Non-MIT pending tasks (the draggable ones)
+  const mitTask = pending.find((t) => t.is_mit);
+  const sortableTasks = pending.filter((t) => !t.is_mit);
+  const canDrag = !domainFilter; // disable drag when filtering by domain
+
   async function handleSetMIT(taskId: string) {
     await setMIT(taskId);
     refresh();
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Optimistic reorder
+    const oldIndex = sortableTasks.findIndex((t) => t.id === active.id);
+    const newIndex = sortableTasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = [...sortableTasks];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+
+    // Build full task list with MIT at front for optimistic UI
+    const newPending = mitTask ? [mitTask, ...reordered] : reordered;
+    const newTasks = [...newPending, ...tasks.filter((t) => t.status === "complete")];
+    setTasks(newTasks);
+
+    // Persist — send all pending task IDs (MIT included) in the new order
+    const allPendingIds = newPending.map((t) => t.id);
+    try {
+      await reorderTasks(allPendingIds);
+    } catch (err) {
+      console.error("Failed to reorder:", err);
+      refresh(); // rollback on failure
+    }
   }
 
   if (loading) {
@@ -138,9 +194,52 @@ export default function TodayPage() {
             </p>
           </div>
         )}
-        {pending.map((task) => (
-          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} isMIT={task.is_mit} onSetMIT={handleSetMIT} />
-        ))}
+
+        {/* MIT task — pinned at top, not draggable */}
+        {mitTask && (
+          <TaskItem
+            task={mitTask}
+            domains={domains}
+            onMutate={refresh}
+            isMIT
+            onSetMIT={handleSetMIT}
+          />
+        )}
+
+        {/* Sortable non-MIT pending tasks */}
+        {sortableTasks.length > 0 && canDrag ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis]}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortableTasks.map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {sortableTasks.map((task) => (
+                <SortableTaskItem
+                  key={task.id}
+                  task={task}
+                  domains={domains}
+                  onMutate={refresh}
+                  onSetMIT={handleSetMIT}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        ) : (
+          sortableTasks.map((task) => (
+            <TaskItem
+              key={task.id}
+              task={task}
+              domains={domains}
+              onMutate={refresh}
+              onSetMIT={handleSetMIT}
+            />
+          ))
+        )}
 
         {/* Completed tasks */}
         {completed.length > 0 && (
