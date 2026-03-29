@@ -7,6 +7,7 @@ import { TriageCard } from "@/components/triage-card";
 import { RitualOverlay } from "@/components/ritual-overlay";
 import { ProBadge } from "@/components/pro-badge";
 import { MITSelection } from "@/components/mit-selection";
+import { getTodayQuote } from "@/lib/quotes";
 
 interface TriageModalProps {
   onComplete: () => void;
@@ -29,6 +30,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
   const [showMITSelection, setShowMITSelection] = useState(false);
   const [mitSuggestion, setMitSuggestion] = useState<MITSuggestion | null>(null);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
+  const [showQuote, setShowQuote] = useState(false);
 
   useEffect(() => {
     const queuePromise = initialQueue
@@ -231,7 +233,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
             ) : null}
           </div>
           <button
-            onClick={() => setShowBriefing(false)}
+            onClick={() => { setShowBriefing(false); setShowQuote(true); }}
             disabled={briefingLoading}
             className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
           >
@@ -259,7 +261,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
             </button>
           </div>
           <button
-            onClick={() => setShowFreeTeaser(false)}
+            onClick={() => { setShowFreeTeaser(false); setShowQuote(true); }}
             className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
           >
             Start triaging
@@ -277,10 +279,28 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
             <p className="text-xs text-text-muted">This takes about 2 minutes.</p>
           </div>
           <button
-            onClick={() => setShowExplainer(false)}
+            onClick={() => { setShowExplainer(false); setShowQuote(true); }}
             className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
           >
             Start triaging
+          </button>
+          {skipLink}
+        </div>
+      ) : showQuote ? (
+        <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
+          <div className="w-full rounded-2xl bg-bg-card border border-border p-8 space-y-4 text-center">
+            <p className="text-base text-text-secondary leading-relaxed italic">
+              &ldquo;{getTodayQuote().text}&rdquo;
+            </p>
+            <p className="text-xs text-text-muted">
+              &mdash; {getTodayQuote().attribution}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowQuote(false)}
+            className="bg-accent-blue text-white rounded-xl px-8 py-3 text-base font-medium hover:bg-accent-blue/90 transition-colors"
+          >
+            Begin triage
           </button>
           {skipLink}
         </div>
