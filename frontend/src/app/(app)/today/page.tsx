@@ -40,6 +40,15 @@ export default function TodayPage() {
     taskInputRef.current?.focus();
   }, []));
 
+  // Clean up nav highlights if component unmounts mid-drag
+  useEffect(() => {
+    return () => {
+      document.querySelectorAll("[data-drop-bucket]").forEach((el) => {
+        el.classList.remove("ring-2", "ring-accent-blue", "bg-accent-blue/10");
+      });
+    };
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
