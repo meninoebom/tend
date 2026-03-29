@@ -17,6 +17,47 @@ interface ActionTally {
 
 const emptyTally: ActionTally = { kept: 0, deferred: 0, done: 0, killed: 0 };
 
+function DayStats({
+  completed,
+  total,
+  average,
+  mitCompleted,
+}: {
+  completed: number;
+  total: number;
+  average: number;
+  mitCompleted: boolean | null;
+}) {
+  return (
+    <div className="space-y-2">
+      {mitCompleted === true && (
+        <p className="text-sm text-accent-green">
+          You finished your most important task.
+        </p>
+      )}
+      {mitCompleted === false && (
+        <p className="text-sm text-accent-amber">
+          Your most important task is still open.
+        </p>
+      )}
+      {total > 0 && (
+        <p className="text-sm text-text-secondary">
+          You completed <span className="text-text-primary font-medium">{completed} of {total}</span> task{total !== 1 ? "s" : ""} today.
+        </p>
+      )}
+      {average > 0 && total > 0 && (
+        <p className="text-sm text-text-muted">
+          {completed > average
+            ? `Above your usual ~${average}.`
+            : completed === average
+              ? `Right at your usual ~${average}.`
+              : `A lighter day than your usual ~${average}.`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface WinddownModalProps {
   onComplete: () => void;
 }
@@ -97,42 +138,6 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
   const added = nudge?.today_count ?? 0;
   const average = Math.round(nudge?.average_completed ?? 0);
 
-  function DayStats({ total }: { total: number }) {
-    return (
-      <div className="space-y-2">
-        {/* MIT status */}
-        {mitCompleted === true && (
-          <p className="text-sm text-accent-green">
-            You finished your most important task.
-          </p>
-        )}
-        {mitCompleted === false && (
-          <p className="text-sm text-accent-amber">
-            Your most important task is still open.
-          </p>
-        )}
-
-        {/* Completion ratio */}
-        {total > 0 && (
-          <p className="text-sm text-text-secondary">
-            You completed <span className="text-text-primary font-medium">{completed} of {total}</span> task{total !== 1 ? "s" : ""} today.
-          </p>
-        )}
-
-        {/* Average comparison */}
-        {average > 0 && total > 0 && (
-          <p className="text-sm text-text-muted">
-            {completed > average
-              ? `Above your usual ~${average}.`
-              : completed === average
-                ? `Right at your usual ~${average}.`
-                : `A lighter day than your usual ~${average}.`}
-          </p>
-        )}
-      </div>
-    );
-  }
-
   // --- Empty: nothing to wind down ---
   if (tasks.length === 0) {
     return (
@@ -142,7 +147,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
             <h2 className="text-xl font-semibold text-text-primary">Today is clear</h2>
             {added > 0 ? (
               <>
-                <DayStats total={added} />
+                <DayStats completed={completed} total={added} average={average} mitCompleted={mitCompleted} />
                 <p className="text-xs text-text-muted">Everything&apos;s been handled.</p>
               </>
             ) : (
@@ -169,7 +174,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">Review my day</h2>
-            <DayStats total={total} />
+            <DayStats completed={completed} total={total} average={average} mitCompleted={mitCompleted} />
             {remaining > 0 && (
               <p className="text-sm text-text-muted">
                 {remaining} task{remaining !== 1 ? "s" : ""} still open &mdash; where should {remaining === 1 ? "it" : "they"} go?
