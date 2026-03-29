@@ -98,13 +98,23 @@ export default function TodayPage() {
   const hoveredBucketRef = useRef<string | null>(null);
 
   function handleDragMove(event: DragMoveEvent) {
-    // Get pointer position from the drag event's activatorEvent
-    const pointerEvent = event.activatorEvent as PointerEvent;
-    if (!pointerEvent) return;
+    // Extract initial pointer position (works for both mouse and touch)
+    const activator = event.activatorEvent;
+    let startX: number | undefined;
+    let startY: number | undefined;
+    if ("clientX" in activator) {
+      startX = (activator as PointerEvent).clientX;
+      startY = (activator as PointerEvent).clientY;
+    } else if ("touches" in activator) {
+      const touch = (activator as TouchEvent).touches[0];
+      startX = touch?.clientX;
+      startY = touch?.clientY;
+    }
+    if (startX == null || startY == null) return;
 
     // Calculate current pointer position using initial position + delta
-    const x = pointerEvent.clientX + (event.delta?.x ?? 0);
-    const y = pointerEvent.clientY + (event.delta?.y ?? 0);
+    const x = startX + (event.delta?.x ?? 0);
+    const y = startY + (event.delta?.y ?? 0);
 
     // Find nav item under pointer
     const els = document.querySelectorAll("[data-drop-bucket]");

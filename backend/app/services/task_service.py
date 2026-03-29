@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 
+from sqlalchemy import case, func
 from sqlmodel import Session, select
 from sqlmodel.sql.expression import SelectOfScalar
 
@@ -61,8 +62,6 @@ def create_task(
     # For top-level Today tasks, assign position after existing ordered tasks
     position = None
     if bucket == BucketType.today and parent_id is None:
-        from sqlalchemy import func
-
         max_pos = db.exec(
             select(func.max(Task.position)).where(
                 Task.user_id == user_id,
@@ -110,8 +109,6 @@ def get_tasks(
         query = query.where(Task.domain_id == domain_id)
 
     if bucket == BucketType.today:
-        from sqlalchemy import case
-
         query = _load_related(query).order_by(
             case((Task.position.is_(None), 1), else_=0),  # nulls last
             Task.position.asc(),
@@ -154,6 +151,8 @@ def update_task(
             )
         task.text = text.strip()
     if bucket is not None:
+        if task.bucket == BucketType.today and bucket != BucketType.today:
+            task.position = None
         task.bucket = bucket
     if domain_id is not _UNSET:
         task.domain_id = domain_id
@@ -226,7 +225,8 @@ def reorder_tasks(db: Session, user_id: uuid.UUID, task_ids: list[uuid.UUID]) ->
             )
         ).all()
     )
-    if len(task_ids) != len(all_today):
+    all_today_ids = {t.id for t in all_today}
+    if set(task_ids) != all_today_ids:
         raise AppError(
             code="incomplete_reorder",
             message="All pending Today tasks must be included in reorder",

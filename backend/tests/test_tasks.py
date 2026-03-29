@@ -154,6 +154,26 @@ class TestTodayOrdering:
         texts = [t["text"] for t in r.json()]
         assert texts == ["First", "Second", "Third", "No position"]
 
+    def test_position_cleared_when_moved_out_of_today(self, client, db, test_user):
+        """Moving a task out of Today should clear its position."""
+        t = Task(
+            user_id=test_user.id,
+            text="Positioned",
+            bucket=BucketType.today,
+            status=TaskStatus.pending,
+            position=2,
+        )
+        db.add(t)
+        db.flush()
+
+        r = client.patch(f"/tasks/{t.id}", json={"bucket": "soon"})
+        assert r.status_code == 200
+
+        db.expire_all()
+        updated = db.get(Task, t.id)
+        assert updated.position is None
+        assert updated.bucket == "soon"
+
     def test_non_today_bucket_ignores_position(self, client, db, test_user):
         """Bucket views other than Today should not use position ordering."""
         from datetime import datetime, timedelta
