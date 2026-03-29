@@ -10,15 +10,15 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
 } from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import type { Task, Domain, NudgeStats, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, getNudge, setMIT, reorderTasks } from "@/lib/api";
+import { getTasks, getDomains, getNudge, setMIT, reorderTasks, updateTask } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { SortableTaskItem } from "@/components/sortable-task-item";
 import { TaskInput } from "@/components/task-input";
@@ -85,7 +85,77 @@ export default function TodayPage() {
     refresh();
   }
 
+  // Track which nav bucket the pointer is hovering over during drag
+  const hoveredBucketRef = useRef<string | null>(null);
+
+  function handleDragMove(event: DragMoveEvent) {
+    // Get pointer position from the drag event's activatorEvent
+    const pointerEvent = event.activatorEvent as PointerEvent;
+    if (!pointerEvent) return;
+
+    // Calculate current pointer position using initial position + delta
+    const x = pointerEvent.clientX + (event.delta?.x ?? 0);
+    const y = pointerEvent.clientY + (event.delta?.y ?? 0);
+
+    // Find nav item under pointer
+    const els = document.querySelectorAll("[data-drop-bucket]");
+    let found: string | null = null;
+    els.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        const bucket = el.getAttribute("data-drop-bucket");
+        if (bucket && bucket !== "today") {
+          found = bucket;
+        }
+      }
+    });
+
+    // Update highlight
+    if (found !== hoveredBucketRef.current) {
+      // Remove previous highlight
+      if (hoveredBucketRef.current) {
+        els.forEach((el) => {
+          if (el.getAttribute("data-drop-bucket") === hoveredBucketRef.current) {
+            el.classList.remove("ring-2", "ring-accent-blue", "bg-accent-blue/10");
+          }
+        });
+      }
+      // Add new highlight
+      if (found) {
+        els.forEach((el) => {
+          if (el.getAttribute("data-drop-bucket") === found) {
+            el.classList.add("ring-2", "ring-accent-blue", "bg-accent-blue/10");
+          }
+        });
+      }
+      hoveredBucketRef.current = found;
+    }
+  }
+
+  function clearNavHighlights() {
+    document.querySelectorAll("[data-drop-bucket]").forEach((el) => {
+      el.classList.remove("ring-2", "ring-accent-blue", "bg-accent-blue/10");
+    });
+    hoveredBucketRef.current = null;
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
+    const targetBucket = hoveredBucketRef.current;
+    clearNavHighlights();
+
+    // If dropped on a nav bucket, move the task there
+    if (targetBucket) {
+      const taskId = event.active.id as string;
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      try {
+        await updateTask(taskId, { bucket: targetBucket as BucketType });
+      } catch (err) {
+        console.error("Failed to move task:", err);
+        refresh();
+      }
+      return;
+    }
+
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -211,8 +281,9 @@ export default function TodayPage() {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
+            onDragCancel={clearNavHighlights}
           >
             <SortableContext
               items={sortableTasks.map((t) => t.id)}

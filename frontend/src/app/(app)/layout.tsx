@@ -147,11 +147,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col gap-0.5 px-3">
             {mainNavItems.map((item) => {
               const isActive = pathname === item.href;
+              const bucket = item.href === "/today" ? "today"
+                : item.href.startsWith("/bucket/") ? item.href.split("/").pop()
+                : undefined;
               return (
                 <button
                   key={item.href}
                   onClick={() => router.push(item.href)}
                   aria-current={isActive ? "page" : undefined}
+                  data-drop-bucket={bucket}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150",
                     isActive
