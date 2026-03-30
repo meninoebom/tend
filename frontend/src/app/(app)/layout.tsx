@@ -106,11 +106,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, router, skipGates]);
 
   // Triage gate: open modal if triage needed (only after onboarding confirmed)
+  // Once triage is done (completed or skipped) for the day, we store it in
+  // sessionStorage so no re-check can re-trigger the modal.
+  const TRIAGE_DONE_KEY = "triage_done_today";
+
+  function isTriageDoneToday() {
+    return sessionStorage.getItem(TRIAGE_DONE_KEY) === new Date().toDateString();
+  }
+
+  function markTriageDone() {
+    sessionStorage.setItem(TRIAGE_DONE_KEY, new Date().toDateString());
+  }
+
   function checkTriage() {
     if (skipGates || !onboardingChecked) return;
 
-    // If user already skipped triage this session, don't re-show
-    if (sessionStorage.getItem("triage_skipped_today") === new Date().toDateString()) {
+    if (isTriageDoneToday()) {
       setTriageChecked(true);
       return;
     }
@@ -120,6 +131,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (!q.triage_complete && q.tasks.length > 0) {
           setTriageQueue(q);
           setShowTriageModal(true);
+        } else {
+          // Backend says triage is complete — remember for this session
+          markTriageDone();
         }
         setTriageChecked(true);
       })
@@ -142,7 +156,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }); // no deps — always uses latest skipGates/onboardingChecked via closure
+  }, [skipGates, onboardingChecked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showContent = skipGates || (onboardingChecked && triageChecked);
   const hideNav = pathname === "/onboarding";
@@ -322,7 +336,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Ritual modals */}
       {showTriageModal && (
         <TriageModal
-          onComplete={() => { setShowTriageModal(false); setRefreshKey((k) => k + 1); }}
+          onComplete={() => { setShowTriageModal(false); markTriageDone(); setRefreshKey((k) => k + 1); }}
           initialQueue={triageQueue}
         />
       )}

@@ -163,7 +163,6 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
   const task = queue.tasks[currentIndex];
 
   function handleSkip() {
-    sessionStorage.setItem("triage_skipped_today", new Date().toDateString());
     onComplete();
   }
 
