@@ -138,11 +138,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const mainNavItems = navItems.filter((item) => item.icon !== "settings");
   const settingsItem = navItems.find((item) => item.icon === "settings")!;
 
+  // Items shown in both sidebar and bottom bar
+  const mobileNavItems: { href: string; label: string; icon: NavIconName; action?: () => void }[] = [
+    { href: "/today", label: "Today", icon: "today" },
+    { href: "/bucket/soon", label: "Soon", icon: "soon" },
+    { href: "/bucket/later", label: "Later", icon: "later" },
+    { href: "/bucket/someday", label: "Someday", icon: "someday" },
+    { href: "#winddown", label: "Review", icon: "review", action: () => setShowWinddownModal(true) },
+    { href: "/settings", label: "Settings", icon: "settings" },
+  ];
+
+  function isMobileActive(item: typeof mobileNavItems[number]) {
+    if (item.href === "#winddown") return false;
+    return pathname === item.href;
+  }
+
   return (
     <div className={cn("flex min-h-screen bg-bg-root", modalOpen && "overflow-hidden")}>
-      {/* Left sidebar */}
+      {/* Desktop sidebar — hidden on mobile */}
       {!hideNav && (
-        <nav className="fixed inset-y-0 left-0 w-56 bg-bg-card flex flex-col">
+        <nav className="hidden md:flex fixed inset-y-0 left-0 w-56 bg-bg-card flex-col">
           {/* App wordmark */}
           <div className="px-6 pt-7 pb-5 mb-1">
             <span className="text-[15px] font-semibold tracking-[0.15em] uppercase text-text-secondary">
@@ -255,14 +270,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
       )}
 
-      {/* Main content */}
-      <main className={cn("flex-1 min-w-0", !hideNav && "ml-56")}>
+      {/* Main content — offset for sidebar on desktop, full-width on mobile */}
+      <main className={cn("flex-1 min-w-0", !hideNav && "md:ml-56", !hideNav && "pb-16 md:pb-0")}>
         {showContent ? <div key={refreshKey}>{children}</div> : (
           <div className="flex min-h-screen items-center justify-center">
             <p className="text-sm text-text-muted">Loading...</p>
           </div>
         )}
       </main>
+
+      {/* Mobile bottom tab bar — visible below md: */}
+      {!hideNav && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-card border-t border-border/50 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center justify-around h-14">
+            {mobileNavItems.map((item) => {
+              const active = isMobileActive(item);
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => item.action ? item.action() : router.push(item.href)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[44px] text-[10px] transition-colors duration-150",
+                    active
+                      ? "text-accent-blue"
+                      : "text-text-muted active:text-text-secondary",
+                  )}
+                >
+                  <NavIcon name={item.icon} className={cn(active && "text-accent-blue")} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* Ritual modals */}
       {showTriageModal && (
