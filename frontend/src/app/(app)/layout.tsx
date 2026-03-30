@@ -54,7 +54,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const onboardingVerified = useRef(false);
 
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
+
+  // Hide bottom tab bar when iOS virtual keyboard is open
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function onResize() {
+      // Keyboard is open when visual viewport is significantly shorter than window
+      setKeyboardOpen(window.innerHeight - vv!.height > 100);
+    }
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
   const skipGates = pathname === "/triage" || pathname === "/winddown" || pathname === "/settings" || pathname === "/onboarding";
 
   const navItems: { href: string; label: string; icon: NavIconName }[] = [
@@ -279,9 +292,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       </main>
 
-      {/* Mobile bottom tab bar — visible below md: */}
-      {!hideNav && (
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-card border-t border-border/50 pb-[env(safe-area-inset-bottom)]">
+      {/* Mobile bottom tab bar — visible below md:, hidden when keyboard is open */}
+      {!hideNav && !keyboardOpen && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-card border-t border-border/50 pb-[env(safe-area-inset-bottom)]" style={{ transform: "translate3d(0,0,0)" }}>
           <div className="flex items-center justify-around h-14">
             {mobileNavItems.map((item) => {
               const active = isMobileActive(item);
