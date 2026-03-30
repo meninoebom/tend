@@ -19,7 +19,8 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
   const [rewriteText, setRewriteText] = useState(task.text);
   const [loading, setLoading] = useState(false);
 
-  const showRewrite = task.reschedule_count >= 3 && !rewriteMode;
+  const [rewriteDismissed, setRewriteDismissed] = useState(false);
+  const showRewrite = task.reschedule_count >= 3 && !rewriteMode && !rewriteDismissed;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
 
   async function handleAction(action: TriageAction, bucket?: BucketType) {
@@ -118,7 +119,7 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
                 Rewrite
               </button>
               <button
-                onClick={() => {}}
+                onClick={() => setRewriteDismissed(true)}
                 className="text-sm text-text-muted hover:underline"
               >
                 Keep as-is
