@@ -2,17 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { Task, Domain, BucketType } from "@/lib/api-types";
+import type { Task, Domain } from "@/lib/api-types";
 import { getTasks, getDomains } from "@/lib/api";
-
-const BUCKET_LABELS: Record<BucketType, string> = {
-  today: "Today",
-  soon: "Soon",
-  later: "Later",
-  someday: "Someday",
-};
-
-const BUCKET_ORDER: BucketType[] = ["today", "soon", "later", "someday"];
 
 function formatCompletedAge(completedAt: string): string {
   const ms = Date.now() - new Date(completedAt).getTime();
@@ -56,23 +47,11 @@ export default function DonePage() {
     );
   }
 
-  // Group by bucket, sort by completed_at DESC within each group
-  const grouped = BUCKET_ORDER.reduce<{ bucket: BucketType; tasks: Task[] }[]>(
-    (acc, bucket) => {
-      const bucketTasks = tasks
-        .filter((t) => t.bucket === bucket)
-        .sort((a, b) => {
-          const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
-          const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
-          return bTime - aTime;
-        });
-      if (bucketTasks.length > 0) {
-        acc.push({ bucket, tasks: bucketTasks });
-      }
-      return acc;
-    },
-    [],
-  );
+  const sorted = [...tasks].sort((a, b) => {
+    const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+    const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+    return bTime - aTime;
+  });
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
@@ -100,29 +79,22 @@ export default function DonePage() {
           </div>
         )}
 
-        {grouped.map(({ bucket, tasks: bucketTasks }) => (
-          <div key={bucket} className="mb-4">
-            <p className="text-xs text-text-muted mb-2 uppercase tracking-wide">
-              {BUCKET_LABELS[bucket]}
-            </p>
-            {bucketTasks.map((task) => (
-              <div key={task.id} className="flex items-center gap-3 py-2 px-1 text-sm">
-                {task.domain && (
-                  <span
-                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: task.domain.color }}
-                  />
-                )}
-                <span className="flex-1 text-text-muted line-through">
-                  {task.text}
-                </span>
-                {task.completed_at && (
-                  <span className="text-xs text-text-muted shrink-0">
-                    {formatCompletedAge(task.completed_at)}
-                  </span>
-                )}
-              </div>
-            ))}
+        {sorted.map((task) => (
+          <div key={task.id} className="flex items-center gap-3 py-2 px-1 text-sm">
+            {task.domain && (
+              <span
+                className="h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: task.domain.color }}
+              />
+            )}
+            <span className="flex-1 text-text-muted line-through">
+              {task.text}
+            </span>
+            {task.completed_at && (
+              <span className="text-xs text-text-muted shrink-0">
+                {formatCompletedAge(task.completed_at)}
+              </span>
+            )}
           </div>
         ))}
       </div>
