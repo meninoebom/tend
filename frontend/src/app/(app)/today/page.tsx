@@ -82,8 +82,6 @@ export default function TodayPage() {
     if (!a.is_mit && b.is_mit) return 1;
     return 0;
   });
-  const completed = filtered.filter((t) => t.status === "complete");
-
   // Non-MIT pending tasks (the draggable ones)
   const mitTask = pending.find((t) => t.is_mit);
   const sortableTasks = pending.filter((t) => !t.is_mit);
@@ -273,7 +271,7 @@ export default function TodayPage() {
 
       {/* Task list */}
       <div className="flex-1 min-h-[120px]">
-        {pending.length === 0 && completed.length === 0 && (
+        {pending.length === 0 && (
           <div className="text-center py-8 px-4">
             <p className="text-base text-text-secondary">
               Nothing on your plate today.
@@ -331,17 +329,6 @@ export default function TodayPage() {
           ))
         )}
 
-        {/* Completed tasks */}
-        {completed.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs text-text-muted mb-2">
-              Completed ({completed.length})
-            </p>
-            {completed.map((task) => (
-              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

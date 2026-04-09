@@ -10,7 +10,7 @@ import { useTheme } from "@/components/theme-provider";
 import { TriageModal } from "@/components/triage-modal";
 import { WinddownModal } from "@/components/winddown-modal";
 
-type NavIconName = "review" | "today" | "soon" | "later" | "someday" | "settings";
+type NavIconName = "review" | "today" | "soon" | "later" | "someday" | "done" | "settings";
 
 function NavIcon({ name, className }: { name: NavIconName; className?: string }) {
   const props = {
@@ -34,6 +34,8 @@ function NavIcon({ name, className }: { name: NavIconName; className?: string })
       return <svg {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>;
     case "someday":
       return <svg {...props}><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-5.095-8 0-8zM5.822 8c5.096 0 5.096 8 0 8-5.095 0-5.095-8 0-8z" /></svg>;
+    case "done":
+      return <svg {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
     case "settings":
       return <svg {...props}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
     default:
@@ -75,6 +77,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/bucket/soon", label: "Soon", icon: "soon" },
     { href: "/bucket/later", label: "Later", icon: "later" },
     { href: "/bucket/someday", label: "Someday", icon: "someday" },
+    { href: "/done", label: "Done", icon: "done" },
     { href: "/settings", label: "Settings", icon: "settings" },
   ];
 
