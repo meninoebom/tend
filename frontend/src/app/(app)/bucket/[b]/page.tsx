@@ -97,7 +97,6 @@ export default function BucketPage() {
   }
 
   const pending = tasks.filter((t) => t.status === "pending");
-  const completed = tasks.filter((t) => t.status === "complete");
 
   async function handleRestore(taskId: string) {
     if (loadingId) return;
@@ -152,7 +151,7 @@ export default function BucketPage() {
 
       {/* Tasks */}
       <div className="flex-1 min-h-[120px]">
-        {pending.length === 0 && completed.length === 0 && (
+        {pending.length === 0 && (
           <div className="text-center py-8 px-4">
             <p className="text-base text-text-secondary">
               {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
@@ -162,17 +161,6 @@ export default function BucketPage() {
         {pending.map((task) => (
           <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
         ))}
-
-        {completed.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs text-text-muted mb-2">
-              Completed ({completed.length})
-            </p>
-            {completed.map((task) => (
-              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
-            ))}
-          </div>
-        )}
 
         {isSomeday && (
           <details className="mt-4 pt-4 border-t border-border">
