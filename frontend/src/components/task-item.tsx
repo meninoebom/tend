@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { StickyNote } from "lucide-react";
 import type { Task, Domain, SubTask } from "@/lib/api-types";
 import { completeTask, createTask, deleteTask, updateTask } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
@@ -136,8 +137,16 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
   const [subtaskText, setSubtaskText] = useState("");
   const [subtaskLoading, setSubtaskLoading] = useState(false);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const [noteEditing, setNoteEditing] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(task.notes ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const isComplete = task.status === "complete";
+  const isSubtask = !!task.parent_id;
   const hasChildren = task.children.length > 0;
+  const hasNote = !!task.notes;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
 
   useEffect(() => {
@@ -249,6 +258,55 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
     }
   }
 
+  function startNoteEdit() {
+    setNoteDraft(task.notes ?? "");
+    setNoteEditing(true);
+    setNoteExpanded(true);
+    setNoteError(null);
+  }
+
+  function cancelNoteEdit() {
+    setNoteDraft(task.notes ?? "");
+    setNoteEditing(false);
+    setNoteError(null);
+    if (!task.notes) setNoteExpanded(false);
+  }
+
+  const saveNote = useCallback(async () => {
+    if (noteSaving) return;
+    setNoteSaving(true);
+    setNoteError(null);
+    try {
+      await updateTask(task.id, { notes: noteDraft });
+      setNoteEditing(false);
+      if (!noteDraft.trim()) setNoteExpanded(false);
+      onMutate();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save note";
+      setNoteError(msg);
+      setNoteSaving(false);
+    }
+  }, [task.id, noteDraft, noteSaving, onMutate]);
+
+  function handleNoteKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      cancelNoteEdit();
+    } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      saveNote();
+    }
+  }
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (noteEditing && noteTextareaRef.current) {
+      noteTextareaRef.current.focus();
+      const ta = noteTextareaRef.current;
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    }
+  }, [noteEditing]);
+
   return (
     <div className={cn("group", isComplete && "opacity-40")}>
       <div className={cn(
@@ -338,6 +396,17 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
           </span>
         )}
 
+        {/* Note indicator */}
+        {!isSubtask && hasNote && (
+          <button
+            onClick={() => setNoteExpanded(!noteExpanded)}
+            className="shrink-0 text-text-muted hover:text-text-secondary transition-colors"
+            title="View note"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+          </button>
+        )}
+
         {/* Edit button (hover affordance for tasks with children) */}
         {!isEditing && !isComplete && hasChildren && (
           <button
@@ -357,6 +426,17 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
             title="Set as most important task"
           >
             most important
+          </button>
+        )}
+
+        {/* Add note button (top-level tasks without notes) */}
+        {!isEditing && !isComplete && !isSubtask && !hasNote && (
+          <button
+            onClick={startNoteEdit}
+            className="shrink-0 hover-action text-text-muted hover:text-text-secondary"
+            title="Add note"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
           </button>
         )}
 
@@ -400,6 +480,57 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
           ×
         </button>
       </div>
+
+      {/* Note expand/edit area */}
+      {!isSubtask && noteExpanded && (
+        <div className="ml-8 px-3 py-2">
+          {noteEditing ? (
+            <div className="space-y-2">
+              <textarea
+                ref={noteTextareaRef}
+                value={noteDraft}
+                onChange={(e) => {
+                  setNoteDraft(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = e.target.scrollHeight + "px";
+                }}
+                onKeyDown={handleNoteKeyDown}
+                maxLength={2000}
+                placeholder="Add a note..."
+                className="w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-blue resize-none min-h-[60px]"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={saveNote}
+                  disabled={noteSaving}
+                  className="text-xs px-2.5 py-1 rounded bg-accent-blue/15 text-accent-blue hover:bg-accent-blue/25 disabled:opacity-50 transition-colors"
+                >
+                  {noteSaving ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={cancelNoteEdit}
+                  className="text-xs px-2.5 py-1 rounded text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <span className="text-[10px] text-text-muted ml-auto">
+                  {noteDraft.length}/2000
+                </span>
+              </div>
+              {noteError && (
+                <p className="text-xs text-accent-red">{noteError}</p>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={startNoteEdit}
+              className="text-sm text-text-secondary hover:text-text-primary text-left w-full whitespace-pre-wrap transition-colors"
+            >
+              {task.notes}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Expanded subtasks + add subtask input */}
       {(expanded && hasChildren) || isAddingSubtask ? (

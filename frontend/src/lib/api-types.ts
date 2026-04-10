@@ -34,6 +34,7 @@ export interface Task {
   status: TaskStatus;
   reschedule_count: number;
   triaged_at: string | null;
+  notes: string | null;
   domain: DomainBrief | null;
   parent_id: string | null;
   children: SubTask[];

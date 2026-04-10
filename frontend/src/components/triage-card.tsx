@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { StickyNote } from "lucide-react";
 import type { Task, TriageAction, TriageResult, BucketType } from "@/lib/api-types";
-import { submitTriage } from "@/lib/api";
+import { submitTriage, updateTask } from "@/lib/api";
 import { DomainBadge } from "@/components/domain-badge";
 import { formatAge, cn } from "@/lib/utils";
 
@@ -20,8 +21,65 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
   const [loading, setLoading] = useState(false);
 
   const [rewriteDismissed, setRewriteDismissed] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const [noteEditing, setNoteEditing] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(task.notes ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [currentNotes, setCurrentNotes] = useState(task.notes);
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const showRewrite = task.reschedule_count >= 3 && !rewriteMode && !rewriteDismissed;
+  const hasNote = !!currentNotes;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
+
+  function startNoteEdit() {
+    setNoteDraft(currentNotes ?? "");
+    setNoteEditing(true);
+    setNoteExpanded(true);
+    setNoteError(null);
+  }
+
+  function cancelNoteEdit() {
+    setNoteDraft(currentNotes ?? "");
+    setNoteEditing(false);
+    setNoteError(null);
+    if (!currentNotes) setNoteExpanded(false);
+  }
+
+  const saveNote = useCallback(async () => {
+    if (noteSaving) return;
+    setNoteSaving(true);
+    setNoteError(null);
+    try {
+      const updated = await updateTask(task.id, { notes: noteDraft });
+      setCurrentNotes(updated.notes);
+      setNoteEditing(false);
+      setNoteSaving(false);
+      if (!noteDraft.trim()) setNoteExpanded(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save note";
+      setNoteError(msg);
+      setNoteSaving(false);
+    }
+  }, [task.id, noteDraft, noteSaving]);
+
+  function handleNoteKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      cancelNoteEdit();
+    } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      saveNote();
+    }
+  }
+
+  useEffect(() => {
+    if (noteEditing && noteTextareaRef.current) {
+      noteTextareaRef.current.focus();
+      const ta = noteTextareaRef.current;
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    }
+  }, [noteEditing]);
 
   async function handleAction(action: TriageAction, bucket?: BucketType) {
     if (loading) return;
@@ -85,6 +143,75 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
             </span>
           )}
         </div>
+
+        {/* Note indicator + expand/edit */}
+        {hasNote && !noteExpanded && (
+          <button
+            onClick={() => setNoteExpanded(true)}
+            className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            <span>View note</span>
+          </button>
+        )}
+        {noteExpanded && (
+          <div className="space-y-2">
+            {noteEditing ? (
+              <>
+                <textarea
+                  ref={noteTextareaRef}
+                  value={noteDraft}
+                  onChange={(e) => {
+                    setNoteDraft(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = e.target.scrollHeight + "px";
+                  }}
+                  onKeyDown={handleNoteKeyDown}
+                  maxLength={2000}
+                  placeholder="Add a note..."
+                  className="w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-blue resize-none min-h-[60px] max-h-[120px] overflow-y-auto"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={saveNote}
+                    disabled={noteSaving}
+                    className="text-xs px-2.5 py-1 rounded bg-accent-blue/15 text-accent-blue hover:bg-accent-blue/25 disabled:opacity-50 transition-colors"
+                  >
+                    {noteSaving ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    onClick={cancelNoteEdit}
+                    className="text-xs px-2.5 py-1 rounded text-text-muted hover:text-text-secondary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <span className="text-[10px] text-text-muted ml-auto">
+                    {noteDraft.length}/2000
+                  </span>
+                </div>
+                {noteError && (
+                  <p className="text-xs text-accent-red">{noteError}</p>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={startNoteEdit}
+                className="text-sm text-text-secondary hover:text-text-primary text-left w-full whitespace-pre-wrap max-h-[120px] overflow-y-auto transition-colors"
+              >
+                {currentNotes}
+              </button>
+            )}
+          </div>
+        )}
+        {!hasNote && !noteExpanded && (
+          <button
+            onClick={startNoteEdit}
+            className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            <span>Add note</span>
+          </button>
+        )}
 
         {/* Sub-tasks preview */}
         {task.children.length > 0 && (
