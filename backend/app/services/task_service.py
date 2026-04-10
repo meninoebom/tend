@@ -164,15 +164,15 @@ def update_task(
     task = get_task(db, user_id, task_id)
 
     if notes is not _UNSET:
-        if task.parent_id is not None and notes is not None and notes != "":
+        # Normalize empty string → None first
+        if isinstance(notes, str):
+            notes = notes.strip() or None
+        if task.parent_id is not None and notes is not None:
             raise AppError(
                 code="validation_error",
                 message="Sub-tasks cannot have notes",
                 status_code=400,
             )
-        # Normalize empty string → None
-        if isinstance(notes, str):
-            notes = notes.strip() or None
         if notes is not None and len(notes) > 2000:
             raise AppError(
                 code="validation_error",

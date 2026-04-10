@@ -279,6 +279,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
     try {
       await updateTask(task.id, { notes: noteDraft });
       setNoteEditing(false);
+      setNoteSaving(false);
       if (!noteDraft.trim()) setNoteExpanded(false);
       onMutate();
     } catch (err: unknown) {
