@@ -33,3 +33,7 @@ __pycache__/
 # Editor
 .vscode/
 .idea/
+
+# AI workspace
+.llm/
+.context/

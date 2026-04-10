@@ -28,6 +28,7 @@ def _to_response(task, mit_task_id: uuid.UUID | None = None) -> TaskResponse:
         status=task.status,
         reschedule_count=task.reschedule_count,
         triaged_at=task.triaged_at,
+        notes=task.notes,
         domain=DomainBrief(id=task.domain.id, name=task.domain.name, color=task.domain.color)
         if task.domain
         else None,
@@ -88,6 +89,7 @@ def create_task(
         bucket=body.bucket,
         domain_id=body.domain_id,
         parent_id=body.parent_id,
+        notes=body.notes,
         skip_triage_stamp=skip_stamp,
     )
     # Reload with relationships for response
@@ -121,6 +123,8 @@ def update_task(
         kwargs["domain_id"] = body.domain_id
     if body.status is not None:
         kwargs["status"] = body.status
+    if "notes" in body.model_fields_set:
+        kwargs["notes"] = body.notes
     task = task_service.update_task(db, user_id, task_id, **kwargs)
     return _to_response(task)
 

@@ -11,6 +11,7 @@ class TaskCreate(BaseModel):
     bucket: BucketType = BucketType.today
     domain_id: uuid.UUID | None = None
     parent_id: uuid.UUID | None = None
+    notes: str | None = None
     skip_triage_stamp: bool = False
 
 
@@ -19,6 +20,7 @@ class TaskUpdate(BaseModel):
     bucket: BucketType | None = None
     domain_id: uuid.UUID | None = None
     status: TaskStatus | None = None
+    notes: str | None = None
 
 
 class ReorderRequest(BaseModel):
@@ -54,6 +56,7 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     reschedule_count: int
     triaged_at: date | None
+    notes: str | None
     domain: DomainBrief | None
     parent_id: uuid.UUID | None
     children: list[SubTaskResponse]

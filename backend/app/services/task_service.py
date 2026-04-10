@@ -29,6 +29,7 @@ def create_task(
     bucket: BucketType = BucketType.today,
     domain_id: uuid.UUID | None = None,
     parent_id: uuid.UUID | None = None,
+    notes: str | None = None,
     skip_triage_stamp: bool = False,
 ) -> Task:
     if len(text) > 500:
@@ -45,8 +46,26 @@ def create_task(
             status_code=422,
         )
 
+    # Normalize notes: empty string → None
+    if notes is not None:
+        notes = notes.strip() or None
+
+    # Validate notes length
+    if notes is not None and len(notes) > 2000:
+        raise AppError(
+            code="validation_error",
+            message="Notes must be 2000 characters or fewer",
+            status_code=422,
+        )
+
     # If sub-task, validate parent and inherit bucket/domain
     if parent_id is not None:
+        if notes is not None:
+            raise AppError(
+                code="validation_error",
+                message="Sub-tasks cannot have notes",
+                status_code=400,
+            )
         parent = db.get(Task, parent_id)
         if parent is None or parent.user_id != user_id:
             raise NotFoundError("Parent task not found")
@@ -79,6 +98,7 @@ def create_task(
         status=TaskStatus.pending,
         domain_id=domain_id,
         parent_id=parent_id,
+        notes=notes,
         position=position,
         triaged_at=None if skip_triage_stamp else date.today(),
     )
@@ -139,8 +159,27 @@ def update_task(
     bucket: BucketType | None = None,
     domain_id: uuid.UUID | None | object = _UNSET,
     status: TaskStatus | None = None,
+    notes: str | None | object = _UNSET,
 ) -> Task:
     task = get_task(db, user_id, task_id)
+
+    if notes is not _UNSET:
+        # Normalize empty string → None first
+        if isinstance(notes, str):
+            notes = notes.strip() or None
+        if task.parent_id is not None and notes is not None:
+            raise AppError(
+                code="validation_error",
+                message="Sub-tasks cannot have notes",
+                status_code=400,
+            )
+        if notes is not None and len(notes) > 2000:
+            raise AppError(
+                code="validation_error",
+                message="Notes must be 2000 characters or fewer",
+                status_code=422,
+            )
+        task.notes = notes
 
     if text is not None:
         if len(text) > 500:

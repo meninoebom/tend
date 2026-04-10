@@ -310,3 +310,91 @@ class TestReorderTasks:
 
         r = client.patch("/tasks/reorder", json={"task_ids": [str(t.id)]})
         assert r.status_code == 400
+
+
+class TestTaskNotes:
+    def test_create_task_with_notes(self, client, test_user):
+        """Top-level task can be created with notes."""
+        r = client.post("/tasks", json={"text": "Task with note", "notes": "Some context"})
+        assert r.status_code == 201
+        assert r.json()["notes"] == "Some context"
+
+    def test_create_task_without_notes(self, client, test_user):
+        """Tasks without notes return null."""
+        r = client.post("/tasks", json={"text": "No note"})
+        assert r.status_code == 201
+        assert r.json()["notes"] is None
+
+    def test_create_subtask_with_notes_rejected(self, client, test_user, test_tasks):
+        """Sub-tasks cannot have notes — returns 400."""
+        parent = test_tasks[0]
+        r = client.post(
+            "/tasks",
+            json={"text": "Child", "parent_id": str(parent.id), "notes": "Not allowed"},
+        )
+        assert r.status_code == 400
+
+    def test_update_task_set_notes(self, client, test_user, test_tasks):
+        """Can set notes on an existing top-level task."""
+        task = test_tasks[0]
+        r = client.patch(f"/tasks/{task.id}", json={"notes": "Added later"})
+        assert r.status_code == 200
+        assert r.json()["notes"] == "Added later"
+
+    def test_update_task_clear_notes_with_empty_string(self, client, test_user, test_tasks):
+        """Sending empty string clears notes (stored as NULL)."""
+        task = test_tasks[0]
+        # First set a note
+        client.patch(f"/tasks/{task.id}", json={"notes": "Temporary"})
+        # Then clear it
+        r = client.patch(f"/tasks/{task.id}", json={"notes": ""})
+        assert r.status_code == 200
+        assert r.json()["notes"] is None
+
+    def test_update_task_clear_notes_with_null(self, client, test_user, test_tasks):
+        """Sending null clears notes."""
+        task = test_tasks[0]
+        client.patch(f"/tasks/{task.id}", json={"notes": "Temporary"})
+        r = client.patch(f"/tasks/{task.id}", json={"notes": None})
+        assert r.status_code == 200
+        assert r.json()["notes"] is None
+
+    def test_update_subtask_with_notes_rejected(self, client, db, test_user, test_tasks):
+        """Cannot set notes on a sub-task via update — returns 400."""
+        parent = test_tasks[0]
+        child = Task(
+            user_id=test_user.id,
+            text="Child",
+            bucket=BucketType.today,
+            parent_id=parent.id,
+        )
+        db.add(child)
+        db.flush()
+
+        r = client.patch(f"/tasks/{child.id}", json={"notes": "Not allowed"})
+        assert r.status_code == 400
+
+    def test_notes_too_long_rejected(self, client, test_user):
+        """Notes over 2000 chars are rejected with 422."""
+        r = client.post("/tasks", json={"text": "Task", "notes": "x" * 2001})
+        assert r.status_code == 422
+
+    def test_notes_empty_string_normalized_to_null_on_create(self, client, test_user):
+        """Empty string notes on create stored as NULL."""
+        r = client.post("/tasks", json={"text": "Task", "notes": ""})
+        assert r.status_code == 201
+        assert r.json()["notes"] is None
+
+    def test_notes_whitespace_normalized_to_null(self, client, test_user):
+        """Whitespace-only notes normalized to NULL."""
+        r = client.post("/tasks", json={"text": "Task", "notes": "   "})
+        assert r.status_code == 201
+        assert r.json()["notes"] is None
+
+    def test_notes_preserved_on_unrelated_update(self, client, test_user, test_tasks):
+        """Updating text doesn't wipe existing notes."""
+        task = test_tasks[0]
+        client.patch(f"/tasks/{task.id}", json={"notes": "Keep this"})
+        r = client.patch(f"/tasks/{task.id}", json={"text": "New text"})
+        assert r.status_code == 200
+        assert r.json()["notes"] == "Keep this"
