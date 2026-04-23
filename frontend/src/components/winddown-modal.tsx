@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { NudgeStats, Task, TriageAction } from "@/lib/api-types";
-import { getWinddown, getNudge } from "@/lib/api";
+import type { Task, TriageAction } from "@/lib/api-types";
+import { getWinddown } from "@/lib/api";
 import { TriageCard } from "@/components/triage-card";
 import { RitualOverlay } from "@/components/ritual-overlay";
 
@@ -17,54 +17,12 @@ interface ActionTally {
 
 const emptyTally: ActionTally = { kept: 0, deferred: 0, done: 0, killed: 0 };
 
-function DayStats({
-  completed,
-  total,
-  average,
-  mitCompleted,
-}: {
-  completed: number;
-  total: number;
-  average: number;
-  mitCompleted: boolean | null;
-}) {
-  return (
-    <div className="space-y-2">
-      {mitCompleted === true && (
-        <p className="text-sm text-accent-green">
-          You finished your most important task.
-        </p>
-      )}
-      {mitCompleted === false && (
-        <p className="text-sm text-accent-amber">
-          Your most important task is still open.
-        </p>
-      )}
-      {total > 0 && (
-        <p className="text-sm text-text-secondary">
-          You completed <span className="text-text-primary font-medium">{completed} of {total}</span> task{total !== 1 ? "s" : ""} today.
-        </p>
-      )}
-      {average > 0 && total > 0 && (
-        <p className="text-sm text-text-muted">
-          {completed > average
-            ? `Above your usual ~${average}.`
-            : completed === average
-              ? `Right at your usual ~${average}.`
-              : `A lighter day than your usual ~${average}.`}
-        </p>
-      )}
-    </div>
-  );
-}
-
 interface WinddownModalProps {
   onComplete: () => void;
 }
 
 export function WinddownModal({ onComplete }: WinddownModalProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [nudge, setNudge] = useState<NudgeStats | null>(null);
   const [mitCompleted, setMitCompleted] = useState<boolean | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -73,11 +31,10 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
   const [tally, setTally] = useState<ActionTally>({ ...emptyTally });
 
   useEffect(() => {
-    Promise.all([getWinddown(), getNudge()])
-      .then(([w, n]) => {
+    getWinddown()
+      .then((w) => {
         setTasks(w.tasks);
         setMitCompleted(w.mit_completed);
-        setNudge(n);
         setLoading(false);
       })
       .catch((err) => {
@@ -133,11 +90,6 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
     );
   }
 
-  // Shared stats for intro and empty states
-  const completed = nudge?.completed_count ?? 0;
-  const added = nudge?.today_count ?? 0;
-  const average = Math.round(nudge?.average_completed ?? 0);
-
   // --- Empty: nothing to wind down ---
   if (tasks.length === 0) {
     return (
@@ -145,16 +97,14 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
         <div className="flex flex-col items-center justify-center gap-6 px-4 w-full max-w-md mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">Today is clear</h2>
-            {added > 0 ? (
-              <>
-                <DayStats completed={completed} total={added} average={average} mitCompleted={mitCompleted} />
-                <p className="text-xs text-text-muted">Everything&apos;s been handled.</p>
-              </>
-            ) : (
-              <p className="text-sm text-text-secondary leading-relaxed">
-                Nothing left to close out. Nice work.
+            {mitCompleted === true && (
+              <p className="text-sm text-accent-green">
+                You finished your most important task.
               </p>
             )}
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Nothing left to close out. Nice work.
+            </p>
           </div>
           <button onClick={onComplete} className="text-sm text-accent-blue hover:underline">
             Close
@@ -167,14 +117,22 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
   // --- Intro: reflection before cards ---
   if (phase === "intro") {
     const remaining = tasks.length;
-    const total = completed + remaining;
 
     return (
       <RitualOverlay>
         <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
           <div className="w-full rounded-2xl bg-bg-card border border-border p-6 space-y-4 text-center">
             <h2 className="text-xl font-semibold text-text-primary">Review my day</h2>
-            <DayStats completed={completed} total={total} average={average} mitCompleted={mitCompleted} />
+            {mitCompleted === true && (
+              <p className="text-sm text-accent-green">
+                You finished your most important task.
+              </p>
+            )}
+            {mitCompleted === false && (
+              <p className="text-sm text-accent-amber">
+                Your most important task is still open.
+              </p>
+            )}
             {remaining > 0 && (
               <p className="text-sm text-text-muted">
                 {remaining} task{remaining !== 1 ? "s" : ""} still open &mdash; where should {remaining === 1 ? "it" : "they"} go?
