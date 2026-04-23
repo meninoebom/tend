@@ -17,8 +17,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import type { Task, Domain, NudgeStats, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, getNudge, setMIT, reorderTasks, updateTask } from "@/lib/api";
+import type { Task, Domain, BucketType } from "@/lib/api-types";
+import { getTasks, getDomains, setMIT, reorderTasks, updateTask } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { SortableTaskItem } from "@/components/sortable-task-item";
 import { TaskInput } from "@/components/task-input";
@@ -32,7 +32,6 @@ export default function TodayPage() {
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [nudge, setNudge] = useState<NudgeStats | null>(null);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,11 +58,9 @@ export default function TodayPage() {
     Promise.all([
       getTasks({ bucket: BUCKET }),
       getDomains(),
-      getNudge(),
-    ]).then(([t, d, n]) => {
+    ]).then(([t, d]) => {
       setTasks(t);
       setDomains(d);
-      setNudge(n);
       setLoading(false);
     }).catch((err) => {
       console.error("Failed to load today:", err);
@@ -210,27 +207,6 @@ export default function TodayPage() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
-      {/* Nudge */}
-      {nudge && nudge.today_count > 0 && (
-        <div className="rounded-xl bg-gradient-to-r from-accent-blue/5 to-transparent px-5 py-5">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-text-primary">{nudge.today_count}</span>
-            <span className="text-base text-text-secondary">
-              {nudge.today_count === 1 ? "task" : "tasks"} today
-            </span>
-          </div>
-          {Math.round(nudge.average_completed) > 0 ? (
-            <p className="mt-1 text-sm text-accent-amber">
-              You usually finish ~{Math.round(nudge.average_completed)}
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-text-muted">
-              Let&apos;s see what you can do.
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Domain filters */}
       {domains.length > 0 && (
         <div className="flex items-center gap-2">

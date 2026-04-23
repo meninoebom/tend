@@ -5,7 +5,7 @@ import type {
   CheckoutResponse,
   Domain,
   MITSuggestion,
-  NudgeStats,
+
   PortalResponse,
   Task,
   TaskStatus,
@@ -141,11 +141,6 @@ export async function updateDomain(
 
 export async function deleteDomain(id: string): Promise<void> {
   return request<void>(`domains/${id}`, { method: "DELETE" });
-}
-
-// Stats
-export async function getNudge(): Promise<NudgeStats> {
-  return request<NudgeStats>("stats/nudge");
 }
 
 // Account

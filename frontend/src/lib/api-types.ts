@@ -75,14 +75,6 @@ export interface BriefingResponse {
   calibration: string;
 }
 
-// Stats
-export interface NudgeStats {
-  today_count: number;
-  completed_count: number;
-  average_completed: number;
-  message: string;
-}
-
 // User
 export interface User {
   id: string;
