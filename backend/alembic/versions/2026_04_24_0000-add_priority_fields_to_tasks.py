@@ -19,6 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column('tasks', sa.Column('important', sa.Boolean(), nullable=False, server_default='false'))
     op.add_column('tasks', sa.Column('urgent', sa.Boolean(), nullable=False, server_default='false'))
+    # Drop server_defaults after backfill so model and DB stay in sync
+    op.alter_column('tasks', 'important', server_default=None)
+    op.alter_column('tasks', 'urgent', server_default=None)
     op.create_index(
         'ix_tasks_priority_lookup',
         'tasks',

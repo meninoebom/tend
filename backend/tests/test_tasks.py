@@ -482,3 +482,46 @@ class TestStateEndpoint:
         r = client.get("/state")
         assert r.status_code == 200
         assert r.json()["priority"]["q1_count"] == 0
+
+    def test_state_excludes_subtasks(self, client, test_user, db):
+        """Sub-tasks with priority flags must not appear in quadrant counts."""
+        from app.models.task import Task as TaskModel
+        from app.models.enums import BucketType, TaskStatus
+        import uuid
+        user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
+
+        parent = TaskModel(user_id=user_id, text="parent", bucket=BucketType.today,
+                           status=TaskStatus.pending)
+        db.add(parent)
+        db.flush()
+
+        child = TaskModel(user_id=user_id, text="child", bucket=BucketType.today,
+                          status=TaskStatus.pending, parent_id=parent.id,
+                          important=True, urgent=True)
+        db.add(child)
+        db.flush()
+
+        r = client.get("/state")
+        assert r.status_code == 200
+        # Sub-task must not appear in q1_count
+        assert r.json()["priority"]["q1_count"] == 0
+
+    def test_state_scoped_to_current_user(self, client, test_user, db):
+        """Tasks from another user must not appear in counts."""
+        from app.models.task import Task as TaskModel
+        from app.models.user import User
+        from app.models.enums import BucketType, TaskStatus, AuthProvider
+        import uuid
+
+        other_id = uuid.uuid4()
+        other = User(id=other_id, email="other@tend.app", auth_provider=AuthProvider.email)
+        db.add(other)
+
+        t = TaskModel(user_id=other_id, text="other", bucket=BucketType.today,
+                      status=TaskStatus.pending, important=True, urgent=True)
+        db.add(t)
+        db.flush()
+
+        r = client.get("/state")
+        assert r.status_code == 200
+        assert r.json()["priority"]["q1_count"] == 0

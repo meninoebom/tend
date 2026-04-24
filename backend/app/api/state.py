@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.core.deps import get_db
@@ -28,19 +29,22 @@ def get_state(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    pending = list(
-        db.exec(
-            select(Task).where(
-                Task.user_id == user_id,
-                Task.status == TaskStatus.pending,
-                Task.parent_id.is_(None),
-            )
-        ).all()
+    rows = db.exec(
+        select(Task.important, Task.urgent, func.count())
+        .where(
+            Task.user_id == user_id,
+            Task.status == TaskStatus.pending,
+            Task.parent_id.is_(None),
+        )
+        .group_by(Task.important, Task.urgent)
+    ).all()
+
+    counts: dict[tuple[bool, bool], int] = {(imp, urg): cnt for imp, urg, cnt in rows}
+    return StateResponse(
+        priority=PriorityCounts(
+            q1_count=counts.get((True, True), 0),
+            q2_count=counts.get((True, False), 0),
+            q3_count=counts.get((False, True), 0),
+            q4_count=counts.get((False, False), 0),
+        )
     )
-
-    q1 = sum(1 for t in pending if t.important and t.urgent)
-    q2 = sum(1 for t in pending if t.important and not t.urgent)
-    q3 = sum(1 for t in pending if not t.important and t.urgent)
-    q4 = sum(1 for t in pending if not t.important and not t.urgent)
-
-    return StateResponse(priority=PriorityCounts(q1_count=q1, q2_count=q2, q3_count=q3, q4_count=q4))
