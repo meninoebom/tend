@@ -67,6 +67,14 @@ export function MatrixLayout({
       </div>
 
       <div className="hidden md:block overflow-x-auto">
+        {domains.length === 0 && tasks.filter((t) => t.domain === null && t.status === "pending").length === 0 ? (
+          <div className="rounded-lg border border-border bg-bg-secondary px-4 py-10 text-center">
+            <p className="text-sm text-text-secondary">Nothing on your plate.</p>
+            <p className="text-xs text-text-muted mt-1">
+              Add domains in Settings to populate the matrix rows.
+            </p>
+          </div>
+        ) : (
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr>
@@ -197,6 +205,7 @@ export function MatrixLayout({
             })()}
           </tbody>
         </table>
+        )}
       </div>
     </>
   );

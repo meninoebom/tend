@@ -40,7 +40,7 @@ function TodayContent() {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
-  const [layout, setLayout] = useState<LayoutMode>("list");
+  const [layout, setLayout] = useState<LayoutMode | null>(null);
   const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
 
   useGlobalShortcut("n", useCallback(() => {
@@ -62,35 +62,37 @@ function TodayContent() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((currentLayout?: LayoutMode | null) => {
+    const needsAll = (currentLayout ?? layout) === "matrix";
     Promise.all([
       getTasks({ bucket: BUCKET }),
       getDomains(),
-      getTasks(),
+      needsAll ? getTasks() : Promise.resolve(null),
     ]).then(([t, d, all]) => {
       setTasks(t);
       setDomains(d);
-      setAllTasks(all.filter((task) => task.status === "pending"));
+      if (all) setAllTasks(all.filter((task) => task.status === "pending"));
       setLoading(false);
     }).catch((err) => {
       console.error("Failed to load today:", err);
       setLoading(false);
     });
-  }, []);
+  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load user's preferred layout on mount
+  // Load user's preferred layout on mount, then trigger first refresh with correct layout
   useEffect(() => {
     getMe().then((user) => {
       setLayout(user.default_layout);
+      refresh(user.default_layout);
     }).catch(() => {
-      // ignore — default stays "list"
+      setLayout("list");
+      refresh("list");
     });
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleLayoutChange(newLayout: LayoutMode) {
     setLayout(newLayout);
+    refresh(newLayout);
     try {
       await updateMe({ default_layout: newLayout });
     } catch (err) {
@@ -215,7 +217,7 @@ function TodayContent() {
     }
   }
 
-  if (loading) {
+  if (loading || layout === null) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-text-muted">Loading...</p>

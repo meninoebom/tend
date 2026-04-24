@@ -39,7 +39,7 @@ export default function BucketPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [compostTasks, setCompostTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [layout, setLayout] = useState<LayoutMode>("list");
+  const [layout, setLayout] = useState<LayoutMode | null>(null);
   const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
 
   // Compost interaction state
@@ -56,40 +56,42 @@ export default function BucketPage() {
     taskInputRef.current?.focus();
   }, []));
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((currentLayout?: LayoutMode | null) => {
     if (!isValid) return;
+    const needsAll = (currentLayout ?? layout) === "matrix";
     Promise.all([
       getTasks({ bucket }),
       getDomains(),
-      isSomeday ? getTasks({ status: "archived" }) : Promise.resolve([]),
-      getTasks(),
+      isSomeday ? getTasks({ status: "archived" }) : Promise.resolve(null),
+      needsAll ? getTasks() : Promise.resolve(null),
     ]).then(([t, d, composted, all]) => {
       setTasks(t);
       setDomains(d);
-      setAllTasks(all.filter((task) => task.status === "pending"));
-      // Sort by updated_at DESC (most recently composted first)
-      setCompostTasks(
-        composted.sort(
-          (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        )
-      );
+      if (all) setAllTasks(all.filter((task) => task.status === "pending"));
+      if (composted) {
+        setCompostTasks(
+          composted.sort(
+            (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          )
+        );
+      }
       setLoading(false);
     }).catch((err) => {
       console.error("Failed to load bucket:", err);
       setLoading(false);
     });
-  }, [bucket, isValid, isSomeday]);
+  }, [bucket, isValid, isSomeday]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load user's preferred layout on mount
+  // Load layout preference then trigger first data fetch with correct layout
   useEffect(() => {
     getMe().then((user) => {
       setLayout(user.default_layout);
+      refresh(user.default_layout);
     }).catch(() => {
-      // ignore — default stays "list"
+      setLayout("list");
+      refresh("list");
     });
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
+  }, [bucket]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Focus the "No" button when confirmation appears
   useEffect(() => {
@@ -100,6 +102,7 @@ export default function BucketPage() {
 
   async function handleLayoutChange(newLayout: LayoutMode) {
     setLayout(newLayout);
+    refresh(newLayout);
     try {
       await updateMe({ default_layout: newLayout });
     } catch (err) {
@@ -115,7 +118,7 @@ export default function BucketPage() {
     );
   }
 
-  if (loading) {
+  if (loading || layout === null) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-text-muted">Loading...</p>

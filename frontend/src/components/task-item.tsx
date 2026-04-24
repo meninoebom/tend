@@ -143,9 +143,16 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
-  // Priority state — optimistic local copies
+  // Priority state — optimistic local copies, kept in sync with incoming props
   const [important, setImportant] = useState(task.important);
   const [urgent, setUrgent] = useState(task.urgent);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  useEffect(() => { setImportant(task.important); }, [task.important]);
+  useEffect(() => { setUrgent(task.urgent); }, [task.urgent]);
   const isComplete = task.status === "complete";
   const isSubtask = !!task.parent_id;
   const hasChildren = task.children.length > 0;
@@ -267,9 +274,10 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
     setImportant(!prev);
     try {
       await setPriority(task.id, { important: !prev });
+      onMutate();
     } catch (err) {
       console.error("Failed to set important:", err);
-      setImportant(prev);
+      if (mountedRef.current) setImportant(prev);
     }
   }
 
@@ -278,9 +286,10 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
     setUrgent(!prev);
     try {
       await setPriority(task.id, { urgent: !prev });
+      onMutate();
     } catch (err) {
       console.error("Failed to set urgent:", err);
-      setUrgent(prev);
+      if (mountedRef.current) setUrgent(prev);
     }
   }
 
@@ -339,10 +348,8 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
       <div className={cn(
         "flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors",
         isMIT && "bg-accent-blue/8 border border-accent-blue/20",
-        isQ1 && !isComplete && "border-l-2 border-red-500",
-      )}
-        style={isQ1 && !isComplete ? { backgroundColor: "rgba(239,68,68,0.08)" } : undefined}
-      >
+        isQ1 && !isComplete && "border-l-2 border-red-500 bg-red-500/[0.08]",
+      )}>
         {/* Complete checkbox */}
         <button
           onClick={handleComplete}
@@ -493,19 +500,20 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
           <>
             <button
               onClick={handleToggleImportant}
+              aria-label={important ? "Remove important" : "Mark as important"}
               title={important ? "Remove important" : "Mark as important"}
               className={cn(
-                "shrink-0 text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
+                "shrink-0 font-mono text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
                 important
                   ? "opacity-100 border-red-500/35 bg-red-500/8 text-red-300"
                   : "opacity-0 group-hover:opacity-100 border-neutral-800 text-neutral-500 hover:text-neutral-400",
               )}
-              style={important ? { color: "#fca5a5", borderColor: "rgba(239,68,68,0.35)", backgroundColor: "rgba(239,68,68,0.08)" } : undefined}
             >
               !
             </button>
             <button
               onClick={handleToggleUrgent}
+              aria-label={urgent ? "Remove urgent" : "Mark as urgent"}
               title={urgent ? "Remove urgent" : "Mark as urgent"}
               className={cn(
                 "shrink-0 text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
@@ -513,7 +521,6 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
                   ? "opacity-100 border-amber-500/35 bg-amber-500/8 text-amber-300"
                   : "opacity-0 group-hover:opacity-100 border-neutral-800 text-neutral-500 hover:text-neutral-400",
               )}
-              style={urgent ? { color: "#fcd34d", borderColor: "rgba(245,158,11,0.35)", backgroundColor: "rgba(245,158,11,0.08)" } : undefined}
             >
               ⚡
             </button>
