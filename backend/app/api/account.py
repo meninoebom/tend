@@ -41,6 +41,7 @@ def _to_response(user: User) -> UserResponse:
         created_at=user.created_at,
         subscription_status=user.subscription_status,
         is_pro=user.subscription_status in ("active", "past_due"),
+        default_layout=user.default_layout,
     )
 
 
@@ -175,6 +176,17 @@ def update_me(
 
     if body.has_completed_onboarding is not None:
         user.has_completed_onboarding = body.has_completed_onboarding
+
+    if body.default_layout is not None:
+        valid_layouts = {"list", "matrix", "grouped", "quadrant"}
+        if body.default_layout not in valid_layouts:
+            from app.core.errors import AppError
+            raise AppError(
+                code="invalid_layout",
+                message=f"Invalid layout. Must be one of: {', '.join(sorted(valid_layouts))}",
+                status_code=422,
+            )
+        user.default_layout = body.default_layout
 
     db.add(user)
     db.flush()

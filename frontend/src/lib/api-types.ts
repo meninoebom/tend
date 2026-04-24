@@ -76,6 +76,9 @@ export interface BriefingResponse {
   calibration: string;
 }
 
+// Layout modes
+export type LayoutMode = "list" | "matrix" | "grouped" | "quadrant";
+
 // User
 export interface User {
   id: string;
@@ -86,6 +89,7 @@ export interface User {
   created_at: string;
   subscription_status: "free" | "active" | "past_due" | "canceled";
   is_pro: boolean;
+  default_layout: LayoutMode;
 }
 
 // Billing

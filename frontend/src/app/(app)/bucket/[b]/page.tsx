@@ -2,13 +2,17 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, updateTask, deleteTask } from "@/lib/api";
+import type { Task, Domain, BucketType, LayoutMode } from "@/lib/api-types";
+import { getTasks, getDomains, updateTask, deleteTask, getMe, updateMe } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
 import { formatCompostAge } from "@/lib/utils";
+import { LayoutSwitcher } from "@/components/layout-switcher";
+import { GroupedLayout } from "@/components/layouts/grouped-layout";
+import { QuadrantLayout } from "@/components/layouts/quadrant-layout";
+import { MatrixLayout } from "@/components/layouts/matrix-layout";
 
 const VALID_BUCKETS = ["soon", "later", "someday"] as const;
 const BUCKET_LABELS: Record<string, string> = {
@@ -31,9 +35,12 @@ export default function BucketPage() {
 
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [compostTasks, setCompostTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [layout, setLayout] = useState<LayoutMode>("list");
+  const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
 
   // Compost interaction state
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -55,9 +62,11 @@ export default function BucketPage() {
       getTasks({ bucket }),
       getDomains(),
       isSomeday ? getTasks({ status: "archived" }) : Promise.resolve([]),
-    ]).then(([t, d, composted]) => {
+      getTasks(),
+    ]).then(([t, d, composted, all]) => {
       setTasks(t);
       setDomains(d);
+      setAllTasks(all.filter((task) => task.status === "pending"));
       // Sort by updated_at DESC (most recently composted first)
       setCompostTasks(
         composted.sort(
@@ -71,6 +80,15 @@ export default function BucketPage() {
     });
   }, [bucket, isValid, isSomeday]);
 
+  // Load user's preferred layout on mount
+  useEffect(() => {
+    getMe().then((user) => {
+      setLayout(user.default_layout);
+    }).catch(() => {
+      // ignore — default stays "list"
+    });
+  }, []);
+
   useEffect(() => { refresh(); }, [refresh]);
 
   // Focus the "No" button when confirmation appears
@@ -79,6 +97,15 @@ export default function BucketPage() {
       noButtonRef.current.focus();
     }
   }, [confirmingId]);
+
+  async function handleLayoutChange(newLayout: LayoutMode) {
+    setLayout(newLayout);
+    try {
+      await updateMe({ default_layout: newLayout });
+    } catch (err) {
+      console.error("Failed to save layout preference:", err);
+    }
+  }
 
   if (!isValid) {
     return (
@@ -144,25 +171,47 @@ export default function BucketPage() {
           {BUCKET_LABELS[bucket]}
         </h1>
         <span className="text-xs text-text-muted">{pending.length} tasks</span>
+        <div className="ml-auto">
+          <LayoutSwitcher value={layout} onChange={handleLayoutChange} />
+        </div>
       </div>
 
-      {/* Task input */}
-      <TaskInput ref={taskInputRef} bucket={bucket} domains={domains} onCreated={refresh} />
+      {/* Task input — only shown in list/grouped/quadrant modes */}
+      {layout !== "matrix" && (
+        <TaskInput ref={taskInputRef} bucket={bucket} domains={domains} onCreated={refresh} />
+      )}
 
       {/* Tasks */}
       <div className="flex-1 min-h-[120px]">
-        {pending.length === 0 && (
-          <div className="text-center py-8 px-4">
-            <p className="text-base text-text-secondary">
-              {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
-            </p>
-          </div>
+        {layout === "matrix" ? (
+          <MatrixLayout
+            tasks={allTasks}
+            domains={domains}
+            activeBucket={matrixBucket}
+            onBucketChange={setMatrixBucket}
+          />
+        ) : layout === "grouped" ? (
+          <GroupedLayout tasks={tasks} domains={domains} onMutate={refresh} />
+        ) : layout === "quadrant" ? (
+          <QuadrantLayout tasks={tasks} domains={domains} onMutate={refresh} />
+        ) : (
+          /* list layout — existing behavior */
+          <>
+            {pending.length === 0 && (
+              <div className="text-center py-8 px-4">
+                <p className="text-base text-text-secondary">
+                  {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
+                </p>
+              </div>
+            )}
+            {pending.map((task) => (
+              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
+            ))}
+          </>
         )}
-        {pending.map((task) => (
-          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
-        ))}
 
-        {isSomeday && (
+        {/* Compost — only in list view on Someday */}
+        {isSomeday && layout === "list" && (
           <details className="mt-4 pt-4 border-t border-border">
             <summary className="text-xs text-text-muted cursor-pointer hover:text-text-secondary">
               Compost ({compostTasks.length})

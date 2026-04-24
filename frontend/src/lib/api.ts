@@ -4,8 +4,8 @@ import type {
   BucketType,
   CheckoutResponse,
   Domain,
+  LayoutMode,
   MITSuggestion,
-
   PortalResponse,
   Task,
   TaskStatus,
@@ -155,7 +155,10 @@ export async function getMe(): Promise<User> {
   return request<User>("me");
 }
 
-export async function updateMe(body: { has_completed_onboarding?: boolean }): Promise<User> {
+export async function updateMe(body: {
+  has_completed_onboarding?: boolean;
+  default_layout?: LayoutMode;
+}): Promise<User> {
   return request<User>("me", { method: "PATCH", body: JSON.stringify(body) });
 }
 

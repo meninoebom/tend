@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     subscription_status: str = "free"
     is_pro: bool = False
+    default_layout: str = "list"
 
 
 class OAuthUser(BaseModel):
@@ -41,6 +42,7 @@ class UserVerify(BaseModel):
 
 class UserUpdate(BaseModel):
     has_completed_onboarding: bool | None = None
+    default_layout: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

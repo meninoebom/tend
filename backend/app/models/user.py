@@ -22,6 +22,10 @@ class User(SQLModel, table=True):
         default="free",
         sa_column=Column(String, nullable=False, server_default="free"),
     )
+    default_layout: str = Field(
+        default="list",
+        sa_column=Column(String, nullable=False, server_default="list"),
+    )
 
     # Relationships — lazy="raise" prevents N+1 queries
     tasks: list["Task"] = Relationship(  # noqa: F821

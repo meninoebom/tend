@@ -18,13 +18,17 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, setMIT, reorderTasks, updateTask } from "@/lib/api";
+import type { Task, Domain, BucketType, LayoutMode } from "@/lib/api-types";
+import { getTasks, getDomains, setMIT, reorderTasks, updateTask, getMe, updateMe } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { SortableTaskItem } from "@/components/sortable-task-item";
 import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
+import { LayoutSwitcher } from "@/components/layout-switcher";
+import { GroupedLayout } from "@/components/layouts/grouped-layout";
+import { QuadrantLayout } from "@/components/layouts/quadrant-layout";
+import { MatrixLayout } from "@/components/layouts/matrix-layout";
 
 const BUCKET: BucketType = "today";
 
@@ -33,8 +37,11 @@ function TodayContent() {
   const domainFilter = searchParams.get("domain_id");
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
+  const [layout, setLayout] = useState<LayoutMode>("list");
+  const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
 
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
@@ -59,9 +66,11 @@ function TodayContent() {
     Promise.all([
       getTasks({ bucket: BUCKET }),
       getDomains(),
-    ]).then(([t, d]) => {
+      getTasks(),
+    ]).then(([t, d, all]) => {
       setTasks(t);
       setDomains(d);
+      setAllTasks(all.filter((task) => task.status === "pending"));
       setLoading(false);
     }).catch((err) => {
       console.error("Failed to load today:", err);
@@ -69,7 +78,25 @@ function TodayContent() {
     });
   }, []);
 
+  // Load user's preferred layout on mount
+  useEffect(() => {
+    getMe().then((user) => {
+      setLayout(user.default_layout);
+    }).catch(() => {
+      // ignore — default stays "list"
+    });
+  }, []);
+
   useEffect(() => { refresh(); }, [refresh]);
+
+  async function handleLayoutChange(newLayout: LayoutMode) {
+    setLayout(newLayout);
+    try {
+      await updateMe({ default_layout: newLayout });
+    } catch (err) {
+      console.error("Failed to save layout preference:", err);
+    }
+  }
 
   const filtered = domainFilter
     ? tasks.filter((t) => t.domain?.id === domainFilter)
@@ -94,7 +121,6 @@ function TodayContent() {
   const hoveredBucketRef = useRef<string | null>(null);
 
   function handleDragMove(event: DragMoveEvent) {
-    // Extract initial pointer position (works for both mouse and touch)
     const activator = event.activatorEvent;
     let startX: number | undefined;
     let startY: number | undefined;
@@ -108,11 +134,9 @@ function TodayContent() {
     }
     if (startX == null || startY == null) return;
 
-    // Calculate current pointer position using initial position + delta
     const x = startX + (event.delta?.x ?? 0);
     const y = startY + (event.delta?.y ?? 0);
 
-    // Find nav item under pointer
     const els = document.querySelectorAll("[data-drop-bucket]");
     let found: string | null = null;
     els.forEach((el) => {
@@ -125,9 +149,7 @@ function TodayContent() {
       }
     });
 
-    // Update highlight
     if (found !== hoveredBucketRef.current) {
-      // Remove previous highlight
       if (hoveredBucketRef.current) {
         els.forEach((el) => {
           if (el.getAttribute("data-drop-bucket") === hoveredBucketRef.current) {
@@ -135,7 +157,6 @@ function TodayContent() {
           }
         });
       }
-      // Add new highlight
       if (found) {
         els.forEach((el) => {
           if (el.getAttribute("data-drop-bucket") === found) {
@@ -158,7 +179,6 @@ function TodayContent() {
     const targetBucket = hoveredBucketRef.current;
     clearNavHighlights();
 
-    // If dropped on a nav bucket, move the task there
     if (targetBucket) {
       const taskId = event.active.id as string;
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -174,7 +194,6 @@ function TodayContent() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    // Optimistic reorder
     const oldIndex = sortableTasks.findIndex((t) => t.id === active.id);
     const newIndex = sortableTasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -183,18 +202,16 @@ function TodayContent() {
     const [moved] = reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, moved);
 
-    // Build full task list with MIT at front for optimistic UI
     const newPending = mitTask ? [mitTask, ...reordered] : reordered;
     const newTasks = [...newPending, ...tasks.filter((t) => t.status === "complete")];
     setTasks(newTasks);
 
-    // Persist — send all pending task IDs (MIT included) in the new order
     const allPendingIds = newPending.map((t) => t.id);
     try {
       await reorderTasks(allPendingIds);
     } catch (err) {
       console.error("Failed to reorder:", err);
-      refresh(); // rollback on failure
+      refresh();
     }
   }
 
@@ -208,69 +225,92 @@ function TodayContent() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
-      {/* Task input */}
-      <TaskInput ref={taskInputRef} bucket={BUCKET} domains={domains} onCreated={refresh} />
+      {/* Header with layout switcher */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-text-primary">Today</h1>
+        <LayoutSwitcher value={layout} onChange={handleLayoutChange} />
+      </div>
 
-      {/* Task list */}
+      {/* Task input — only shown in list/grouped/quadrant modes */}
+      {layout !== "matrix" && (
+        <TaskInput ref={taskInputRef} bucket={BUCKET} domains={domains} onCreated={refresh} />
+      )}
+
+      {/* Content based on layout */}
       <div className="flex-1 min-h-[120px]">
-        {pending.length === 0 && (
-          <div className="text-center py-8 px-4">
-            <p className="text-base text-text-secondary">
-              Nothing on your plate today.
-            </p>
-            <p className="text-sm text-text-muted mt-1">
-              Add a task above, or check back after morning triage.
-            </p>
-          </div>
-        )}
-
-        {/* MIT task — pinned at top, not draggable */}
-        {mitTask && (
-          <TaskItem
-            task={mitTask}
+        {layout === "matrix" ? (
+          <MatrixLayout
+            tasks={allTasks}
             domains={domains}
-            onMutate={refresh}
-            isMIT
-            onSetMIT={handleSetMIT}
+            activeBucket={matrixBucket}
+            onBucketChange={setMatrixBucket}
           />
-        )}
+        ) : layout === "grouped" ? (
+          <GroupedLayout tasks={filtered} domains={domains} onMutate={refresh} />
+        ) : layout === "quadrant" ? (
+          <QuadrantLayout tasks={filtered} domains={domains} onMutate={refresh} />
+        ) : (
+          /* list layout — existing behavior */
+          <>
+            {pending.length === 0 && (
+              <div className="text-center py-8 px-4">
+                <p className="text-base text-text-secondary">
+                  Nothing on your plate today.
+                </p>
+                <p className="text-sm text-text-muted mt-1">
+                  Add a task above, or check back after morning triage.
+                </p>
+              </div>
+            )}
 
-        {/* Sortable non-MIT pending tasks */}
-        {sortableTasks.length > 0 && canDrag ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragMove={handleDragMove}
-            onDragEnd={handleDragEnd}
-            onDragCancel={clearNavHighlights}
-          >
-            <SortableContext
-              items={sortableTasks.map((t) => t.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {sortableTasks.map((task) => (
-                <SortableTaskItem
+            {/* MIT task — pinned at top, not draggable */}
+            {mitTask && (
+              <TaskItem
+                task={mitTask}
+                domains={domains}
+                onMutate={refresh}
+                isMIT
+                onSetMIT={handleSetMIT}
+              />
+            )}
+
+            {/* Sortable non-MIT pending tasks */}
+            {sortableTasks.length > 0 && canDrag ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragMove={handleDragMove}
+                onDragEnd={handleDragEnd}
+                onDragCancel={clearNavHighlights}
+              >
+                <SortableContext
+                  items={sortableTasks.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {sortableTasks.map((task) => (
+                    <SortableTaskItem
+                      key={task.id}
+                      task={task}
+                      domains={domains}
+                      onMutate={refresh}
+                      onSetMIT={handleSetMIT}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              sortableTasks.map((task) => (
+                <TaskItem
                   key={task.id}
                   task={task}
                   domains={domains}
                   onMutate={refresh}
                   onSetMIT={handleSetMIT}
                 />
-              ))}
-            </SortableContext>
-          </DndContext>
-        ) : (
-          sortableTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              domains={domains}
-              onMutate={refresh}
-              onSetMIT={handleSetMIT}
-            />
-          ))
+              ))
+            )}
+          </>
         )}
-
       </div>
     </div>
   );
