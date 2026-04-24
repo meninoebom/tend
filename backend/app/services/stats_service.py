@@ -63,15 +63,3 @@ def get_nudge(db: Session, user_id: uuid.UUID) -> dict:
         "completed_count": today_completed,
         "average_completed": average,
     }
-
-
-def get_daily_stats(db: Session, user_id: uuid.UUID, days: int = 30) -> list[DailyStat]:
-    """Raw daily stats for the given period."""
-    cutoff = date.today() - timedelta(days=days)
-    return list(
-        db.exec(
-            select(DailyStat)
-            .where(DailyStat.user_id == user_id, DailyStat.date >= cutoff)
-            .order_by(DailyStat.date.desc())
-        ).all()
-    )

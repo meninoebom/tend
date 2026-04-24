@@ -8,14 +8,14 @@ from sqlmodel import Session, select
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
-from app.services import stats_service, task_service
+from app.services import task_service
 
 
 def get_triage_tasks(db: Session, user_id: uuid.UUID) -> dict:
     """Get pending top-level tasks needing triage today.
 
     Returns tasks where triaged_at IS NULL OR triaged_at < today,
-    plus context (total_count, completion_average, triage_complete).
+    plus context (total_count, triage_complete).
     """
     today = date.today()
 
@@ -32,12 +32,9 @@ def get_triage_tasks(db: Session, user_id: uuid.UUID) -> dict:
     )
     tasks = list(db.exec(query).all())
 
-    nudge = stats_service.get_nudge(db, user_id)
-
     return {
         "tasks": tasks,
         "total_count": len(tasks),
-        "completion_average": nudge["average_completed"],
         "triage_complete": len(tasks) == 0,
     }
 

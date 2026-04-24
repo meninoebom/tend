@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.api import account, billing, domains, stats, tasks, triage
+from app.api import account, billing, domains, tasks, triage
 from app.core.config import settings
 from app.core.deps import engine
 from app.core.errors import AppError, app_error_handler
@@ -21,7 +21,6 @@ app.state.limiter = limiter
 app.include_router(tasks.router)
 app.include_router(triage.router)
 app.include_router(domains.router)
-app.include_router(stats.router)
 app.include_router(account.router)
 app.include_router(billing.router)
 
