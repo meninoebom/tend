@@ -56,7 +56,6 @@ export interface MITSuggestion {
 export interface TriageQueue {
   tasks: Task[];
   total_count: number;
-  completion_average: number;
   triage_complete: boolean;
 }
 

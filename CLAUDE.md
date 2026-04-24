@@ -2,7 +2,7 @@
 
 ## What is Tend?
 
-Tend is a "conscious todo app" — it forces a daily morning triage where you decide what matters today. Core concepts: forced triage, honest nudge (shows your actual completion average), domain bucketing (up to 5 life domains), auto-composting (30-day cleanup), and one-level sub-tasks.
+Tend is a "conscious todo app" — it forces a daily morning triage where you decide what matters today. Core concepts: forced triage, domain bucketing (up to 5 life domains), auto-composting (30-day cleanup), and one-level sub-tasks.
 
 ## Current State
 
@@ -214,6 +214,10 @@ After creating a PR:
 2. If checks pass, run `gh pr merge <PR> --squash --delete-branch`
 3. If checks fail, read the failure, fix it, push, and repeat from step 1
 4. Only tell the user "it's deploying" after confirming the merge actually happened via `gh pr view <PR> --json state`
+
+## What's Removed
+
+**Honest nudge (PR #159):** The numerical feedback banner ("6 tasks today, you usually finish ~5") was removed from the Today page and the 30-day average comparison was removed from the wind-down modal. The backend `/stats/nudge` endpoint, `DailyStat` model, and stats tracking still exist (used by briefing service) but are no longer consumed by the frontend. The wind-down modal still shows MIT completion status. The nudge was removed because numerical metrics created performance pressure rather than supporting intentional task management.
 
 ## What's Deferred
 

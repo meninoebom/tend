@@ -23,7 +23,6 @@ class TriageRequest(BaseModel):
 class TriageQueueResponse(BaseModel):
     tasks: list[TaskResponse]
     total_count: int
-    completion_average: float
     triage_complete: bool
 
 

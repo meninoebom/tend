@@ -270,10 +270,11 @@ The age badge shows how long a task has been on the list. It is **not always vis
 - Auto-transition to Today view on completion
 - Evening wind-down triage for incomplete today tasks
 
-#### Honest Nudge
-- Track daily stats: tasks completed, tasks added
-- Calculate 30-day rolling average completion
-- Display nudge on Today view after triage: "X tasks today — you usually complete about Y"
+#### ~~Honest Nudge~~ *(removed in PR #159)*
+- ~~Track daily stats: tasks completed, tasks added~~
+- ~~Calculate 30-day rolling average completion~~
+- ~~Display nudge on Today view after triage: "X tasks today — you usually complete about Y"~~
+- *Removed: numerical metrics created performance pressure rather than supporting intentional task management. Backend stats tracking retained for briefing service.*
 
 #### Domains
 - User-defined life domains (max 5, enforced)

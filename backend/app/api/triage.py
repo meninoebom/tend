@@ -52,7 +52,6 @@ def get_triage_queue(
     return TriageQueueResponse(
         tasks=[_to_response(t) for t in result["tasks"]],
         total_count=result["total_count"],
-        completion_average=result["completion_average"],
         triage_complete=result["triage_complete"],
     )
 
