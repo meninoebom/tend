@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StickyNote } from "lucide-react";
 import type { Task, Domain, SubTask } from "@/lib/api-types";
-import { completeTask, createTask, deleteTask, updateTask } from "@/lib/api";
+import { completeTask, createTask, deleteTask, updateTask, setPriority } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
 import { DomainPicker } from "@/components/domain-picker";
 
@@ -143,11 +143,15 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // Priority state — optimistic local copies
+  const [important, setImportant] = useState(task.important);
+  const [urgent, setUrgent] = useState(task.urgent);
   const isComplete = task.status === "complete";
   const isSubtask = !!task.parent_id;
   const hasChildren = task.children.length > 0;
   const hasNote = !!task.notes;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
+  const isQ1 = important && urgent;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -258,6 +262,28 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
     }
   }
 
+  async function handleToggleImportant() {
+    const prev = important;
+    setImportant(!prev);
+    try {
+      await setPriority(task.id, { important: !prev });
+    } catch (err) {
+      console.error("Failed to set important:", err);
+      setImportant(prev);
+    }
+  }
+
+  async function handleToggleUrgent() {
+    const prev = urgent;
+    setUrgent(!prev);
+    try {
+      await setPriority(task.id, { urgent: !prev });
+    } catch (err) {
+      console.error("Failed to set urgent:", err);
+      setUrgent(prev);
+    }
+  }
+
   function startNoteEdit() {
     setNoteDraft(task.notes ?? "");
     setNoteEditing(true);
@@ -313,7 +339,10 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
       <div className={cn(
         "flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors",
         isMIT && "bg-accent-blue/8 border border-accent-blue/20",
-      )}>
+        isQ1 && !isComplete && "border-l-2 border-red-500",
+      )}
+        style={isQ1 && !isComplete ? { backgroundColor: "rgba(239,68,68,0.08)" } : undefined}
+      >
         {/* Complete checkbox */}
         <button
           onClick={handleComplete}
@@ -457,6 +486,38 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
           <span className="text-xs text-text-muted shrink-0">
             {completedChildren}/{task.children.length}
           </span>
+        )}
+
+        {/* Priority pills — shown on hover, hidden on completed tasks */}
+        {!isComplete && (
+          <>
+            <button
+              onClick={handleToggleImportant}
+              title={important ? "Remove important" : "Mark as important"}
+              className={cn(
+                "shrink-0 text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
+                important
+                  ? "opacity-100 border-red-500/35 bg-red-500/8 text-red-300"
+                  : "opacity-0 group-hover:opacity-100 border-neutral-800 text-neutral-500 hover:text-neutral-400",
+              )}
+              style={important ? { color: "#fca5a5", borderColor: "rgba(239,68,68,0.35)", backgroundColor: "rgba(239,68,68,0.08)" } : undefined}
+            >
+              !
+            </button>
+            <button
+              onClick={handleToggleUrgent}
+              title={urgent ? "Remove urgent" : "Mark as urgent"}
+              className={cn(
+                "shrink-0 text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
+                urgent
+                  ? "opacity-100 border-amber-500/35 bg-amber-500/8 text-amber-300"
+                  : "opacity-0 group-hover:opacity-100 border-neutral-800 text-neutral-500 hover:text-neutral-400",
+              )}
+              style={urgent ? { color: "#fcd34d", borderColor: "rgba(245,158,11,0.35)", backgroundColor: "rgba(245,158,11,0.08)" } : undefined}
+            >
+              ⚡
+            </button>
+          </>
         )}
 
         {/* Age badge */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { TriageQueue, User } from "@/lib/api-types";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { TriageModal } from "@/components/triage-modal";
 import { WinddownModal } from "@/components/winddown-modal";
+import { DomainNav } from "@/components/domain-nav";
 
 type NavIconName = "review" | "today" | "soon" | "later" | "someday" | "done" | "settings";
 
@@ -233,6 +234,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span>Review my day</span>
             </button>
           </div>
+
+          {/* Domain nav section */}
+          <Suspense>
+            <DomainNav />
+          </Suspense>
 
           {/* Bottom section — upgrade CTA + theme toggle + settings */}
           <div className="mt-auto mx-3 pt-3 pb-4 border-t border-border/50 flex flex-col gap-0.5">

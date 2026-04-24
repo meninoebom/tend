@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -24,15 +25,15 @@ import { SortableTaskItem } from "@/components/sortable-task-item";
 import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
-import { cn } from "@/lib/utils";
 
 const BUCKET: BucketType = "today";
 
-export default function TodayPage() {
+function TodayContent() {
+  const searchParams = useSearchParams();
+  const domainFilter = searchParams.get("domain_id");
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useGlobalShortcut("n", useCallback(() => {
@@ -207,41 +208,6 @@ export default function TodayPage() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
-      {/* Domain filters */}
-      {domains.length > 0 && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDomainFilter(null)}
-            className={cn(
-              "text-xs px-2.5 py-1 rounded-full border transition-colors",
-              domainFilter === null
-                ? "border-text-secondary text-text-primary"
-                : "border-border text-text-muted hover:border-text-muted",
-            )}
-          >
-            All
-          </button>
-          {domains.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setDomainFilter(domainFilter === d.id ? null : d.id)}
-              className={cn(
-                "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors",
-                domainFilter === d.id
-                  ? "border-text-secondary text-text-primary"
-                  : "border-border text-text-muted hover:border-text-muted",
-              )}
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: d.color }}
-              />
-              {d.name}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Task input */}
       <TaskInput ref={taskInputRef} bucket={BUCKET} domains={domains} onCreated={refresh} />
 
@@ -307,5 +273,13 @@ export default function TodayPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function TodayPage() {
+  return (
+    <Suspense>
+      <TodayContent />
+    </Suspense>
   );
 }

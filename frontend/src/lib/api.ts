@@ -96,6 +96,13 @@ export async function reorderTasks(taskIds: string[]): Promise<{ updated: number
   });
 }
 
+export async function setPriority(
+  id: string,
+  body: { important?: boolean; urgent?: boolean },
+): Promise<Task> {
+  return request<Task>(`tasks/${id}/priority`, { method: "POST", body: JSON.stringify(body) });
+}
+
 // Triage
 export async function getTriageQueue(): Promise<TriageQueue> {
   return request<TriageQueue>("triage");

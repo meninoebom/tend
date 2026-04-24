@@ -43,6 +43,8 @@ export interface Task {
   completed_at: string | null;
   age_days: number;
   is_mit: boolean;
+  important: boolean;
+  urgent: boolean;
 }
 
 // MIT suggestion from the backend
