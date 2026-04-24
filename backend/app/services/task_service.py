@@ -31,6 +31,8 @@ def create_task(
     parent_id: uuid.UUID | None = None,
     notes: str | None = None,
     skip_triage_stamp: bool = False,
+    important: bool = False,
+    urgent: bool = False,
 ) -> Task:
     if len(text) > 500:
         raise AppError(
@@ -101,6 +103,8 @@ def create_task(
         notes=notes,
         position=position,
         triaged_at=None if skip_triage_stamp else date.today(),
+        important=important,
+        urgent=urgent,
     )
     db.add(task)
     db.flush()
@@ -160,6 +164,8 @@ def update_task(
     domain_id: uuid.UUID | None | object = _UNSET,
     status: TaskStatus | None = None,
     notes: str | None | object = _UNSET,
+    important: bool | None = None,
+    urgent: bool | None = None,
 ) -> Task:
     task = get_task(db, user_id, task_id)
 
@@ -195,6 +201,10 @@ def update_task(
         task.bucket = bucket
     if domain_id is not _UNSET:
         task.domain_id = domain_id
+    if important is not None:
+        task.important = important
+    if urgent is not None:
+        task.urgent = urgent
     if status is not None:
         allowed = {
             TaskStatus.pending: {TaskStatus.archived},

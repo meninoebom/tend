@@ -398,3 +398,87 @@ class TestTaskNotes:
         r = client.patch(f"/tasks/{task.id}", json={"text": "New text"})
         assert r.status_code == 200
         assert r.json()["notes"] == "Keep this"
+
+
+class TestPriorityFields:
+    def test_create_task_with_priority(self, client, test_user):
+        r = client.post("/tasks", json={"text": "Q1 task", "important": True, "urgent": True})
+        assert r.status_code == 201
+        data = r.json()
+        assert data["important"] is True
+        assert data["urgent"] is True
+
+    def test_create_task_default_priority(self, client, test_user):
+        r = client.post("/tasks", json={"text": "Plain task"})
+        assert r.status_code == 201
+        data = r.json()
+        assert data["important"] is False
+        assert data["urgent"] is False
+
+    def test_patch_important(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        r = client.patch(f"/tasks/{task.id}", json={"important": True})
+        assert r.status_code == 200
+        assert r.json()["important"] is True
+        assert r.json()["urgent"] is False  # unchanged
+
+    def test_priority_endpoint_toggle(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        r = client.post(f"/tasks/{task.id}/priority", json={"important": True})
+        assert r.status_code == 200
+        assert r.json()["important"] is True
+        assert r.json()["urgent"] is False
+
+    def test_priority_endpoint_partial_update(self, client, test_user, test_tasks):
+        """Partial payload doesn't reset the other field."""
+        task = test_tasks[0]
+        client.post(f"/tasks/{task.id}/priority", json={"important": True, "urgent": True})
+        r = client.post(f"/tasks/{task.id}/priority", json={"urgent": False})
+        assert r.status_code == 200
+        assert r.json()["important"] is True   # untouched
+        assert r.json()["urgent"] is False
+
+    def test_priority_endpoint_idempotent(self, client, test_user, test_tasks):
+        task = test_tasks[0]
+        client.post(f"/tasks/{task.id}/priority", json={"important": True})
+        r = client.post(f"/tasks/{task.id}/priority", json={"important": True})
+        assert r.status_code == 200
+        assert r.json()["important"] is True
+
+
+class TestStateEndpoint:
+    def test_state_priority_counts(self, client, test_user, db):
+        # Create tasks in each quadrant
+        from app.models.task import Task as TaskModel
+        from app.models.enums import BucketType, TaskStatus
+        import uuid
+        user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
+
+        for important, urgent in [(True, True), (True, False), (False, True), (False, False)]:
+            t = TaskModel(user_id=user_id, text="t", bucket=BucketType.today,
+                          status=TaskStatus.pending, important=important, urgent=urgent)
+            db.add(t)
+        db.flush()
+
+        r = client.get("/state")
+        assert r.status_code == 200
+        p = r.json()["priority"]
+        assert p["q1_count"] == 1
+        assert p["q2_count"] == 1
+        assert p["q3_count"] == 1
+        assert p["q4_count"] == 1
+
+    def test_state_excludes_completed(self, client, test_user, db):
+        from app.models.task import Task as TaskModel
+        from app.models.enums import BucketType, TaskStatus
+        import uuid
+        user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
+
+        t = TaskModel(user_id=user_id, text="done", bucket=BucketType.today,
+                      status=TaskStatus.complete, important=True, urgent=True)
+        db.add(t)
+        db.flush()
+
+        r = client.get("/state")
+        assert r.status_code == 200
+        assert r.json()["priority"]["q1_count"] == 0
