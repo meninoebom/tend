@@ -9,6 +9,7 @@ from app.core.security import get_current_user_id
 from app.models.enums import BucketType, TaskStatus
 from app.schemas.task_schemas import (
     DomainBrief,
+    PriorityUpdate,
     ReorderRequest,
     SubTaskResponse,
     TaskCreate,
@@ -41,6 +42,8 @@ def _to_response(task, mit_task_id: uuid.UUID | None = None) -> TaskResponse:
         updated_at=task.updated_at,
         completed_at=task.completed_at,
         is_mit=mit_task_id is not None and task.id == mit_task_id,
+        important=task.important,
+        urgent=task.urgent,
     )
 
 
@@ -91,6 +94,8 @@ def create_task(
         parent_id=body.parent_id,
         notes=body.notes,
         skip_triage_stamp=skip_stamp,
+        important=body.important,
+        urgent=body.urgent,
     )
     # Reload with relationships for response
     task = task_service.get_task(db, user_id, task.id)
@@ -125,6 +130,26 @@ def update_task(
         kwargs["status"] = body.status
     if "notes" in body.model_fields_set:
         kwargs["notes"] = body.notes
+    if body.important is not None:
+        kwargs["important"] = body.important
+    if body.urgent is not None:
+        kwargs["urgent"] = body.urgent
+    task = task_service.update_task(db, user_id, task_id, **kwargs)
+    return _to_response(task)
+
+
+@router.post("/{task_id}/priority", response_model=TaskResponse)
+def set_priority(
+    task_id: uuid.UUID,
+    body: PriorityUpdate,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    kwargs: dict = {}
+    if body.important is not None:
+        kwargs["important"] = body.important
+    if body.urgent is not None:
+        kwargs["urgent"] = body.urgent
     task = task_service.update_task(db, user_id, task_id, **kwargs)
     return _to_response(task)
 

@@ -2,27 +2,33 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { getTasks, getDomains, updateTask, deleteTask } from "@/lib/api";
+import type { Task, Domain, BucketType, LayoutMode } from "@/lib/api-types";
+import { getTasks, getDomains, updateTask, deleteTask, getMe, updateMe } from "@/lib/api";
 import { TaskItem } from "@/components/task-item";
 import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
 import { formatCompostAge } from "@/lib/utils";
+import { LayoutSwitcher, LAYOUT_DESCRIPTIONS } from "@/components/layout-switcher";
+import { GroupedLayout } from "@/components/layouts/grouped-layout";
+import { QuadrantLayout } from "@/components/layouts/quadrant-layout";
+import { MatrixLayout } from "@/components/layouts/matrix-layout";
+import { PriorityLegend } from "@/components/priority-legend";
 
 const VALID_BUCKETS = ["soon", "later", "someday"] as const;
 const BUCKET_LABELS: Record<string, string> = {
-  today: "Today",
   soon: "Soon",
   later: "Later",
   someday: "Someday",
 };
+
 
 const EMPTY_MESSAGES: Record<string, string> = {
   soon: "Tasks you push to \u2018this week\u2019 during morning triage will land here.",
   later: "Parking lot for things that matter \u2014 but not right now.",
   someday: "Be honest with yourself \u2014 will you actually do these?",
 };
+
 
 export default function BucketPage() {
   const params = useParams<{ b: string }>();
@@ -31,54 +37,81 @@ export default function BucketPage() {
 
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [compostTasks, setCompostTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [layout, setLayout] = useState<LayoutMode | null>(null);
+  const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
+  const [groupedBucket, setGroupedBucket] = useState<BucketType>(bucket as BucketType);
+  const [quadrantBucket, setQuadrantBucket] = useState<BucketType>(bucket as BucketType);
 
-  // Compost interaction state
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
 
   const isValid = VALID_BUCKETS.includes(bucket as (typeof VALID_BUCKETS)[number]);
-
   const isSomeday = bucket === "someday";
+
+  const layoutRef = useRef<LayoutMode | null>(null);
+  layoutRef.current = layout;
 
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
   }, []));
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((currentLayout?: LayoutMode | null) => {
     if (!isValid) return;
+    const effectiveLayout = currentLayout ?? layoutRef.current;
+    const needsAll = effectiveLayout === "matrix" || effectiveLayout === "grouped" || effectiveLayout === "quadrant";
     Promise.all([
       getTasks({ bucket }),
       getDomains(),
-      isSomeday ? getTasks({ status: "archived" }) : Promise.resolve([]),
-    ]).then(([t, d, composted]) => {
+      isSomeday ? getTasks({ status: "archived" }) : Promise.resolve(null),
+      needsAll ? getTasks() : Promise.resolve(null),
+    ]).then(([t, d, composted, all]) => {
       setTasks(t);
       setDomains(d);
-      // Sort by updated_at DESC (most recently composted first)
-      setCompostTasks(
-        composted.sort(
-          (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        )
-      );
+      if (all) setAllTasks(all.filter((task) => task.status === "pending"));
+      if (composted) {
+        setCompostTasks(
+          composted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        );
+      }
       setLoading(false);
     }).catch((err) => {
       console.error("Failed to load bucket:", err);
       setLoading(false);
     });
-  }, [bucket, isValid, isSomeday]);
+  // layoutRef intentionally excluded — it's a stable ref object, not a reactive value
+  }, [bucket, isValid, isSomeday]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    getMe().then((user) => {
+      setLayout(user.default_layout);
+      refresh(user.default_layout);
+    }).catch(() => {
+      setLayout("list");
+      refresh("list");
+    });
+  }, [bucket]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Focus the "No" button when confirmation appears
   useEffect(() => {
     if (confirmingId && noButtonRef.current) {
       noButtonRef.current.focus();
     }
   }, [confirmingId]);
+
+  async function handleLayoutChange(newLayout: LayoutMode) {
+    setLayout(newLayout);
+    refresh(newLayout);
+    try {
+      await updateMe({ default_layout: newLayout });
+    } catch (err) {
+      console.error("Failed to save layout preference:", err);
+    }
+  }
 
   if (!isValid) {
     return (
@@ -88,7 +121,7 @@ export default function BucketPage() {
     );
   }
 
-  if (loading) {
+  if (loading || layout === null) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-text-muted">Loading...</p>
@@ -130,20 +163,32 @@ export default function BucketPage() {
     }
   }
 
+  const bucketCount = pending.length;
+
   return (
-    <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
+    <div className="flex flex-col min-h-screen px-6 py-6 gap-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.push("/today")}
-          className="text-text-muted hover:text-text-secondary transition-colors"
-        >
-          &larr;
-        </button>
-        <h1 className="text-xl font-semibold text-text-primary">
-          {BUCKET_LABELS[bucket]}
-        </h1>
-        <span className="text-xs text-text-muted">{pending.length} tasks</span>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/today")}
+              className="text-text-muted hover:text-text-secondary transition-colors"
+            >
+              &larr;
+            </button>
+            <h1 className="text-2xl font-semibold text-text-primary">
+              {BUCKET_LABELS[bucket]}
+            </h1>
+          </div>
+          <p className="text-sm text-text-muted mt-0.5 ml-6">{LAYOUT_DESCRIPTIONS[layout]}</p>
+          {bucketCount > 0 && (
+            <p className="text-sm italic text-text-muted mt-0.5 ml-6">
+              {bucketCount} task{bucketCount !== 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+        <LayoutSwitcher value={layout} onChange={handleLayoutChange} />
       </div>
 
       {/* Task input */}
@@ -151,18 +196,48 @@ export default function BucketPage() {
 
       {/* Tasks */}
       <div className="flex-1 min-h-[120px]">
-        {pending.length === 0 && (
-          <div className="text-center py-8 px-4">
-            <p className="text-base text-text-secondary">
-              {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
-            </p>
-          </div>
+        {layout === "matrix" ? (
+          <MatrixLayout
+            tasks={allTasks}
+            domains={domains}
+            activeBucket={matrixBucket}
+            onBucketChange={setMatrixBucket}
+            onMutate={refresh}
+          />
+        ) : layout === "grouped" ? (
+          <GroupedLayout
+            tasks={allTasks}
+            domains={domains}
+            onMutate={refresh}
+            activeBucket={groupedBucket}
+            onBucketChange={setGroupedBucket}
+          />
+        ) : layout === "quadrant" ? (
+          <QuadrantLayout
+            tasks={allTasks}
+            domains={domains}
+            onMutate={refresh}
+            activeBucket={quadrantBucket}
+            onBucketChange={setQuadrantBucket}
+          />
+        ) : (
+          /* list layout */
+          <>
+            {pending.length === 0 && (
+              <div className="text-center py-8 px-4">
+                <p className="text-base text-text-secondary">
+                  {EMPTY_MESSAGES[bucket] ?? "No tasks here yet."}
+                </p>
+              </div>
+            )}
+            {pending.map((task) => (
+              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
+            ))}
+          </>
         )}
-        {pending.map((task) => (
-          <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
-        ))}
 
-        {isSomeday && (
+        {/* Compost — only in list view on Someday */}
+        {isSomeday && layout === "list" && (
           <details className="mt-4 pt-4 border-t border-border">
             <summary className="text-xs text-text-muted cursor-pointer hover:text-text-secondary">
               Compost ({compostTasks.length})
@@ -176,7 +251,6 @@ export default function BucketPage() {
                 compostTasks.map((task) => (
                   <div key={task.id} className="py-2 px-3">
                     {confirmingId === task.id ? (
-                      /* Inline confirmation */
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-text-secondary">Let this go?</span>
                         <div className="flex gap-2">
@@ -197,7 +271,6 @@ export default function BucketPage() {
                         </div>
                       </div>
                     ) : (
-                      /* Normal task row */
                       <div className="flex items-center gap-3 text-sm">
                         {task.domain && (
                           <span
@@ -207,9 +280,7 @@ export default function BucketPage() {
                         )}
                         <span className="flex-1 text-text-muted">{task.text}</span>
                         {errorId === task.id ? (
-                          <span className="text-xs text-accent-red shrink-0">
-                            Something went wrong
-                          </span>
+                          <span className="text-xs text-accent-red shrink-0">Something went wrong</span>
                         ) : (
                           <span className="text-xs text-text-muted shrink-0">
                             {formatCompostAge(task.updated_at)}
@@ -237,6 +308,9 @@ export default function BucketPage() {
           </details>
         )}
       </div>
+
+      {/* Priority legend */}
+      <PriorityLegend />
     </div>
   );
 }

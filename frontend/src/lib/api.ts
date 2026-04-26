@@ -1,11 +1,12 @@
 import type {
+  AppState,
   BillingStatus,
   BriefingResponse,
   BucketType,
   CheckoutResponse,
   Domain,
+  LayoutMode,
   MITSuggestion,
-
   PortalResponse,
   Task,
   TaskStatus,
@@ -96,6 +97,13 @@ export async function reorderTasks(taskIds: string[]): Promise<{ updated: number
   });
 }
 
+export async function setPriority(
+  id: string,
+  body: { important?: boolean; urgent?: boolean },
+): Promise<Task> {
+  return request<Task>(`tasks/${id}/priority`, { method: "POST", body: JSON.stringify(body) });
+}
+
 // Triage
 export async function getTriageQueue(): Promise<TriageQueue> {
   return request<TriageQueue>("triage");
@@ -143,12 +151,20 @@ export async function deleteDomain(id: string): Promise<void> {
   return request<void>(`domains/${id}`, { method: "DELETE" });
 }
 
+// App state (bucket counts + priority counts)
+export async function getAppState(): Promise<AppState> {
+  return request<AppState>("state");
+}
+
 // Account
 export async function getMe(): Promise<User> {
   return request<User>("me");
 }
 
-export async function updateMe(body: { has_completed_onboarding?: boolean }): Promise<User> {
+export async function updateMe(body: {
+  has_completed_onboarding?: boolean;
+  default_layout?: LayoutMode;
+}): Promise<User> {
   return request<User>("me", { method: "PATCH", body: JSON.stringify(body) });
 }
 

@@ -41,6 +41,7 @@ def _to_response(user: User) -> UserResponse:
         created_at=user.created_at,
         subscription_status=user.subscription_status,
         is_pro=user.subscription_status in ("active", "past_due"),
+        default_layout=user.default_layout,
     )
 
 
@@ -175,6 +176,9 @@ def update_me(
 
     if body.has_completed_onboarding is not None:
         user.has_completed_onboarding = body.has_completed_onboarding
+
+    if body.default_layout is not None:
+        user.default_layout = body.default_layout
 
     db.add(user)
     db.flush()

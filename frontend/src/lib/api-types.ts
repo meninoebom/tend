@@ -43,6 +43,8 @@ export interface Task {
   completed_at: string | null;
   age_days: number;
   is_mit: boolean;
+  important: boolean;
+  urgent: boolean;
 }
 
 // MIT suggestion from the backend
@@ -74,6 +76,23 @@ export interface BriefingResponse {
   calibration: string;
 }
 
+// Layout modes
+export type LayoutMode = "list" | "matrix" | "grouped" | "quadrant";
+
+// App state
+export interface BucketCounts {
+  today: number;
+  soon: number;
+  later: number;
+  someday: number;
+  done: number;
+}
+
+export interface AppState {
+  priority: { q1_count: number; q2_count: number; q3_count: number; q4_count: number };
+  buckets: BucketCounts;
+}
+
 // User
 export interface User {
   id: string;
@@ -84,6 +103,7 @@ export interface User {
   created_at: string;
   subscription_status: "free" | "active" | "past_due" | "canceled";
   is_pro: boolean;
+  default_layout: LayoutMode;
 }
 
 // Billing

@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Column, String
+from sqlalchemy import Column, Index, String
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.enums import BucketType, TaskStatus
@@ -10,6 +10,9 @@ from app.models.enums import BucketType, TaskStatus
 
 class Task(SQLModel, table=True):
     __tablename__ = "tasks"
+    __table_args__ = (
+        Index("ix_tasks_priority_lookup", "user_id", "status", "bucket", "important", "urgent"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE")
@@ -20,6 +23,8 @@ class Task(SQLModel, table=True):
     notes: str | None = Field(default=None, max_length=2000)
     position: int | None = Field(default=None)
     triaged_at: date | None = Field(default=None)
+    important: bool = Field(default=False, nullable=False)
+    urgent: bool = Field(default=False, nullable=False)
 
     # Parent task (one level of sub-tasks)
     parent_id: uuid.UUID | None = Field(

@@ -6,6 +6,11 @@ from pydantic import BaseModel, computed_field, field_validator
 from app.models.enums import BucketType, TaskStatus
 
 
+class PriorityUpdate(BaseModel):
+    important: bool | None = None
+    urgent: bool | None = None
+
+
 class TaskCreate(BaseModel):
     text: str
     bucket: BucketType = BucketType.today
@@ -13,6 +18,8 @@ class TaskCreate(BaseModel):
     parent_id: uuid.UUID | None = None
     notes: str | None = None
     skip_triage_stamp: bool = False
+    important: bool = False
+    urgent: bool = False
 
 
 class TaskUpdate(BaseModel):
@@ -21,6 +28,8 @@ class TaskUpdate(BaseModel):
     domain_id: uuid.UUID | None = None
     status: TaskStatus | None = None
     notes: str | None = None
+    important: bool | None = None
+    urgent: bool | None = None
 
 
 class ReorderRequest(BaseModel):
@@ -64,6 +73,8 @@ class TaskResponse(BaseModel):
     updated_at: datetime
     completed_at: datetime | None
     is_mit: bool = False
+    important: bool = False
+    urgent: bool = False
 
     @computed_field
     @property
