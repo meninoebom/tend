@@ -8,7 +8,7 @@ Tend is a "conscious todo app" — it forces a daily morning triage where you de
 
 **Prototype:** Tauri v2 desktop app (Rust backend + vanilla TS frontend + SQLite) in `src-tauri/` and `src/`. Fully functional single-user app. Reference only.
 
-**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway with custom domain. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). v0.2.0 security hardening + password reset done. Composting runs automatically per-user during triage (no cron needed).
+**Web app (live):** Next.js + FastAPI + PostgreSQL. Deployed to Railway with custom domain. All 6 phases complete (data layer, API + services, auth, frontend core, onboarding, polish). v0.2.0 security hardening + password reset done. v0.3.0 adds priority fields (important/urgent) and 4 layout modes. Composting runs automatically per-user during triage (no cron needed).
 
 ## Key Documents
 
@@ -36,6 +36,14 @@ Browser → Next.js (Railway) → FastAPI (Railway) → PostgreSQL (Railway)
 bucket: BucketType = Field(sa_column=Column(String, nullable=False))
 ```
 Avoids `ALTER TYPE` migration pain. CHECK constraints enforce valid values.
+
+All domain enums live in `app/models/enums.py`: `BucketType`, `TaskStatus`, `AuthProvider`, `SubscriptionStatus`, `LayoutType`. When adding a new constrained string field, add its enum here and use it in the model, schema, and route — Pydantic validates automatically, no hand-rolled set-membership check needed.
+
+### Scalar COUNT queries: use scalar_one(), not one()
+`db.exec(sa_select(func.count()).where(...)).one()` returns a `Row` tuple `(N,)`, not an int. Always use `.scalar_one()` for COUNT queries:
+```python
+count = db.exec(sa_select(func.count()).where(...)).scalar_one()
+```
 
 ### Cascades: SQLModel-native pattern
 - User→Tasks, User→Domains, Task→Children: `cascade_delete=True` + `ondelete="CASCADE"`
@@ -206,6 +214,45 @@ Stale tasks (>30 days, non-today bucket) are automatically archived per-user dur
 
 ### Light/Dark Theme
 `ThemeProvider` in `frontend/src/components/theme-provider.tsx` wraps the app. Theme stored in `localStorage`, toggled via class on `<html>`. Tailwind v4 `@theme` (NOT `@theme inline`) generates CSS `var()` references that respond to runtime overrides in `globals.css`. `suppressHydrationWarning` on `<html>` prevents React mismatch.
+
+### Layout switcher: 4 modes, persisted to backend
+`LayoutMode = "list" | "grouped" | "quadrant" | "matrix"` (in `api-types.ts`). The active layout is:
+- Stored on `User.default_layout` (backend, `LayoutType` StrEnum)
+- Loaded via `getMe()` on mount, saved via `updateMe({ default_layout })` on change
+- Locally held in a `layout` state var initialized to `null` (shows loading spinner until `getMe()` resolves)
+
+`LAYOUT_DESCRIPTIONS` and `LayoutSwitcher` component live in `components/layout-switcher.tsx` — import descriptions from there, not inline in pages. `BucketTabs` (shared tab bar for grouped/quadrant) lives in `components/layouts/bucket-tabs.tsx`. `PriorityLegend` lives in `components/priority-legend.tsx`.
+
+The "needs all tasks" layouts (grouped, quadrant, matrix) fetch `getTasks()` with no bucket filter and pass the full list down; individual layouts filter client-side. Only the list layout fetches `getTasks({ bucket })`.
+
+### Duplicate React keys in static config arrays → render loop
+Any static array that drives a rendered list (LAYOUTS, TABS, BUCKETS) must have unique `value` fields. Two elements with the same `key` cause React reconciliation to fire `onChange` spuriously — looks exactly like an infinite re-render/state loop. TypeScript validates shape, not uniqueness.
+
+**Rule:** When adding an entry to LAYOUTS, BUCKET_TABS, BUCKETS, or any similar array, scan for duplicate `value` fields. Use `key={\`${item.value}-${i}\`}` as insurance.
+
+Full write-up: `docs/solutions/code-quality/react-duplicate-keys-render-loop.md`
+
+### Dev environment: backend/.env must match frontend/.env.local secrets
+The backend has no `.env` file committed. When starting a fresh backend process, create `backend/.env` with:
+```
+DATABASE_URL=postgresql://brandon@localhost:5432/tend_dev
+INTERNAL_JWT_SECRET=dev-only-change-in-production
+```
+If `INTERNAL_JWT_SECRET` doesn't match what's in `frontend/.env.local`, every proxied API call returns 401 → `window.location.href = "/login"` → redirect back → looks like a render loop. The backend defaults to `"change-me"` which won't match.
+
+### useRef objects must NOT appear in useCallback or useEffect deps arrays
+Refs are stable object identities — their `.current` can change without React knowing, so listing a ref in deps provides no benefit and creates false expectations. The correct pattern for reading a ref inside a stable callback:
+```ts
+const layoutRef = useRef<LayoutMode | null>(null);
+layoutRef.current = layout; // always in sync, no deps needed
+const refresh = useCallback(() => {
+  const effective = layoutRef.current; // read at call time, not at creation
+  ...
+}, []); // stable — no layoutRef in deps
+```
+
+### mountedRef for setState-after-unmount is unnecessary in React 18+
+React 18 removed the warning for calling setState on unmounted components. The `mountedRef` + cleanup `useEffect` pattern is dead code in this codebase. Don't add it.
 
 ## Merging PRs
 
