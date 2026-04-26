@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.enums import AuthProvider
+from app.models.enums import AuthProvider, LayoutType
 
 
 class User(SQLModel, table=True):
@@ -22,8 +22,8 @@ class User(SQLModel, table=True):
         default="free",
         sa_column=Column(String, nullable=False, server_default="free"),
     )
-    default_layout: str = Field(
-        default="list",
+    default_layout: LayoutType = Field(
+        default=LayoutType.list,
         sa_column=Column(String, nullable=False, server_default="list"),
     )
 

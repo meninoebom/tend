@@ -9,24 +9,26 @@ import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
 import { formatCompostAge } from "@/lib/utils";
-import { LayoutSwitcher } from "@/components/layout-switcher";
+import { LayoutSwitcher, LAYOUT_DESCRIPTIONS } from "@/components/layout-switcher";
 import { GroupedLayout } from "@/components/layouts/grouped-layout";
 import { QuadrantLayout } from "@/components/layouts/quadrant-layout";
 import { MatrixLayout } from "@/components/layouts/matrix-layout";
+import { PriorityLegend } from "@/components/priority-legend";
 
 const VALID_BUCKETS = ["soon", "later", "someday"] as const;
 const BUCKET_LABELS: Record<string, string> = {
-  today: "Today",
   soon: "Soon",
   later: "Later",
   someday: "Someday",
 };
+
 
 const EMPTY_MESSAGES: Record<string, string> = {
   soon: "Tasks you push to \u2018this week\u2019 during morning triage will land here.",
   later: "Parking lot for things that matter \u2014 but not right now.",
   someday: "Be honest with yourself \u2014 will you actually do these?",
 };
+
 
 export default function BucketPage() {
   const params = useParams<{ b: string }>();
@@ -41,16 +43,19 @@ export default function BucketPage() {
   const [loading, setLoading] = useState(true);
   const [layout, setLayout] = useState<LayoutMode | null>(null);
   const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
+  const [groupedBucket, setGroupedBucket] = useState<BucketType>(bucket as BucketType);
+  const [quadrantBucket, setQuadrantBucket] = useState<BucketType>(bucket as BucketType);
 
-  // Compost interaction state
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
 
   const isValid = VALID_BUCKETS.includes(bucket as (typeof VALID_BUCKETS)[number]);
-
   const isSomeday = bucket === "someday";
+
+  const layoutRef = useRef<LayoutMode | null>(null);
+  layoutRef.current = layout;
 
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
@@ -58,7 +63,8 @@ export default function BucketPage() {
 
   const refresh = useCallback((currentLayout?: LayoutMode | null) => {
     if (!isValid) return;
-    const needsAll = (currentLayout ?? layout) === "matrix";
+    const effectiveLayout = currentLayout ?? layoutRef.current;
+    const needsAll = effectiveLayout === "matrix" || effectiveLayout === "grouped" || effectiveLayout === "quadrant";
     Promise.all([
       getTasks({ bucket }),
       getDomains(),
@@ -70,9 +76,7 @@ export default function BucketPage() {
       if (all) setAllTasks(all.filter((task) => task.status === "pending"));
       if (composted) {
         setCompostTasks(
-          composted.sort(
-            (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-          )
+          composted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
         );
       }
       setLoading(false);
@@ -80,9 +84,9 @@ export default function BucketPage() {
       console.error("Failed to load bucket:", err);
       setLoading(false);
     });
+  // layoutRef intentionally excluded — it's a stable ref object, not a reactive value
   }, [bucket, isValid, isSomeday]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load layout preference then trigger first data fetch with correct layout
   useEffect(() => {
     getMe().then((user) => {
       setLayout(user.default_layout);
@@ -93,7 +97,6 @@ export default function BucketPage() {
     });
   }, [bucket]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Focus the "No" button when confirmation appears
   useEffect(() => {
     if (confirmingId && noButtonRef.current) {
       noButtonRef.current.focus();
@@ -160,29 +163,36 @@ export default function BucketPage() {
     }
   }
 
+  const bucketCount = pending.length;
+
   return (
-    <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
+    <div className="flex flex-col min-h-screen px-6 py-6 gap-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.push("/today")}
-          className="text-text-muted hover:text-text-secondary transition-colors"
-        >
-          &larr;
-        </button>
-        <h1 className="text-xl font-semibold text-text-primary">
-          {BUCKET_LABELS[bucket]}
-        </h1>
-        <span className="text-xs text-text-muted">{pending.length} tasks</span>
-        <div className="ml-auto">
-          <LayoutSwitcher value={layout} onChange={handleLayoutChange} />
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/today")}
+              className="text-text-muted hover:text-text-secondary transition-colors"
+            >
+              &larr;
+            </button>
+            <h1 className="text-2xl font-semibold text-text-primary">
+              {BUCKET_LABELS[bucket]}
+            </h1>
+          </div>
+          <p className="text-sm text-text-muted mt-0.5 ml-6">{LAYOUT_DESCRIPTIONS[layout]}</p>
+          {bucketCount > 0 && (
+            <p className="text-sm italic text-text-muted mt-0.5 ml-6">
+              {bucketCount} task{bucketCount !== 1 ? "s" : ""}
+            </p>
+          )}
         </div>
+        <LayoutSwitcher value={layout} onChange={handleLayoutChange} />
       </div>
 
-      {/* Task input — only shown in list/grouped/quadrant modes */}
-      {layout !== "matrix" && (
-        <TaskInput ref={taskInputRef} bucket={bucket} domains={domains} onCreated={refresh} />
-      )}
+      {/* Task input */}
+      <TaskInput ref={taskInputRef} bucket={bucket} domains={domains} onCreated={refresh} />
 
       {/* Tasks */}
       <div className="flex-1 min-h-[120px]">
@@ -192,13 +202,26 @@ export default function BucketPage() {
             domains={domains}
             activeBucket={matrixBucket}
             onBucketChange={setMatrixBucket}
+            onMutate={refresh}
           />
         ) : layout === "grouped" ? (
-          <GroupedLayout tasks={tasks} domains={domains} onMutate={refresh} />
+          <GroupedLayout
+            tasks={allTasks}
+            domains={domains}
+            onMutate={refresh}
+            activeBucket={groupedBucket}
+            onBucketChange={setGroupedBucket}
+          />
         ) : layout === "quadrant" ? (
-          <QuadrantLayout tasks={tasks} domains={domains} onMutate={refresh} />
+          <QuadrantLayout
+            tasks={allTasks}
+            domains={domains}
+            onMutate={refresh}
+            activeBucket={quadrantBucket}
+            onBucketChange={setQuadrantBucket}
+          />
         ) : (
-          /* list layout — existing behavior */
+          /* list layout */
           <>
             {pending.length === 0 && (
               <div className="text-center py-8 px-4">
@@ -228,7 +251,6 @@ export default function BucketPage() {
                 compostTasks.map((task) => (
                   <div key={task.id} className="py-2 px-3">
                     {confirmingId === task.id ? (
-                      /* Inline confirmation */
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-text-secondary">Let this go?</span>
                         <div className="flex gap-2">
@@ -249,7 +271,6 @@ export default function BucketPage() {
                         </div>
                       </div>
                     ) : (
-                      /* Normal task row */
                       <div className="flex items-center gap-3 text-sm">
                         {task.domain && (
                           <span
@@ -259,9 +280,7 @@ export default function BucketPage() {
                         )}
                         <span className="flex-1 text-text-muted">{task.text}</span>
                         {errorId === task.id ? (
-                          <span className="text-xs text-accent-red shrink-0">
-                            Something went wrong
-                          </span>
+                          <span className="text-xs text-accent-red shrink-0">Something went wrong</span>
                         ) : (
                           <span className="text-xs text-text-muted shrink-0">
                             {formatCompostAge(task.updated_at)}
@@ -289,6 +308,9 @@ export default function BucketPage() {
           </details>
         )}
       </div>
+
+      {/* Priority legend */}
+      <PriorityLegend />
     </div>
   );
 }

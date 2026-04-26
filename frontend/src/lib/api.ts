@@ -1,4 +1,5 @@
 import type {
+  AppState,
   BillingStatus,
   BriefingResponse,
   BucketType,
@@ -148,6 +149,11 @@ export async function updateDomain(
 
 export async function deleteDomain(id: string): Promise<void> {
   return request<void>(`domains/${id}`, { method: "DELETE" });
+}
+
+// App state (bucket counts + priority counts)
+export async function getAppState(): Promise<AppState> {
+  return request<AppState>("state");
 }
 
 // Account

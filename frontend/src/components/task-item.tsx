@@ -125,9 +125,10 @@ interface TaskItemProps {
   onMutate: () => void;
   isMIT?: boolean;
   onSetMIT?: (taskId: string) => void;
+  compact?: boolean; // matrix mode: no editing, no subtasks, no notes
 }
 
-export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemProps) {
+export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -146,11 +147,6 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
   // Priority state — optimistic local copies, kept in sync with incoming props
   const [important, setImportant] = useState(task.important);
   const [urgent, setUrgent] = useState(task.urgent);
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
   useEffect(() => { setImportant(task.important); }, [task.important]);
   useEffect(() => { setUrgent(task.urgent); }, [task.urgent]);
   const isComplete = task.status === "complete";
@@ -277,7 +273,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
       onMutate();
     } catch (err) {
       console.error("Failed to set important:", err);
-      if (mountedRef.current) setImportant(prev);
+      setImportant(prev);
     }
   }
 
@@ -289,7 +285,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
       onMutate();
     } catch (err) {
       console.error("Failed to set urgent:", err);
-      if (mountedRef.current) setUrgent(prev);
+      setUrgent(prev);
     }
   }
 
@@ -385,7 +381,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
         ) : null}
 
         {/* Text: edit mode or display mode */}
-        {isEditing ? (
+        {!compact && isEditing ? (
           <div className="flex-1 flex items-center gap-2">
             <input
               ref={inputRef}
@@ -434,7 +430,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
         )}
 
         {/* Note indicator */}
-        {!isSubtask && hasNote && (
+        {!compact && !isSubtask && hasNote && (
           <button
             onClick={() => setNoteExpanded(!noteExpanded)}
             className="shrink-0 text-text-muted hover:text-text-secondary transition-colors"
@@ -445,7 +441,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
         )}
 
         {/* Edit button (hover affordance for tasks with children) */}
-        {!isEditing && !isComplete && hasChildren && (
+        {!compact && !isEditing && !isComplete && hasChildren && (
           <button
             onClick={startEditing}
             className="shrink-0 hover-action text-text-muted hover:text-text-secondary text-xs"
@@ -456,7 +452,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
         )}
 
         {/* Set as MIT button */}
-        {!isEditing && !isComplete && !isMIT && onSetMIT && (
+        {!compact && !isEditing && !isComplete && !isMIT && onSetMIT && (
           <button
             onClick={() => onSetMIT(task.id)}
             className="shrink-0 hover-action text-text-muted hover:text-accent-blue text-xs"
@@ -467,7 +463,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
         )}
 
         {/* Add note button (top-level tasks without notes) */}
-        {!isEditing && !isComplete && !isSubtask && !hasNote && (
+        {!compact && !isEditing && !isComplete && !isSubtask && !hasNote && (
           <button
             onClick={startNoteEdit}
             className="shrink-0 hover-action text-text-muted hover:text-text-secondary"
@@ -478,7 +474,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT }: TaskItemP
         )}
 
         {/* Add subtask button */}
-        {!isEditing && !isComplete && (
+        {!compact && !isEditing && !isComplete && (
           <button
             onClick={startAddingSubtask}
             className="shrink-0 hover-action text-text-muted hover:text-text-secondary text-xs"

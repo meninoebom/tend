@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
-from app.models.enums import AuthProvider
+from app.models.enums import AuthProvider, LayoutType
 
 
 class UserCreate(BaseModel):
@@ -28,7 +28,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     subscription_status: str = "free"
     is_pro: bool = False
-    default_layout: str = "list"
+    default_layout: LayoutType = LayoutType.list
 
 
 class OAuthUser(BaseModel):
@@ -42,7 +42,7 @@ class UserVerify(BaseModel):
 
 class UserUpdate(BaseModel):
     has_completed_onboarding: bool | None = None
-    default_layout: str | None = None
+    default_layout: LayoutType | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

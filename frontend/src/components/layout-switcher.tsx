@@ -2,7 +2,12 @@
 
 import type { LayoutMode } from "@/lib/api-types";
 
-export type { LayoutMode };
+export const LAYOUT_DESCRIPTIONS: Record<LayoutMode, string> = {
+  list: "Domain filter pills, time in the sidebar.",
+  grouped: "One column. Pick a time horizon up top; tasks group by domain below.",
+  quadrant: "Eisenhower 2×2 (important × urgent) for the current time horizon.",
+  matrix: "Time × Domain as a grid. Both axes are first-class; tasks live at the intersection.",
+};
 
 interface LayoutSwitcherProps {
   value: LayoutMode;
@@ -75,11 +80,11 @@ export function LayoutSwitcher({ value, onChange }: LayoutSwitcherProps) {
       role="group"
       aria-label="Layout"
     >
-      {LAYOUTS.map((layout) => {
+      {LAYOUTS.map((layout, i) => {
         const isActive = value === layout.value;
         return (
           <button
-            key={layout.value}
+            key={`${layout.value}-${i}`}
             onClick={() => onChange(layout.value)}
             title={layout.label}
             aria-pressed={isActive}
@@ -91,7 +96,7 @@ export function LayoutSwitcher({ value, onChange }: LayoutSwitcherProps) {
             ].join(" ")}
           >
             {layout.icon}
-            <span className="hidden sm:inline">{layout.label}</span>
+            <span>{layout.label}</span>
           </button>
         );
       })}

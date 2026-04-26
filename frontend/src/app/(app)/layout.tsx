@@ -4,7 +4,8 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { TriageQueue, User } from "@/lib/api-types";
-import { getTriageQueue, getMe, createCheckout } from "@/lib/api";
+import { getTriageQueue, getMe, createCheckout, getAppState } from "@/lib/api";
+import type { BucketCounts } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { TriageModal } from "@/components/triage-modal";
@@ -58,7 +59,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const onboardingVerified = useRef(false);
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [bucketCounts, setBucketCounts] = useState<BucketCounts | null>(null);
   const { theme, toggle: toggleTheme } = useTheme();
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Refresh bucket counts whenever the user navigates
+  useEffect(() => {
+    getAppState().then((s) => setBucketCounts(s.buckets)).catch(() => {});
+  }, [pathname]);
 
   // Hide bottom tab bar when iOS virtual keyboard is open
   useEffect(() => {
@@ -202,6 +212,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               const isActive = pathname === item.href;
               const bucket = item.href === "/today" ? "today"
                 : item.href.startsWith("/bucket/") ? item.href.split("/").pop()
+                : item.href === "/done" ? "done"
+                : undefined;
+              const count = bucket && bucketCounts
+                ? bucket === "today" ? bucketCounts.today
+                : bucket === "soon" ? bucketCounts.soon
+                : bucket === "later" ? bucketCounts.later
+                : bucket === "someday" ? bucketCounts.someday
+                : bucket === "done" ? bucketCounts.done
+                : undefined
                 : undefined;
               return (
                 <button
@@ -220,7 +239,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     name={item.icon}
                     className={cn(isActive && "text-accent-blue")}
                   />
-                  <span>{item.label}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {count !== undefined && count > 0 && (
+                    <span className={cn(
+                      "text-[11px] tabular-nums",
+                      isActive ? "text-text-secondary" : "text-text-muted"
+                    )}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -266,7 +293,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onClick={toggleTheme}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 w-full text-text-muted hover:text-text-secondary hover:bg-bg-hover/50"
             >
-              {theme === "dark" ? (
+              {mounted && theme === "dark" ? (
                 <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
@@ -275,7 +302,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
               )}
-              <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+              <span>{mounted && theme === "dark" ? "Light mode" : "Dark mode"}</span>
             </button>
             <button
               onClick={() => router.push(settingsItem.href)}

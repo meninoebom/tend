@@ -79,6 +79,20 @@ export interface BriefingResponse {
 // Layout modes
 export type LayoutMode = "list" | "matrix" | "grouped" | "quadrant";
 
+// App state
+export interface BucketCounts {
+  today: number;
+  soon: number;
+  later: number;
+  someday: number;
+  done: number;
+}
+
+export interface AppState {
+  priority: { q1_count: number; q2_count: number; q3_count: number; q4_count: number };
+  buckets: BucketCounts;
+}
+
 // User
 export interface User {
   id: string;

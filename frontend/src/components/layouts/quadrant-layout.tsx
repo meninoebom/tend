@@ -1,126 +1,151 @@
 "use client";
 
-import type { Task, Domain } from "@/lib/api-types";
+import type { Task, Domain, BucketType } from "@/lib/api-types";
 import { TaskItem } from "@/components/task-item";
+import { BucketTabs } from "@/components/layouts/bucket-tabs";
 
 interface QuadrantLayoutProps {
   tasks: Task[];
   domains: Domain[];
   onMutate: () => void;
+  activeBucket: BucketType;
+  onBucketChange: (b: BucketType) => void;
 }
 
 interface QuadrantDef {
+  key: string;
   label: string;
   sublabel: string;
-  color: string;
-  headerColor: string;
+  labelColor: string;
   borderColor: string;
+  headerBg: string;
   filter: (t: Task) => boolean;
 }
 
 const QUADRANTS: QuadrantDef[] = [
   {
-    label: "Q1 — Do first",
+    key: "do-first",
+    label: "DO FIRST",
     sublabel: "Important & Urgent",
-    color: "text-red-500",
-    headerColor: "bg-red-500/10",
-    borderColor: "border-red-500/30",
+    labelColor: "text-amber-400",
+    borderColor: "border-amber-500/40",
+    headerBg: "bg-amber-500/5",
     filter: (t) => t.important && t.urgent,
   },
   {
-    label: "Q2 — Schedule",
-    sublabel: "Important, Not Urgent",
-    color: "text-blue-500",
-    headerColor: "bg-blue-500/10",
-    borderColor: "border-blue-500/30",
+    key: "schedule",
+    label: "SCHEDULE",
+    sublabel: "Important, not urgent",
+    labelColor: "text-blue-400",
+    borderColor: "border-blue-500/40",
+    headerBg: "bg-blue-500/5",
     filter: (t) => t.important && !t.urgent,
   },
   {
-    label: "Q3 — Quick",
-    sublabel: "Urgent, Not Important",
-    color: "text-amber-500",
-    headerColor: "bg-amber-500/10",
-    borderColor: "border-amber-500/30",
+    key: "quick",
+    label: "QUICK",
+    sublabel: "Urgent, not important",
+    labelColor: "text-amber-400",
+    borderColor: "border-amber-500/40",
+    headerBg: "bg-amber-500/5",
     filter: (t) => !t.important && t.urgent,
   },
   {
-    label: "Q4 — Background",
-    sublabel: "Not Important, Not Urgent",
-    color: "text-text-muted",
-    headerColor: "bg-bg-secondary",
+    key: "background",
+    label: "BACKGROUND",
+    sublabel: "Neither",
+    labelColor: "text-text-muted",
     borderColor: "border-border",
+    headerBg: "bg-bg-secondary",
     filter: (t) => !t.important && !t.urgent,
   },
 ];
 
-export function QuadrantLayout({ tasks, domains, onMutate }: QuadrantLayoutProps) {
-  const pending = tasks.filter((t) => t.status === "pending");
+export function QuadrantLayout({
+  tasks,
+  domains,
+  onMutate,
+  activeBucket,
+  onBucketChange,
+}: QuadrantLayoutProps) {
+  const bucketTasks = tasks.filter((t) => t.status === "pending" && t.bucket === activeBucket);
 
   return (
-    <div className="relative">
-      {/* Axis labels */}
-      <div className="flex mb-2">
-        {/* Left side vertical label placeholder */}
-        <div className="w-6 shrink-0" />
-        <div className="flex flex-1 justify-around">
-          <span className="text-xs font-mono uppercase tracking-widest text-text-muted">
-            Urgent
-          </span>
-          <span className="text-xs font-mono uppercase tracking-widest text-text-muted">
-            Not Urgent
-          </span>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <BucketTabs tasks={tasks} activeBucket={activeBucket} onBucketChange={onBucketChange} />
 
+      {/* Axis labels + 2×2 grid */}
       <div className="flex gap-0">
-        {/* Left vertical axis label */}
-        <div className="w-6 shrink-0 flex flex-col justify-around">
-          <span
-            className="text-xs font-mono uppercase tracking-widest text-text-muted"
-            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-          >
-            Important
-          </span>
-          <span
-            className="text-xs font-mono uppercase tracking-widest text-text-muted"
-            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-          >
-            Not Important
-          </span>
+        {/* Left vertical axis */}
+        <div className="w-5 shrink-0 flex flex-col">
+          <div className="flex-1 flex items-center justify-center">
+            <span
+              className="text-[10px] font-mono uppercase tracking-widest text-text-muted"
+              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            >
+              Important
+            </span>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <span
+              className="text-[10px] font-mono uppercase tracking-widest text-text-muted"
+              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            >
+              Not Important
+            </span>
+          </div>
         </div>
 
-        {/* 2×2 grid */}
-        <div className="flex-1 grid grid-cols-2 gap-3">
-          {QUADRANTS.map((q) => {
-            const quadTasks = pending.filter(q.filter);
-            return (
-              <div
-                key={q.label}
-                className={`rounded-lg border ${q.borderColor} overflow-hidden`}
-              >
-                {/* Cell header */}
-                <div className={`px-3 py-2 ${q.headerColor} border-b ${q.borderColor}`}>
-                  <p className={`text-xs font-semibold ${q.color}`}>{q.label}</p>
-                  <p className="text-xs text-text-muted">{q.sublabel}</p>
+        {/* Grid area */}
+        <div className="flex-1 flex flex-col gap-0">
+          {/* Top axis labels */}
+          <div className="grid grid-cols-2 mb-1">
+            <div className="text-center">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Urgent</span>
+            </div>
+            <div className="text-center">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Not Urgent</span>
+            </div>
+          </div>
+
+          {/* 2×2 quadrant grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {QUADRANTS.map((q) => {
+              const qTasks = bucketTasks.filter(q.filter);
+              return (
+                <div
+                  key={q.key}
+                  className={`rounded-lg border ${q.borderColor} overflow-hidden`}
+                >
+                  {/* Cell header */}
+                  <div className={`px-3 py-2 ${q.headerBg} border-b ${q.borderColor} flex items-baseline justify-between`}>
+                    <div>
+                      <span className={`text-xs font-semibold tracking-wide ${q.labelColor}`}>
+                        {q.label}
+                      </span>
+                      <span className="text-[10px] text-text-muted ml-2">{q.sublabel}</span>
+                    </div>
+                    <span className="text-xs text-text-muted tabular-nums">{qTasks.length}</span>
+                  </div>
+                  {/* Cell body */}
+                  <div className="min-h-[100px]">
+                    {qTasks.length === 0 ? (
+                      <p className="text-text-muted text-center py-6 text-sm">—</p>
+                    ) : (
+                      qTasks.map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          domains={domains}
+                          onMutate={onMutate}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
-                {/* Cell body */}
-                <div className="min-h-[80px]">
-                  {quadTasks.length === 0 ? (
-                    <p className="text-text-muted text-center py-4 text-sm">—</p>
-                  ) : (
-                    quadTasks.map((task) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        domains={domains}
-                        onMutate={onMutate}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

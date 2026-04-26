@@ -24,3 +24,10 @@ class SubscriptionStatus(StrEnum):
     active = "active"
     past_due = "past_due"
     canceled = "canceled"
+
+
+class LayoutType(StrEnum):
+    list = "list"
+    grouped = "grouped"
+    quadrant = "quadrant"
+    matrix = "matrix"

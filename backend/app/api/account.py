@@ -178,14 +178,6 @@ def update_me(
         user.has_completed_onboarding = body.has_completed_onboarding
 
     if body.default_layout is not None:
-        valid_layouts = {"list", "matrix", "grouped", "quadrant"}
-        if body.default_layout not in valid_layouts:
-            from app.core.errors import AppError
-            raise AppError(
-                code="invalid_layout",
-                message=f"Invalid layout. Must be one of: {', '.join(sorted(valid_layouts))}",
-                status_code=422,
-            )
         user.default_layout = body.default_layout
 
     db.add(user)

@@ -25,16 +25,60 @@ import { SortableTaskItem } from "@/components/sortable-task-item";
 import { TaskInput } from "@/components/task-input";
 import type { TaskInputHandle } from "@/components/task-input";
 import { useGlobalShortcut } from "@/hooks/useGlobalShortcut";
-import { LayoutSwitcher } from "@/components/layout-switcher";
+import { LayoutSwitcher, LAYOUT_DESCRIPTIONS } from "@/components/layout-switcher";
 import { GroupedLayout } from "@/components/layouts/grouped-layout";
 import { QuadrantLayout } from "@/components/layouts/quadrant-layout";
 import { MatrixLayout } from "@/components/layouts/matrix-layout";
+import { PriorityLegend } from "@/components/priority-legend";
+import { cn } from "@/lib/utils";
 
 const BUCKET: BucketType = "today";
 
+function DomainFilterPills({
+  domains,
+  activeDomainId,
+  onSelect,
+}: {
+  domains: Domain[];
+  activeDomainId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  if (domains.length === 0) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <button
+        onClick={() => onSelect(null)}
+        className={cn(
+          "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+          activeDomainId === null
+            ? "border-text-secondary text-text-primary bg-bg-hover"
+            : "border-transparent text-text-muted hover:text-text-secondary hover:border-border",
+        )}
+      >
+        All
+      </button>
+      {domains.map((d) => (
+        <button
+          key={d.id}
+          onClick={() => onSelect(activeDomainId === d.id ? null : d.id)}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+            activeDomainId === d.id
+              ? "border-text-secondary text-text-primary bg-bg-hover"
+              : "border-transparent text-text-muted hover:text-text-secondary hover:border-border",
+          )}
+        >
+          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+          {d.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
 function TodayContent() {
   const searchParams = useSearchParams();
-  const domainFilter = searchParams.get("domain_id");
   const taskInputRef = useRef<TaskInputHandle>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -42,12 +86,16 @@ function TodayContent() {
   const [loading, setLoading] = useState(true);
   const [layout, setLayout] = useState<LayoutMode | null>(null);
   const [matrixBucket, setMatrixBucket] = useState<BucketType | null>(null);
+  const [groupedBucket, setGroupedBucket] = useState<BucketType>(BUCKET);
+  const [quadrantBucket, setQuadrantBucket] = useState<BucketType>(BUCKET);
+  const [activeDomainId, setActiveDomainId] = useState<string | null>(
+    searchParams.get("domain_id"),
+  );
 
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
   }, []));
 
-  // Clean up nav highlights if component unmounts mid-drag
   useEffect(() => {
     return () => {
       document.querySelectorAll("[data-drop-bucket]").forEach((el) => {
@@ -62,8 +110,12 @@ function TodayContent() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const layoutRef = useRef<LayoutMode | null>(null);
+  layoutRef.current = layout;
+
   const refresh = useCallback((currentLayout?: LayoutMode | null) => {
-    const needsAll = (currentLayout ?? layout) === "matrix";
+    const effectiveLayout = currentLayout ?? layoutRef.current;
+    const needsAll = effectiveLayout === "matrix" || effectiveLayout === "grouped" || effectiveLayout === "quadrant";
     Promise.all([
       getTasks({ bucket: BUCKET }),
       getDomains(),
@@ -77,9 +129,9 @@ function TodayContent() {
       console.error("Failed to load today:", err);
       setLoading(false);
     });
-  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
+  // refresh is intentionally stable (reads layout via ref, not as a dep)
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load user's preferred layout on mount, then trigger first refresh with correct layout
   useEffect(() => {
     getMe().then((user) => {
       setLayout(user.default_layout);
@@ -88,6 +140,7 @@ function TodayContent() {
       setLayout("list");
       refresh("list");
     });
+  // runs once on mount; refresh is stable
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleLayoutChange(newLayout: LayoutMode) {
@@ -100,8 +153,8 @@ function TodayContent() {
     }
   }
 
-  const filtered = domainFilter
-    ? tasks.filter((t) => t.domain?.id === domainFilter)
+  const filtered = activeDomainId
+    ? tasks.filter((t) => t.domain?.id === activeDomainId)
     : tasks;
 
   const pending = [...filtered.filter((t) => t.status === "pending")].sort((a, b) => {
@@ -109,17 +162,15 @@ function TodayContent() {
     if (!a.is_mit && b.is_mit) return 1;
     return 0;
   });
-  // Non-MIT pending tasks (the draggable ones)
   const mitTask = pending.find((t) => t.is_mit);
   const sortableTasks = pending.filter((t) => !t.is_mit);
-  const canDrag = !domainFilter; // disable drag when filtering by domain
+  const canDrag = !activeDomainId;
 
   async function handleSetMIT(taskId: string) {
     await setMIT(taskId);
     refresh();
   }
 
-  // Track which nav bucket the pointer is hovering over during drag
   const hoveredBucketRef = useRef<string | null>(null);
 
   function handleDragMove(event: DragMoveEvent) {
@@ -145,9 +196,7 @@ function TodayContent() {
       const rect = el.getBoundingClientRect();
       if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
         const bucket = el.getAttribute("data-drop-bucket");
-        if (bucket && bucket !== "today") {
-          found = bucket;
-        }
+        if (bucket && bucket !== "today") found = bucket;
       }
     });
 
@@ -205,12 +254,10 @@ function TodayContent() {
     reordered.splice(newIndex, 0, moved);
 
     const newPending = mitTask ? [mitTask, ...reordered] : reordered;
-    const newTasks = [...newPending, ...tasks.filter((t) => t.status === "complete")];
-    setTasks(newTasks);
+    setTasks([...newPending, ...tasks.filter((t) => t.status === "complete")]);
 
-    const allPendingIds = newPending.map((t) => t.id);
     try {
-      await reorderTasks(allPendingIds);
+      await reorderTasks(newPending.map((t) => t.id));
     } catch (err) {
       console.error("Failed to reorder:", err);
       refresh();
@@ -225,20 +272,37 @@ function TodayContent() {
     );
   }
 
+  const todayCount = tasks.filter((t) => t.status === "pending").length;
+
   return (
-    <div className="flex flex-col min-h-screen max-w-lg mx-auto px-4 py-6 gap-4">
-      {/* Header with layout switcher */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text-primary">Today</h1>
+    <div className="flex flex-col min-h-screen px-6 py-6 gap-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-text-primary">Today</h1>
+          <p className="text-sm text-text-muted mt-0.5">{LAYOUT_DESCRIPTIONS[layout]}</p>
+          {todayCount > 0 && (
+            <p className="text-sm italic text-text-muted mt-0.5">
+              {todayCount} task{todayCount !== 1 ? "s" : ""} today
+            </p>
+          )}
+        </div>
         <LayoutSwitcher value={layout} onChange={handleLayoutChange} />
       </div>
 
-      {/* Task input — only shown in list/grouped/quadrant modes */}
-      {layout !== "matrix" && (
-        <TaskInput ref={taskInputRef} bucket={BUCKET} domains={domains} onCreated={refresh} />
+      {/* Task input */}
+      <TaskInput ref={taskInputRef} bucket={BUCKET} domains={domains} onCreated={refresh} />
+
+      {/* Domain filter pills — list view only */}
+      {layout === "list" && (
+        <DomainFilterPills
+          domains={domains}
+          activeDomainId={activeDomainId}
+          onSelect={setActiveDomainId}
+        />
       )}
 
-      {/* Content based on layout */}
+      {/* Content */}
       <div className="flex-1 min-h-[120px]">
         {layout === "matrix" ? (
           <MatrixLayout
@@ -246,26 +310,36 @@ function TodayContent() {
             domains={domains}
             activeBucket={matrixBucket}
             onBucketChange={setMatrixBucket}
+            onMutate={refresh}
           />
         ) : layout === "grouped" ? (
-          <GroupedLayout tasks={filtered} domains={domains} onMutate={refresh} />
+          <GroupedLayout
+            tasks={allTasks}
+            domains={domains}
+            onMutate={refresh}
+            activeBucket={groupedBucket}
+            onBucketChange={setGroupedBucket}
+          />
         ) : layout === "quadrant" ? (
-          <QuadrantLayout tasks={filtered} domains={domains} onMutate={refresh} />
+          <QuadrantLayout
+            tasks={allTasks}
+            domains={domains}
+            onMutate={refresh}
+            activeBucket={quadrantBucket}
+            onBucketChange={setQuadrantBucket}
+          />
         ) : (
-          /* list layout — existing behavior */
+          /* list layout */
           <>
             {pending.length === 0 && (
               <div className="text-center py-8 px-4">
-                <p className="text-base text-text-secondary">
-                  Nothing on your plate today.
-                </p>
+                <p className="text-base text-text-secondary">Nothing on your plate today.</p>
                 <p className="text-sm text-text-muted mt-1">
                   Add a task above, or check back after morning triage.
                 </p>
               </div>
             )}
 
-            {/* MIT task — pinned at top, not draggable */}
             {mitTask && (
               <TaskItem
                 task={mitTask}
@@ -276,7 +350,6 @@ function TodayContent() {
               />
             )}
 
-            {/* Sortable non-MIT pending tasks */}
             {sortableTasks.length > 0 && canDrag ? (
               <DndContext
                 sensors={sensors}
@@ -314,6 +387,9 @@ function TodayContent() {
           </>
         )}
       </div>
+
+      {/* Priority legend */}
+      <PriorityLegend />
     </div>
   );
 }
