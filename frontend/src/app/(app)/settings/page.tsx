@@ -169,40 +169,42 @@ function SettingsContent() {
             className="flex items-center gap-3 rounded-lg bg-bg-card border border-border px-3 py-2"
           >
             {editingId === d.id ? (
-              <>
-                <div className="flex gap-1">
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex flex-wrap gap-1.5">
                   {PRESET_COLORS.map((c) => (
                     <button
                       key={c}
                       onClick={() => setEditColor(c)}
                       className={cn(
-                        "h-5 w-5 rounded-full transition-transform",
+                        "h-7 w-7 rounded-full transition-transform",
                         editColor === c && "ring-2 ring-text-primary ring-offset-1 ring-offset-bg-card scale-110",
                       )}
                       style={{ backgroundColor: c }}
                     />
                   ))}
                 </div>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-sm text-text-primary outline-none"
-                  maxLength={30}
-                  autoFocus
-                />
-                <button
-                  onClick={() => handleSaveEdit(d.id)}
-                  className="text-xs text-accent-green hover:underline"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setEditingId(null)}
-                  className="text-xs text-text-muted hover:underline"
-                >
-                  Cancel
-                </button>
-              </>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="flex-1 bg-bg-input border border-border rounded px-2 py-1.5 text-sm text-text-primary outline-none"
+                    maxLength={30}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleSaveEdit(d.id)}
+                    className="text-sm text-accent-green hover:underline min-h-[44px] px-2"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="text-sm text-text-muted hover:underline min-h-[44px] px-2"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <>
                 <span
@@ -229,35 +231,37 @@ function SettingsContent() {
 
         {/* Add domain */}
         {domains.length < domainLimit ? (
-          <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-border px-3 py-2">
-            <div className="flex gap-1">
+          <div className="flex flex-col gap-2 rounded-lg bg-bg-card border border-border px-3 py-2.5">
+            <div className="flex flex-wrap gap-1.5">
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
                   onClick={() => setNewColor(c)}
                   className={cn(
-                    "h-5 w-5 rounded-full transition-transform",
+                    "h-7 w-7 rounded-full transition-transform",
                     newColor === c && "ring-2 ring-text-primary ring-offset-1 ring-offset-bg-card scale-110",
                   )}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="New domain..."
-              className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
-              maxLength={30}
-              onKeyDown={(e) => e.key === "Enter" && handleAddDomain()}
-            />
-            <button
-              onClick={handleAddDomain}
-              disabled={!newName.trim()}
-              className="text-xs text-accent-blue hover:underline disabled:opacity-30"
-            >
-              Add
-            </button>
+            <div className="flex items-center gap-2">
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="New domain..."
+                className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+                maxLength={30}
+                onKeyDown={(e) => e.key === "Enter" && handleAddDomain()}
+              />
+              <button
+                onClick={handleAddDomain}
+                disabled={!newName.trim()}
+                className="text-sm text-accent-blue hover:underline disabled:opacity-30 min-h-[44px] px-2"
+              >
+                Add
+              </button>
+            </div>
           </div>
         ) : user?.is_pro ? (
           <p className="text-xs text-text-muted">Maximum {PRO_DOMAIN_LIMIT} domains reached.</p>
