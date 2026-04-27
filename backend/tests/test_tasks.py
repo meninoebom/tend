@@ -435,7 +435,7 @@ class TestPriorityFields:
         client.post(f"/tasks/{task.id}/priority", json={"important": True, "urgent": True})
         r = client.post(f"/tasks/{task.id}/priority", json={"urgent": False})
         assert r.status_code == 200
-        assert r.json()["important"] is True   # untouched
+        assert r.json()["important"] is True  # untouched
         assert r.json()["urgent"] is False
 
     def test_priority_endpoint_idempotent(self, client, test_user, test_tasks):
@@ -453,11 +453,18 @@ class TestStateEndpoint:
 
         from app.models.enums import BucketType, TaskStatus
         from app.models.task import Task as TaskModel
+
         user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
         for important, urgent in [(True, True), (True, False), (False, True), (False, False)]:
-            t = TaskModel(user_id=user_id, text="t", bucket=BucketType.today,
-                          status=TaskStatus.pending, important=important, urgent=urgent)
+            t = TaskModel(
+                user_id=user_id,
+                text="t",
+                bucket=BucketType.today,
+                status=TaskStatus.pending,
+                important=important,
+                urgent=urgent,
+            )
             db.add(t)
         db.flush()
 
@@ -474,10 +481,17 @@ class TestStateEndpoint:
 
         from app.models.enums import BucketType, TaskStatus
         from app.models.task import Task as TaskModel
+
         user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
-        t = TaskModel(user_id=user_id, text="done", bucket=BucketType.today,
-                      status=TaskStatus.complete, important=True, urgent=True)
+        t = TaskModel(
+            user_id=user_id,
+            text="done",
+            bucket=BucketType.today,
+            status=TaskStatus.complete,
+            important=True,
+            urgent=True,
+        )
         db.add(t)
         db.flush()
 

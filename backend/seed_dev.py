@@ -2,6 +2,7 @@
 Seed realistic dev data for UI testing.
 Run from backend/: uv run python seed_dev.py
 """
+
 import datetime
 
 from sqlalchemy import delete
