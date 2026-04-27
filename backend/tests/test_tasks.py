@@ -449,9 +449,10 @@ class TestPriorityFields:
 class TestStateEndpoint:
     def test_state_priority_counts(self, client, test_user, db):
         # Create tasks in each quadrant
-        from app.models.task import Task as TaskModel
-        from app.models.enums import BucketType, TaskStatus
         import uuid
+
+        from app.models.enums import BucketType, TaskStatus
+        from app.models.task import Task as TaskModel
         user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
         for important, urgent in [(True, True), (True, False), (False, True), (False, False)]:
@@ -469,9 +470,10 @@ class TestStateEndpoint:
         assert p["q4_count"] == 1
 
     def test_state_excludes_completed(self, client, test_user, db):
-        from app.models.task import Task as TaskModel
-        from app.models.enums import BucketType, TaskStatus
         import uuid
+
+        from app.models.enums import BucketType, TaskStatus
+        from app.models.task import Task as TaskModel
         user_id = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
         t = TaskModel(user_id=user_id, text="done", bucket=BucketType.today,
