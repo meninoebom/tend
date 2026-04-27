@@ -111,7 +111,7 @@ function TodayContent() {
   );
 
   const layoutRef = useRef<LayoutMode | null>(null);
-  layoutRef.current = layout;
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
 
   const refresh = useCallback((currentLayout?: LayoutMode | null) => {
     const effectiveLayout = currentLayout ?? layoutRef.current;
@@ -129,8 +129,7 @@ function TodayContent() {
       console.error("Failed to load today:", err);
       setLoading(false);
     });
-  // refresh is intentionally stable (reads layout via ref, not as a dep)
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     getMe().then((user) => {
