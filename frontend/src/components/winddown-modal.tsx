@@ -82,7 +82,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
           <p className="text-base text-text-secondary">
             Couldn&apos;t load your tasks.
           </p>
-          <button onClick={onComplete} className="text-sm text-accent-blue hover:underline">
+          <button onClick={onComplete} className="text-sm text-accent-blue hover:underline min-h-[44px] px-4">
             Close
           </button>
         </div>
@@ -106,7 +106,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
               Nothing left to close out. Nice work.
             </p>
           </div>
-          <button onClick={onComplete} className="text-sm text-accent-blue hover:underline">
+          <button onClick={onComplete} className="text-sm text-accent-blue hover:underline min-h-[44px] px-4">
             Close
           </button>
         </div>
@@ -191,7 +191,7 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
         </div>
         <button
           onClick={onComplete}
-          className="text-sm text-accent-blue hover:underline"
+          className="text-sm text-accent-blue hover:underline min-h-[44px] px-4"
         >
           Close
         </button>
