@@ -114,7 +114,7 @@ tend/
 
 ## Conventions
 
-- **Python:** Ruff for linting, sync SQLModel (not async), service-layer pattern (services own logic, routes own validation)
+- **Python:** Ruff for linting **and formatting** — CI runs both `ruff check` and `ruff format --check` as separate steps. Always run `uv run ruff check . && uv run ruff format .` before pushing, or `ruff check . --fix && ruff format .` to auto-fix. Lint-only passes are not enough.
 - **TypeScript:** Strict mode, Prettier, hand-written types matching backend schemas
 - **Git:** Branch naming per `~/.claude/CLAUDE.md` conventions (feature/, bugfix/, etc.)
 - **Testing:** Shared DB with rollback per test, factory fixtures, auth mock
@@ -244,15 +244,27 @@ If `INTERNAL_JWT_SECRET` doesn't match what's in `frontend/.env.local`, every pr
 Refs are stable object identities — their `.current` can change without React knowing, so listing a ref in deps provides no benefit and creates false expectations. The correct pattern for reading a ref inside a stable callback:
 ```ts
 const layoutRef = useRef<LayoutMode | null>(null);
-layoutRef.current = layout; // always in sync, no deps needed
+useEffect(() => { layoutRef.current = layout; }, [layout]); // sync via effect, not during render
 const refresh = useCallback(() => {
   const effective = layoutRef.current; // read at call time, not at creation
   ...
 }, []); // stable — no layoutRef in deps
 ```
 
+**Note:** Assigning `ref.current = value` directly during render (outside useEffect) triggers the `react-hooks/refs` ESLint rule in `eslint-config-next` ("Cannot access refs during render"). The `useEffect` wrapper avoids this. There's no meaningful semantic difference since `refresh` is only called in event handlers and effects, never synchronously during render.
+
 ### mountedRef for setState-after-unmount is unnecessary in React 18+
 React 18 removed the warning for calling setState on unmounted components. The `mountedRef` + cleanup `useEffect` pattern is dead code in this codebase. Don't add it.
+
+### Mobile tap targets: 44px minimum
+All interactive elements must meet the 44px minimum tap target on mobile. Patterns:
+- Primary and secondary buttons: add `min-h-[44px]` alongside any `py-X` padding
+- Small visual buttons (color dots, icon-only triggers): wrap the visual element in an `h-11 w-11` (`44px`) container, keep inner visual at its original size
+- Floating dropdowns: use `flex-col` with `min-h-[44px]` per item, not a horizontal pill row
+- `ritual-overlay.tsx` already handles `100dvh` and `pb-[max(2rem,env(safe-area-inset-bottom))]` for iOS home indicator clearance
+
+### Color picker layout on mobile
+The 10 preset color dots in settings (`h-7 w-7` each) should NOT be in a single `flex` row alongside an input and action buttons — that row overflows at 320px. Structure as `flex-col`: color dots row first (`flex flex-wrap gap-1.5`), input + buttons row second.
 
 ## Merging PRs
 
