@@ -2,7 +2,8 @@ import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import func, select as sa_select
+from sqlalchemy import func
+from sqlalchemy import select as sa_select
 from sqlmodel import Session
 
 from app.core.deps import get_db
@@ -48,7 +49,9 @@ def get_state(
         )
         .group_by(Task.important, Task.urgent)
     ).all()
-    priority_map: dict[tuple[bool, bool], int] = {(imp, urg): cnt for imp, urg, cnt in priority_rows}
+    priority_map: dict[tuple[bool, bool], int] = {
+        (imp, urg): cnt for imp, urg, cnt in priority_rows
+    }
 
     # Bucket counts (pending) via GROUP BY
     bucket_rows = db.exec(

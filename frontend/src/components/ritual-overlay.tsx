@@ -16,7 +16,7 @@ export function RitualOverlay({ children }: RitualOverlayProps) {
         "animate-[fadeIn_300ms_ease-out]",
       )}
     >
-      <div className="relative w-full max-h-[100dvh] overflow-y-auto py-8">
+      <div className="relative w-full max-h-[100dvh] overflow-y-auto py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
         {children}
       </div>
     </div>

@@ -73,4 +73,4 @@ class TestState:
         r = client.get("/state")
         buckets = r.json()["buckets"]
         assert buckets["today"] == 1  # archived task not counted
-        assert buckets["done"] == 0   # archived ≠ done
+        assert buckets["done"] == 0  # archived ≠ done

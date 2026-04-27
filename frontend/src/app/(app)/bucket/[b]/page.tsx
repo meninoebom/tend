@@ -55,7 +55,7 @@ export default function BucketPage() {
   const isSomeday = bucket === "someday";
 
   const layoutRef = useRef<LayoutMode | null>(null);
-  layoutRef.current = layout;
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
 
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
@@ -84,8 +84,7 @@ export default function BucketPage() {
       console.error("Failed to load bucket:", err);
       setLoading(false);
     });
-  // layoutRef intentionally excluded — it's a stable ref object, not a reactive value
-  }, [bucket, isValid, isSomeday]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bucket, isValid, isSomeday]);
 
   useEffect(() => {
     getMe().then((user) => {

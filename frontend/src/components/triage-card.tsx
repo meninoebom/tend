@@ -327,7 +327,7 @@ function ActionButton({
       onClick={onClick}
       disabled={loading}
       className={cn(
-        "flex flex-col items-center gap-0.5 rounded-xl py-3 px-2 transition-colors disabled:opacity-50",
+        "flex flex-col items-center justify-center gap-0.5 rounded-xl min-h-[44px] py-3 px-2 transition-colors disabled:opacity-50",
         className,
       )}
     >

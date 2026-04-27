@@ -169,7 +169,7 @@ export function TriageModal({ onComplete, initialQueue }: TriageModalProps) {
   const skipLink = (
     <button
       onClick={handleSkip}
-      className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+      className="text-xs text-text-muted hover:text-text-secondary transition-colors min-h-[44px] px-4"
     >
       Skip triage
     </button>

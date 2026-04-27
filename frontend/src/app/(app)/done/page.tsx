@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { Task, Domain } from "@/lib/api-types";
-import { getTasks, getDomains } from "@/lib/api";
+import type { Task } from "@/lib/api-types";
+import { getTasks } from "@/lib/api";
 
 function formatCompletedAge(completedAt: string): string {
   const ms = Date.now() - new Date(completedAt).getTime();
@@ -20,16 +20,11 @@ function formatCompletedAge(completedAt: string): string {
 export default function DonePage() {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
-    Promise.all([
-      getTasks({ status: "complete" }),
-      getDomains(),
-    ]).then(([t, d]) => {
+    getTasks({ status: "complete" }).then((t) => {
       setTasks(t);
-      setDomains(d);
       setLoading(false);
     }).catch((err) => {
       console.error("Failed to load done:", err);

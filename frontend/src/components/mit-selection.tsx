@@ -45,13 +45,13 @@ export function MITSelection({ suggestion, tasks, onConfirm, onSkip }: MITSelect
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setShowPicker(true)}
-                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                className="text-sm text-text-secondary hover:text-text-primary transition-colors min-h-[44px] pr-4"
               >
                 Pick a different one
               </button>
               <button
                 onClick={onSkip}
-                className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                className="text-xs text-text-muted hover:text-text-secondary transition-colors min-h-[44px] pl-4"
               >
                 Skip
               </button>
@@ -65,7 +65,7 @@ export function MITSelection({ suggestion, tasks, onConfirm, onSkip }: MITSelect
                   key={task.id}
                   onClick={() => handleConfirm(task.id)}
                   disabled={confirming}
-                  className={`w-full text-left rounded-lg px-4 py-3 text-sm transition-colors disabled:opacity-50 ${
+                  className={`w-full text-left rounded-lg px-4 min-h-[44px] py-3 text-sm transition-colors disabled:opacity-50 ${
                     task.id === suggestion.task_id
                       ? "bg-accent-blue/10 border border-accent-blue/30 text-text-primary"
                       : "hover:bg-bg-hover text-text-secondary"
@@ -82,13 +82,13 @@ export function MITSelection({ suggestion, tasks, onConfirm, onSkip }: MITSelect
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setShowPicker(false)}
-                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                className="text-sm text-text-secondary hover:text-text-primary transition-colors min-h-[44px] pr-4"
               >
                 Back
               </button>
               <button
                 onClick={onSkip}
-                className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                className="text-xs text-text-muted hover:text-text-secondary transition-colors min-h-[44px] pl-4"
               >
                 Skip
               </button>
