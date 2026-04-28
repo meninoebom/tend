@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StickyNote } from "lucide-react";
-import type { Task, Domain, SubTask } from "@/lib/api-types";
+import type { Task, Domain, SubTask, BucketType } from "@/lib/api-types";
 import { completeTask, createTask, deleteTask, updateTask, setPriority } from "@/lib/api";
 import { formatAge, ageColor, cn } from "@/lib/utils";
 import { DomainPicker } from "@/components/domain-picker";
@@ -119,6 +119,13 @@ function SubtaskItem({ child, onMutate }: SubtaskItemProps) {
   );
 }
 
+const BUCKET_LABELS: Record<BucketType, string> = {
+  today: "Today",
+  soon: "Soon",
+  later: "Later",
+  someday: "Someday",
+};
+
 interface TaskItemProps {
   task: Task;
   domains: Domain[];
@@ -126,9 +133,11 @@ interface TaskItemProps {
   isMIT?: boolean;
   onSetMIT?: (taskId: string) => void;
   compact?: boolean; // matrix mode: no editing, no subtasks, no notes
+  isExpanded?: boolean;
+  onExpand?: () => void;
 }
 
-export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: TaskItemProps) {
+export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, isExpanded, onExpand }: TaskItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -249,8 +258,13 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
   async function handleComplete() {
     if (isComplete || loading) return;
     setLoading(true);
-    await completeTask(task.id);
-    onMutate();
+    try {
+      await completeTask(task.id);
+      onMutate();
+    } catch (err) {
+      console.error("Failed to complete task:", err);
+      setLoading(false);
+    }
   }
 
   async function handleDelete() {
@@ -405,7 +419,9 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
               !isComplete && "cursor-text",
             )}
             onClick={() => {
-              if (hasChildren && !isComplete) {
+              if (!isComplete && onExpand && typeof window !== "undefined" && window.innerWidth < 768) {
+                onExpand();
+              } else if (hasChildren && !isComplete) {
                 setExpanded(!expanded);
               } else if (!isComplete) {
                 startEditing();
@@ -444,7 +460,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
         {!compact && !isEditing && !isComplete && hasChildren && (
           <button
             onClick={startEditing}
-            className="shrink-0 hover-action text-text-muted hover:text-text-secondary text-xs"
+            className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-text-secondary text-xs"
             title="Edit task"
           >
             ✎
@@ -455,7 +471,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
         {!compact && !isEditing && !isComplete && !isMIT && onSetMIT && (
           <button
             onClick={() => onSetMIT(task.id)}
-            className="shrink-0 hover-action text-text-muted hover:text-accent-blue text-xs"
+            className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-accent-blue text-xs"
             title="Set as most important task"
           >
             most important
@@ -466,7 +482,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
         {!compact && !isEditing && !isComplete && !isSubtask && !hasNote && (
           <button
             onClick={startNoteEdit}
-            className="shrink-0 hover-action text-text-muted hover:text-text-secondary"
+            className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-text-secondary"
             title="Add note"
           >
             <StickyNote className="h-3.5 w-3.5" />
@@ -477,7 +493,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
         {!compact && !isEditing && !isComplete && (
           <button
             onClick={startAddingSubtask}
-            className="shrink-0 hover-action text-text-muted hover:text-text-secondary text-xs"
+            className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-text-secondary text-xs"
             title="Add subtask"
           >
             +
@@ -491,7 +507,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
           </span>
         )}
 
-        {/* Priority pills — shown on hover, hidden on completed tasks */}
+        {/* Priority pills — shown on hover, hidden on completed tasks and on mobile */}
         {!isComplete && (
           <>
             <button
@@ -499,7 +515,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
               aria-label={important ? "Remove important" : "Mark as important"}
               title={important ? "Remove important" : "Mark as important"}
               className={cn(
-                "shrink-0 font-mono text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
+                "shrink-0 font-mono text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150 hidden md:inline-flex",
                 important
                   ? "opacity-100 border-red-500/35 bg-red-500/8 text-red-300"
                   : "opacity-0 group-hover:opacity-100 border-neutral-800 text-neutral-500 hover:text-neutral-400",
@@ -512,7 +528,7 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
               aria-label={urgent ? "Remove urgent" : "Mark as urgent"}
               title={urgent ? "Remove urgent" : "Mark as urgent"}
               className={cn(
-                "shrink-0 text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150",
+                "shrink-0 text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150 hidden md:inline-flex",
                 urgent
                   ? "opacity-100 border-amber-500/35 bg-amber-500/8 text-amber-300"
                   : "opacity-0 group-hover:opacity-100 border-neutral-800 text-neutral-500 hover:text-neutral-400",
@@ -537,14 +553,125 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact }: 
           </span>
         )}
 
-        {/* Delete */}
+        {/* Delete — desktop hover-reveal only; mobile uses action tray */}
         <button
           onClick={handleDelete}
-          className="shrink-0 hover-action text-text-muted hover:text-accent-red text-sm"
+          className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-accent-red text-sm"
         >
           ×
         </button>
+
+        {/* Mobile expand indicator */}
+        {!compact && !isComplete && onExpand && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onExpand(); }}
+            className="shrink-0 md:hidden text-text-muted transition-transform duration-150"
+            aria-label={isExpanded ? "Collapse task actions" : "Expand task actions"}
+          >
+            <svg
+              className={cn("h-3.5 w-3.5 transition-transform duration-150", isExpanded && "rotate-180")}
+              viewBox="0 0 12 12" fill="none"
+            >
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
       </div>
+
+      {/* Mobile action tray — only renders below md: breakpoint when isExpanded */}
+      {!compact && isExpanded && onExpand && (
+        <div className="md:hidden border-t border-border/50 bg-bg-hover rounded-b-lg overflow-hidden">
+          {/* Edit — close tray first so focus effect runs after layout settles */}
+          {!isComplete && (
+            <button
+              onClick={() => { onExpand(); startEditing(); }}
+              className="flex items-center gap-3 w-full min-h-[44px] px-4 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors border-b border-border/30"
+            >
+              <span className="text-base">✎</span> Edit
+            </button>
+          )}
+
+          {/* Add subtask */}
+          {!isComplete && (
+            <button
+              onClick={() => { startAddingSubtask(); onExpand(); }}
+              className="flex items-center gap-3 w-full min-h-[44px] px-4 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors border-b border-border/30"
+            >
+              <span className="text-base">+</span> Add subtask
+            </button>
+          )}
+
+          {/* Priority toggles */}
+          {!isComplete && (
+            <div className="flex border-b border-border/30">
+              <button
+                onClick={handleToggleImportant}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 min-h-[44px] text-sm transition-colors",
+                  important ? "text-red-400 bg-red-500/10" : "text-text-muted hover:text-text-secondary",
+                )}
+              >
+                <span className="font-mono">!</span> Important
+              </button>
+              <button
+                onClick={handleToggleUrgent}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 min-h-[44px] text-sm transition-colors border-l border-border/30",
+                  urgent ? "text-amber-400 bg-amber-500/10" : "text-text-muted hover:text-text-secondary",
+                )}
+              >
+                ⚡ Urgent
+              </button>
+            </div>
+          )}
+
+          {/* Move to bucket */}
+          {!isComplete && (
+            <div className="flex border-b border-border/30">
+              {(["today", "soon", "later", "someday"] as BucketType[]).map((b) => (
+                <button
+                  key={b}
+                  onClick={async () => {
+                    try {
+                      if (b !== task.bucket) {
+                        await updateTask(task.id, { bucket: b });
+                        onMutate();
+                      }
+                    } catch (err) {
+                      console.error("Failed to move task:", err);
+                    } finally {
+                      onExpand();
+                    }
+                  }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center min-h-[44px] text-xs transition-colors",
+                    b !== task.bucket && "border-l border-border/30 first:border-l-0",
+                    task.bucket === b
+                      ? "text-accent-blue bg-accent-blue/10"
+                      : "text-text-muted hover:text-text-secondary",
+                  )}
+                >
+                  {BUCKET_LABELS[b]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Delete */}
+          <button
+            onClick={async () => {
+              try {
+                await handleDelete();
+              } finally {
+                onExpand();
+              }
+            }}
+            className="flex items-center gap-3 w-full min-h-[44px] px-4 text-sm text-accent-red hover:bg-accent-red/10 transition-colors"
+          >
+            <span className="text-base">×</span> Delete
+          </button>
+        </div>
+      )}
 
       {/* Note expand/edit area */}
       {!isSubtask && noteExpanded && (

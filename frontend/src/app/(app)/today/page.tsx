@@ -91,6 +91,11 @@ function TodayContent() {
   const [activeDomainId, setActiveDomainId] = useState<string | null>(
     searchParams.get("domain_id"),
   );
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+
+  function handleExpandTask(taskId: string) {
+    setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
+  }
 
   useGlobalShortcut("n", useCallback(() => {
     taskInputRef.current?.focus();
@@ -346,6 +351,8 @@ function TodayContent() {
                 onMutate={refresh}
                 isMIT
                 onSetMIT={handleSetMIT}
+                isExpanded={expandedTaskId === mitTask.id}
+                onExpand={() => handleExpandTask(mitTask.id)}
               />
             )}
 
@@ -368,6 +375,8 @@ function TodayContent() {
                       domains={domains}
                       onMutate={refresh}
                       onSetMIT={handleSetMIT}
+                      isExpanded={expandedTaskId === task.id}
+                      onExpand={() => handleExpandTask(task.id)}
                     />
                   ))}
                 </SortableContext>
@@ -380,6 +389,8 @@ function TodayContent() {
                   domains={domains}
                   onMutate={refresh}
                   onSetMIT={handleSetMIT}
+                  isExpanded={expandedTaskId === task.id}
+                  onExpand={() => handleExpandTask(task.id)}
                 />
               ))
             )}

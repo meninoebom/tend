@@ -50,6 +50,11 @@ export default function BucketPage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+
+  function handleExpandTask(taskId: string) {
+    setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
+  }
 
   const isValid = VALID_BUCKETS.includes(bucket as (typeof VALID_BUCKETS)[number]);
   const isSomeday = bucket === "someday";
@@ -230,7 +235,14 @@ export default function BucketPage() {
               </div>
             )}
             {pending.map((task) => (
-              <TaskItem key={task.id} task={task} domains={domains} onMutate={refresh} />
+              <TaskItem
+                key={task.id}
+                task={task}
+                domains={domains}
+                onMutate={refresh}
+                isExpanded={expandedTaskId === task.id}
+                onExpand={() => handleExpandTask(task.id)}
+              />
             ))}
           </>
         )}
