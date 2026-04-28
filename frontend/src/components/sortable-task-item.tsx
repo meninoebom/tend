@@ -12,6 +12,8 @@ interface SortableTaskItemProps {
   onMutate: () => void;
   isMIT?: boolean;
   onSetMIT?: (taskId: string) => void;
+  isExpanded?: boolean;
+  onExpand?: () => void;
 }
 
 export function SortableTaskItem({
@@ -20,6 +22,8 @@ export function SortableTaskItem({
   onMutate,
   isMIT,
   onSetMIT,
+  isExpanded,
+  onExpand,
 }: SortableTaskItemProps) {
   const {
     attributes,
@@ -69,6 +73,8 @@ export function SortableTaskItem({
           onMutate={onMutate}
           isMIT={isMIT}
           onSetMIT={onSetMIT}
+          isExpanded={isExpanded}
+          onExpand={onExpand}
         />
       </div>
     </div>
