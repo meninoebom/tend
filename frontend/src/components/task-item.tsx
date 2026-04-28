@@ -119,7 +119,7 @@ function SubtaskItem({ child, onMutate }: SubtaskItemProps) {
   );
 }
 
-const BUCKET_LABELS: Record<string, string> = {
+const BUCKET_LABELS: Record<BucketType, string> = {
   today: "Today",
   soon: "Soon",
   later: "Later",
@@ -258,8 +258,13 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
   async function handleComplete() {
     if (isComplete || loading) return;
     setLoading(true);
-    await completeTask(task.id);
-    onMutate();
+    try {
+      await completeTask(task.id);
+      onMutate();
+    } catch (err) {
+      console.error("Failed to complete task:", err);
+      setLoading(false);
+    }
   }
 
   async function handleDelete() {
@@ -576,10 +581,10 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
       {/* Mobile action tray — only renders below md: breakpoint when isExpanded */}
       {!compact && isExpanded && onExpand && (
         <div className="md:hidden border-t border-border/50 bg-bg-hover rounded-b-lg overflow-hidden">
-          {/* Edit */}
+          {/* Edit — close tray first so focus effect runs after layout settles */}
           {!isComplete && (
             <button
-              onClick={() => { startEditing(); onExpand(); }}
+              onClick={() => { onExpand(); startEditing(); }}
               className="flex items-center gap-3 w-full min-h-[44px] px-4 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors border-b border-border/30"
             >
               <span className="text-base">✎</span> Edit
@@ -627,11 +632,16 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
                 <button
                   key={b}
                   onClick={async () => {
-                    if (b !== task.bucket) {
-                      await updateTask(task.id, { bucket: b });
-                      onMutate();
+                    try {
+                      if (b !== task.bucket) {
+                        await updateTask(task.id, { bucket: b });
+                        onMutate();
+                      }
+                    } catch (err) {
+                      console.error("Failed to move task:", err);
+                    } finally {
+                      onExpand();
                     }
-                    onExpand();
                   }}
                   className={cn(
                     "flex-1 flex items-center justify-center min-h-[44px] text-xs transition-colors",
@@ -649,7 +659,13 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
 
           {/* Delete */}
           <button
-            onClick={() => { handleDelete(); }}
+            onClick={async () => {
+              try {
+                await handleDelete();
+              } finally {
+                onExpand();
+              }
+            }}
             className="flex items-center gap-3 w-full min-h-[44px] px-4 text-sm text-accent-red hover:bg-accent-red/10 transition-colors"
           >
             <span className="text-base">×</span> Delete
