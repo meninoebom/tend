@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-
 interface TriageReminderBannerProps {
   onStart: () => void;
   onDismiss: () => void;
@@ -9,22 +7,13 @@ interface TriageReminderBannerProps {
 }
 
 export function TriageReminderBanner({ onStart, onDismiss, isFirstTime }: TriageReminderBannerProps) {
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onDismiss();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onDismiss]);
-
   const message = isFirstTime
     ? "Ready for your first triage? It only takes a few minutes."
     : "Time to triage — you haven't sorted today's tasks yet.";
 
   return (
     <div
-      role="dialog"
-      aria-modal="false"
+      role="status"
       aria-label="Triage reminder"
       className="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 animate-[slideDown_300ms_ease-out]"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
