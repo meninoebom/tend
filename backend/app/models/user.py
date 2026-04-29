@@ -26,6 +26,8 @@ class User(SQLModel, table=True):
         default=LayoutType.list,
         sa_column=Column(String, nullable=False, server_default="list"),
     )
+    triage_reminder_enabled: bool = Field(default=True)
+    triage_reminder_hour: int = Field(default=7)  # 0–23, user's local hour
 
     # Relationships — lazy="raise" prevents N+1 queries
     tasks: list["Task"] = Relationship(  # noqa: F821

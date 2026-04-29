@@ -42,6 +42,8 @@ def _to_response(user: User) -> UserResponse:
         subscription_status=user.subscription_status,
         is_pro=user.subscription_status in ("active", "past_due"),
         default_layout=user.default_layout,
+        triage_reminder_enabled=user.triage_reminder_enabled,
+        triage_reminder_hour=user.triage_reminder_hour,
     )
 
 
@@ -179,6 +181,12 @@ def update_me(
 
     if body.default_layout is not None:
         user.default_layout = body.default_layout
+
+    if body.triage_reminder_enabled is not None:
+        user.triage_reminder_enabled = body.triage_reminder_enabled
+
+    if body.triage_reminder_hour is not None:
+        user.triage_reminder_hour = body.triage_reminder_hour
 
     db.add(user)
     db.flush()

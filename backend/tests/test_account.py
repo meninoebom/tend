@@ -35,6 +35,29 @@ class TestAccount:
         assert r.status_code == 200
         assert r.json()["has_completed_onboarding"] is True
 
+    def test_get_me_includes_triage_reminder_fields(self, client, test_user):
+        r = client.get("/me")
+        assert r.status_code == 200
+        data = r.json()
+        assert "triage_reminder_enabled" in data
+        assert "triage_reminder_hour" in data
+        assert data["triage_reminder_enabled"] is True
+        assert data["triage_reminder_hour"] == 7
+
+    def test_update_me_triage_reminder_enabled(self, client, test_user):
+        r = client.patch("/me", json={"triage_reminder_enabled": False})
+        assert r.status_code == 200
+        assert r.json()["triage_reminder_enabled"] is False
+
+    def test_update_me_triage_reminder_hour_valid(self, client, test_user):
+        r = client.patch("/me", json={"triage_reminder_hour": 9})
+        assert r.status_code == 200
+        assert r.json()["triage_reminder_hour"] == 9
+
+    def test_update_me_triage_reminder_hour_invalid(self, client, test_user):
+        r = client.patch("/me", json={"triage_reminder_hour": 25})
+        assert r.status_code == 422
+
     def test_verify_user_success(self, client, db):
         """Verify correct email/password returns user."""
         client.post("/users", json={"email": "verify@tend.app", "password": "correct123"})
