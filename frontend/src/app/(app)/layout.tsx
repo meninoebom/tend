@@ -3,13 +3,13 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import type { TriageQueue, User } from "@/lib/api-types";
+import type { User } from "@/lib/api-types";
 import { getTriageQueue, getMe, createCheckout, getAppState } from "@/lib/api";
 import type { BucketCounts } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
-import { TriageModal } from "@/components/triage-modal";
 import { WinddownModal } from "@/components/winddown-modal";
+import { TriageReminderBanner } from "@/components/triage-reminder-banner";
 import { DomainNav } from "@/components/domain-nav";
 
 type NavIconName = "review" | "today" | "soon" | "later" | "someday" | "done" | "settings";
@@ -49,10 +49,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [showTriageModal, setShowTriageModal] = useState(false);
   const [showWinddownModal, setShowWinddownModal] = useState(false);
+  const [triagePending, setTriagePending] = useState(false);
+  const [showTriageBanner, setShowTriageBanner] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [triageQueue, setTriageQueue] = useState<TriageQueue | undefined>(undefined);
   const [user, setUser] = useState<User | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const onboardingVerified = useRef(false);
@@ -135,17 +135,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (skipGates || !onboardingChecked) return;
 
     if (isTriageDoneToday()) {
+      setTriagePending(false);
       return;
     }
 
     getTriageQueue()
       .then((q) => {
         if (!q.triage_complete && q.tasks.length > 0) {
-          setTriageQueue(q);
-          setShowTriageModal(true);
+          setTriagePending(true);
+          setShowTriageBanner(true);
         } else {
-          // Backend says triage is complete — remember for this session
           markTriageDone();
+          setTriagePending(false);
         }
       })
       .catch((err) => {
@@ -170,7 +171,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const showContent = skipGates || onboardingChecked;
   const hideNav = pathname === "/onboarding";
-  const modalOpen = showTriageModal || showWinddownModal;
+  const modalOpen = showWinddownModal;
 
   const mainNavItems = navItems.filter((item) => item.icon !== "settings");
   const settingsItem = navItems.find((item) => item.icon === "settings")!;
@@ -204,6 +205,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Main nav items */}
           <div className="flex flex-col gap-0.5 px-3">
+            {triagePending && (
+              <button
+                onClick={() => router.push("/triage")}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors duration-150 text-accent-blue hover:bg-accent-blue/10 font-medium"
+              >
+                <NavIcon name="review" className="text-accent-blue" />
+                <span className="flex-1 text-left">Morning triage</span>
+                <span className="h-2 w-2 rounded-full bg-accent-blue shrink-0" />
+              </button>
+            )}
             {mainNavItems.map((item) => {
               const isActive = pathname === item.href;
               const bucket = item.href === "/today" ? "today"
@@ -365,13 +376,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
       )}
 
-      {/* Ritual modals */}
-      {showTriageModal && (
-        <TriageModal
-          onComplete={() => { setShowTriageModal(false); markTriageDone(); setRefreshKey((k) => k + 1); }}
-          initialQueue={triageQueue}
+      {/* Triage reminder banner — toast nudge, page stays visible */}
+      {showTriageBanner && !skipGates && (
+        <TriageReminderBanner
+          onStart={() => { setShowTriageBanner(false); router.push("/triage"); }}
+          onDismiss={() => setShowTriageBanner(false)}
+          isFirstTime={user ? !user.has_triaged_before : false}
         />
       )}
+
+      {/* Winddown ritual modal */}
       {showWinddownModal && (
         <WinddownModal onComplete={() => { setShowWinddownModal(false); setRefreshKey((k) => k + 1); }} />
       )}
