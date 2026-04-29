@@ -46,6 +46,18 @@ body {
   to { opacity: 1; }
 }
 
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes slideDown {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
 /* Task action buttons: visible on touch, hover-reveal on mouse */
 @media (hover: hover) {
   .hover-action {
