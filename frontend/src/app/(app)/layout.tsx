@@ -49,7 +49,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [triageChecked, setTriageChecked] = useState(false);
   const [showTriageModal, setShowTriageModal] = useState(false);
   const [showWinddownModal, setShowWinddownModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -136,7 +135,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (skipGates || !onboardingChecked) return;
 
     if (isTriageDoneToday()) {
-      setTriageChecked(true);
       return;
     }
 
@@ -149,11 +147,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           // Backend says triage is complete — remember for this session
           markTriageDone();
         }
-        setTriageChecked(true);
       })
       .catch((err) => {
         console.error("Triage check failed:", err);
-        setTriageChecked(true);
       });
   }
 
@@ -172,7 +168,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [skipGates, onboardingChecked]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const showContent = skipGates || (onboardingChecked && triageChecked);
+  const showContent = skipGates || onboardingChecked;
   const hideNav = pathname === "/onboarding";
   const modalOpen = showTriageModal || showWinddownModal;
 
