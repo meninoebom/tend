@@ -29,6 +29,8 @@ class UserResponse(BaseModel):
     subscription_status: str = "free"
     is_pro: bool = False
     default_layout: LayoutType = LayoutType.list
+    triage_reminder_enabled: bool
+    triage_reminder_hour: int
 
 
 class OAuthUser(BaseModel):
@@ -43,6 +45,15 @@ class UserVerify(BaseModel):
 class UserUpdate(BaseModel):
     has_completed_onboarding: bool | None = None
     default_layout: LayoutType | None = None
+    triage_reminder_enabled: bool | None = None
+    triage_reminder_hour: int | None = None
+
+    @field_validator("triage_reminder_hour")
+    @classmethod
+    def validate_reminder_hour(cls, v: int | None) -> int | None:
+        if v is not None and not (0 <= v <= 23):
+            raise ValueError("triage_reminder_hour must be between 0 and 23")
+        return v
 
 
 class ForgotPasswordRequest(BaseModel):
