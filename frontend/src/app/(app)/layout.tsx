@@ -381,6 +381,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <TriageReminderBanner
           onStart={() => { setShowTriageBanner(false); router.push("/triage"); }}
           onDismiss={() => setShowTriageBanner(false)}
+          onSkipForToday={() => {
+            markTriageDone();
+            setTriagePending(false);
+            setShowTriageBanner(false);
+          }}
           isFirstTime={user ? !user.has_triaged_before : false}
         />
       )}

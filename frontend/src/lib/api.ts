@@ -67,6 +67,8 @@ export async function createTask(body: {
   domain_id?: string;
   parent_id?: string;
   skip_triage_stamp?: boolean;
+  important?: boolean;
+  urgent?: boolean;
 }): Promise<Task> {
   return request<Task>("tasks", { method: "POST", body: JSON.stringify(body) });
 }

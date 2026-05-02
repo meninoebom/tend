@@ -99,7 +99,7 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
         )}
       </button>
       {isOpen && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-10 flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg">
+        <div className="absolute top-full left-0 mt-1 z-10 flex flex-wrap items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg max-w-[calc(100vw-2rem)]">
           {domains.map((d) => (
             <button
               key={d.id}

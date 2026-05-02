@@ -3,10 +3,16 @@
 interface TriageReminderBannerProps {
   onStart: () => void;
   onDismiss: () => void;
+  onSkipForToday: () => void;
   isFirstTime?: boolean;
 }
 
-export function TriageReminderBanner({ onStart, onDismiss, isFirstTime }: TriageReminderBannerProps) {
+export function TriageReminderBanner({
+  onStart,
+  onDismiss,
+  onSkipForToday,
+  isFirstTime,
+}: TriageReminderBannerProps) {
   const message = isFirstTime
     ? "Ready for your first triage? It only takes a few minutes."
     : "Time to triage — you haven't sorted today's tasks yet.";
@@ -23,19 +29,27 @@ export function TriageReminderBanner({ onStart, onDismiss, isFirstTime }: Triage
           <p className="text-sm font-medium text-text-primary">Triage reminder</p>
           <p className="text-sm text-text-secondary leading-snug">{message}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="space-y-2">
           <button
             onClick={onStart}
-            className="flex-1 bg-accent-blue text-white rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-accent-blue/90 transition-colors min-h-[44px]"
+            className="w-full bg-accent-blue text-white rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-accent-blue/90 transition-colors min-h-[44px]"
           >
             Start triage
           </button>
-          <button
-            onClick={onDismiss}
-            className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm text-text-secondary hover:bg-bg-hover transition-colors min-h-[44px]"
-          >
-            Maybe later
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onSkipForToday}
+              className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm text-text-secondary hover:bg-bg-hover transition-colors min-h-[44px]"
+            >
+              Skip for today
+            </button>
+            <button
+              onClick={onDismiss}
+              className="flex-1 rounded-xl px-4 py-2.5 text-xs text-text-muted hover:text-text-secondary hover:bg-bg-hover transition-colors min-h-[44px]"
+            >
+              Maybe later
+            </button>
+          </div>
         </div>
       </div>
     </div>

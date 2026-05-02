@@ -21,6 +21,8 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
   const [phase, setPhase] = useState<Phase>("typing");
   // Index into [undefined, ...domains] where undefined = "None"
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [important, setImportant] = useState(false);
+  const [urgent, setUrgent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +39,8 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
   const resetToTyping = useCallback(() => {
     setText("");
     setSelectedIndex(0);
+    setImportant(false);
+    setUrgent(false);
     setPhase("typing");
     setShouldRefocus(true);
   }, []);
@@ -45,13 +49,19 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
     setPhase("submitting");
     const domainId = domainIndex > 0 ? domains[domainIndex - 1]?.id : undefined;
     try {
-      await createTask({ text: taskText, bucket, domain_id: domainId });
+      await createTask({
+        text: taskText,
+        bucket,
+        domain_id: domainId,
+        important: important || undefined,
+        urgent: urgent || undefined,
+      });
       onCreated();
     } catch (err) {
       console.error("Failed to create task:", err);
     }
     resetToTyping();
-  }, [bucket, domains, onCreated, resetToTyping]);
+  }, [bucket, domains, important, urgent, onCreated, resetToTyping]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
@@ -128,6 +138,44 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
           disabled={isDisabled || phase === "selecting"}
           className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none disabled:opacity-50"
         />
+        <button
+          type="button"
+          onClick={() => setImportant((v) => !v)}
+          disabled={isDisabled}
+          aria-label={important ? "Remove important" : "Mark as important"}
+          aria-pressed={important}
+          title={important ? "Remove important" : "Mark as important"}
+          className="shrink-0 h-11 w-11 inline-flex items-center justify-center disabled:opacity-50"
+        >
+          <span
+            className={`font-mono text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150 ${
+              important
+                ? "border-red-500/35 bg-red-500/8 text-red-300"
+                : "border-neutral-800 text-neutral-500 hover:text-neutral-400"
+            }`}
+          >
+            !
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setUrgent((v) => !v)}
+          disabled={isDisabled}
+          aria-label={urgent ? "Remove urgent" : "Mark as urgent"}
+          aria-pressed={urgent}
+          title={urgent ? "Remove urgent" : "Mark as urgent"}
+          className="shrink-0 h-11 w-11 inline-flex items-center justify-center disabled:opacity-50"
+        >
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded border transition-all duration-150 ${
+              urgent
+                ? "border-amber-500/35 bg-amber-500/8 text-amber-300"
+                : "border-neutral-800 text-neutral-500 hover:text-neutral-400"
+            }`}
+          >
+            ⚡
+          </span>
+        </button>
         {phase === "typing" && text.length > 0 && (
           <span className="text-xs text-text-muted shrink-0">{text.length}/500</span>
         )}
