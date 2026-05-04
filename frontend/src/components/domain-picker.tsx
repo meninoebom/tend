@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { Domain, DomainBrief } from "@/lib/api-types";
 import { updateTask } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -12,12 +13,15 @@ interface DomainPickerProps {
   onMutate: () => void;
 }
 
+type Coords = { top: number; left: number };
+
 export function DomainPicker({ taskId, currentDomain, domains, onMutate }: DomainPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Close picker when domain changes externally (plan edge case #3)
   useEffect(() => {
@@ -31,14 +35,15 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
     return () => clearTimeout(timer);
   }, [error]);
 
-  // Click-outside and Escape handlers
+  // Click-outside, Escape, scroll, resize
   useEffect(() => {
     if (!isOpen) return;
     function handleClickOutside(e: MouseEvent) {
-      const target = e.target;
-      if (target instanceof Node && ref.current && !ref.current.contains(target)) {
-        setIsOpen(false);
-      }
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (triggerRef.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      setIsOpen(false);
     }
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -46,11 +51,18 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
         setIsOpen(false);
       }
     }
+    function close() {
+      setIsOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
     };
   }, [isOpen]);
 
@@ -75,22 +87,32 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
   }
 
   function handleToggle() {
-    if (!isOpen && ref.current) {
-      // Estimate dropdown height (~36px) and flip up if there's not enough room below.
-      const rect = ref.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenUpward(spaceBelow < 80);
+    if (isOpen) {
+      setIsOpen(false);
+      return;
     }
-    setIsOpen((v) => !v);
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    // ~36px popover height, ~72px per item width estimate
+    const popoverHeight = 36;
+    const estimatedWidth = (domains.length + 1) * 72;
+    const openUpward = window.innerHeight - rect.bottom < popoverHeight + 8;
+    const top = openUpward ? rect.top - popoverHeight - 4 : rect.bottom + 4;
+    // Anchor at trigger's left, but clamp so popover stays in viewport.
+    const maxLeft = window.innerWidth - estimatedWidth - 8;
+    const left = Math.max(8, Math.min(rect.left, maxLeft));
+    setCoords({ top, left });
+    setIsOpen(true);
   }
 
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <>
       <button
+        ref={triggerRef}
         onClick={handleToggle}
         disabled={loading}
         className={cn(
-          "h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
+          "shrink-0 h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
           error
             ? "border-accent-red"
             : "border-border hover:border-text-secondary",
@@ -109,51 +131,56 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
           <span className="text-text-muted text-[10px]">+</span>
         )}
       </button>
-      {isOpen && (
-        <div
-          className={cn(
-            "absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg",
-            openUpward ? "bottom-full mb-1" : "top-full mt-1",
-          )}
-        >
-          {domains.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => selectDomain(d.id)}
-              disabled={loading}
-              className={cn(
-                "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
-                currentDomain?.id === d.id
-                  ? "bg-bg-hover"
-                  : "hover:bg-bg-hover",
-              )}
-              aria-label={`Set domain to ${d.name}`}
-              title={d.name}
+      {isOpen && coords && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              style={{
+                position: "fixed",
+                top: coords.top,
+                left: coords.left,
+                zIndex: 60,
+                backgroundColor: "var(--color-bg-card)",
+                boxShadow: "0 12px 32px -8px rgba(0,0,0,0.25), 0 4px 12px -2px rgba(0,0,0,0.12)",
+              }}
+              className="flex items-center gap-1 border border-border rounded-lg px-1.5 py-1.5"
             >
-              <span
-                className="h-2.5 w-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: d.color }}
-              />
-              <span className="text-[10px] text-text-secondary whitespace-nowrap">{d.name}</span>
-            </button>
-          ))}
-          <button
-            onClick={() => selectDomain(null)}
-            disabled={loading}
-            className={cn(
-              "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
-              !currentDomain
-                ? "bg-bg-hover"
-                : "hover:bg-bg-hover",
-            )}
-            aria-label="Clear domain"
-            title="None"
-          >
-            <span className="h-2.5 w-2.5 rounded-full border border-text-muted shrink-0" />
-            <span className="text-[10px] text-text-muted whitespace-nowrap">None</span>
-          </button>
-        </div>
-      )}
-    </div>
+              {domains.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => selectDomain(d.id)}
+                  disabled={loading}
+                  className={cn(
+                    "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                    currentDomain?.id === d.id ? "bg-bg-hover" : "hover:bg-bg-hover",
+                  )}
+                  aria-label={`Set domain to ${d.name}`}
+                  title={d.name}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: d.color }}
+                  />
+                  <span className="text-[10px] text-text-secondary whitespace-nowrap">{d.name}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => selectDomain(null)}
+                disabled={loading}
+                className={cn(
+                  "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                  !currentDomain ? "bg-bg-hover" : "hover:bg-bg-hover",
+                )}
+                aria-label="Clear domain"
+                title="None"
+              >
+                <span className="h-2.5 w-2.5 rounded-full border border-text-muted shrink-0" />
+                <span className="text-[10px] text-text-muted whitespace-nowrap">None</span>
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
