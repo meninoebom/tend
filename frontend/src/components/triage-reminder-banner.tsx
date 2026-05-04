@@ -2,11 +2,12 @@
 
 interface TriageReminderBannerProps {
   onStart: () => void;
-  onDismiss: () => void;
+  onSkipToday: () => void;
+  onTurnOff: () => void;
   isFirstTime?: boolean;
 }
 
-export function TriageReminderBanner({ onStart, onDismiss, isFirstTime }: TriageReminderBannerProps) {
+export function TriageReminderBanner({ onStart, onSkipToday, onTurnOff, isFirstTime }: TriageReminderBannerProps) {
   const message = isFirstTime
     ? "Ready for your first triage? It only takes a few minutes."
     : "Time to triage — you haven't sorted today's tasks yet.";
@@ -31,12 +32,18 @@ export function TriageReminderBanner({ onStart, onDismiss, isFirstTime }: Triage
             Start triage
           </button>
           <button
-            onClick={onDismiss}
+            onClick={onSkipToday}
             className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm text-text-secondary hover:bg-bg-hover transition-colors min-h-[44px]"
           >
-            Maybe later
+            Skip today
           </button>
         </div>
+        <button
+          onClick={onTurnOff}
+          className="block w-full text-center text-xs text-text-muted hover:text-text-secondary transition-colors py-1"
+        >
+          Turn off reminders
+        </button>
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close picker when domain changes externally (plan edge case #3)
@@ -73,10 +74,20 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
     }
   }
 
+  function handleToggle() {
+    if (!isOpen && ref.current) {
+      // Estimate dropdown height (~36px) and flip up if there's not enough room below.
+      const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 80);
+    }
+    setIsOpen((v) => !v);
+  }
+
   return (
     <div className="relative shrink-0" ref={ref}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         disabled={loading}
         className={cn(
           "h-5 w-5 rounded-full border flex items-center justify-center transition-colors",
@@ -99,7 +110,12 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
         )}
       </button>
       {isOpen && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-10 flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg">
+        <div
+          className={cn(
+            "absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg",
+            openUpward ? "bottom-full mb-1" : "top-full mt-1",
+          )}
+        >
           {domains.map((d) => (
             <button
               key={d.id}
