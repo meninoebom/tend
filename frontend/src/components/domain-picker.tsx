@@ -93,13 +93,12 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
     }
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    // ~36px popover height, ~72px per item width estimate
-    const popoverHeight = 36;
-    const estimatedWidth = (domains.length + 1) * 72;
+    // Vertical menu: ~28px per row + padding, ~140px wide
+    const popoverWidth = 140;
+    const popoverHeight = (domains.length + 1) * 28 + 8;
     const openUpward = window.innerHeight - rect.bottom < popoverHeight + 8;
     const top = openUpward ? rect.top - popoverHeight - 4 : rect.bottom + 4;
-    // Anchor at trigger's left, but clamp so popover stays in viewport.
-    const maxLeft = window.innerWidth - estimatedWidth - 8;
+    const maxLeft = window.innerWidth - popoverWidth - 8;
     const left = Math.max(8, Math.min(rect.left, maxLeft));
     setCoords({ top, left });
     setIsOpen(true);
@@ -143,7 +142,7 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
                 backgroundColor: "var(--color-bg-card)",
                 boxShadow: "0 12px 32px -8px rgba(0,0,0,0.25), 0 4px 12px -2px rgba(0,0,0,0.12)",
               }}
-              className="flex items-center gap-1 border border-border rounded-lg px-1.5 py-1.5"
+              className="flex flex-col w-[140px] border border-border rounded-lg p-1"
             >
               {domains.map((d) => (
                 <button
@@ -151,7 +150,7 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
                   onClick={() => selectDomain(d.id)}
                   disabled={loading}
                   className={cn(
-                    "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                    "flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors",
                     currentDomain?.id === d.id ? "bg-bg-hover" : "hover:bg-bg-hover",
                   )}
                   aria-label={`Set domain to ${d.name}`}
@@ -161,21 +160,21 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
                     className="h-2.5 w-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: d.color }}
                   />
-                  <span className="text-[10px] text-text-secondary whitespace-nowrap">{d.name}</span>
+                  <span className="text-xs text-text-secondary truncate">{d.name}</span>
                 </button>
               ))}
               <button
                 onClick={() => selectDomain(null)}
                 disabled={loading}
                 className={cn(
-                  "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                  "flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors",
                   !currentDomain ? "bg-bg-hover" : "hover:bg-bg-hover",
                 )}
                 aria-label="Clear domain"
                 title="None"
               >
                 <span className="h-2.5 w-2.5 rounded-full border border-text-muted shrink-0" />
-                <span className="text-[10px] text-text-muted whitespace-nowrap">None</span>
+                <span className="text-xs text-text-muted">None</span>
               </button>
             </div>,
             document.body,
