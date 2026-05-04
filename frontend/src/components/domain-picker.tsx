@@ -135,8 +135,15 @@ export function DomainPicker({ taskId, currentDomain, domains, onMutate }: Domai
         ? createPortal(
             <div
               ref={popoverRef}
-              style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 60 }}
-              className="flex items-center gap-1 bg-bg-card border border-border rounded-lg px-1.5 py-1.5 shadow-lg"
+              style={{
+                position: "fixed",
+                top: coords.top,
+                left: coords.left,
+                zIndex: 60,
+                backgroundColor: "var(--color-bg-card)",
+                boxShadow: "0 12px 32px -8px rgba(0,0,0,0.25), 0 4px 12px -2px rgba(0,0,0,0.12)",
+              }}
+              className="flex items-center gap-1 border border-border rounded-lg px-1.5 py-1.5"
             >
               {domains.map((d) => (
                 <button
