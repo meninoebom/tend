@@ -67,6 +67,8 @@ export async function createTask(body: {
   domain_id?: string;
   parent_id?: string;
   skip_triage_stamp?: boolean;
+  important?: boolean;
+  urgent?: boolean;
 }): Promise<Task> {
   return request<Task>("tasks", { method: "POST", body: JSON.stringify(body) });
 }
@@ -164,6 +166,8 @@ export async function getMe(): Promise<User> {
 export async function updateMe(body: {
   has_completed_onboarding?: boolean;
   default_layout?: LayoutMode;
+  triage_reminder_enabled?: boolean;
+  triage_reminder_hour?: number;
 }): Promise<User> {
   return request<User>("me", { method: "PATCH", body: JSON.stringify(body) });
 }

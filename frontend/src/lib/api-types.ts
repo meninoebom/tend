@@ -104,6 +104,8 @@ export interface User {
   subscription_status: "free" | "active" | "past_due" | "canceled";
   is_pro: boolean;
   default_layout: LayoutMode;
+  triage_reminder_enabled: boolean;
+  triage_reminder_hour: number;
 }
 
 // Billing

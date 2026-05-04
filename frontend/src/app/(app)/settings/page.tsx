@@ -14,6 +14,7 @@ import {
   sendFeedback,
   createCheckout,
   createPortalSession,
+  updateMe,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
@@ -342,6 +343,34 @@ function SettingsContent() {
       )}
 
       {/* Appearance */}
+      {/* Triage reminders */}
+      <section className="space-y-3 pt-4 border-t border-border">
+        <h2 className="text-sm font-medium text-text-secondary">Triage reminders</h2>
+        <p className="text-xs text-text-muted leading-relaxed">
+          A daily nudge to triage your tasks. You can still triage anytime from the sidebar.
+        </p>
+        <button
+          onClick={async () => {
+            if (!user) return;
+            const next = !user.triage_reminder_enabled;
+            try {
+              const updated = await updateMe({ triage_reminder_enabled: next });
+              setUser(updated);
+            } catch (err) {
+              console.error("Failed to update reminder setting:", err);
+            }
+          }}
+          className={cn(
+            "flex items-center gap-3 text-sm border rounded-lg px-4 py-2 transition-colors",
+            user?.triage_reminder_enabled
+              ? "text-text-secondary border-border hover:bg-bg-hover"
+              : "text-text-muted border-border hover:bg-bg-hover",
+          )}
+        >
+          {user?.triage_reminder_enabled ? "Reminders on — turn off" : "Reminders off — turn on"}
+        </button>
+      </section>
+
       <section className="space-y-3 pt-4 border-t border-border">
         <h2 className="text-sm font-medium text-text-secondary">Appearance</h2>
         <button

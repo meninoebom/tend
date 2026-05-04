@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { User } from "@/lib/api-types";
-import { getTriageQueue, getMe, createCheckout, getAppState } from "@/lib/api";
+import { getTriageQueue, getMe, updateMe, createCheckout, getAppState } from "@/lib/api";
 import type { BucketCounts } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
@@ -122,6 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Once triage is done (completed or skipped) for the day, we store it in
   // sessionStorage so no re-check can re-trigger the modal.
   const TRIAGE_DONE_KEY = "triage_done_today";
+  const TRIAGE_SKIP_KEY = "triage_skipped_date";
 
   function isTriageDoneToday() {
     return sessionStorage.getItem(TRIAGE_DONE_KEY) === new Date().toDateString();
@@ -131,8 +132,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     sessionStorage.setItem(TRIAGE_DONE_KEY, new Date().toDateString());
   }
 
+  function isTriageSkippedToday() {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(TRIAGE_SKIP_KEY) === new Date().toDateString();
+  }
+
+  function markTriageSkippedToday() {
+    localStorage.setItem(TRIAGE_SKIP_KEY, new Date().toDateString());
+  }
+
   function checkTriage() {
     if (skipGates || !onboardingChecked) return;
+    if (user && !user.triage_reminder_enabled) {
+      setTriagePending(false);
+      return;
+    }
 
     if (isTriageDoneToday()) {
       setTriagePending(false);
@@ -143,7 +157,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .then((q) => {
         if (!q.triage_complete && q.tasks.length > 0) {
           setTriagePending(true);
-          setShowTriageBanner(true);
+          // Banner is dismissed via hard skip, but the rail link still shows.
+          if (!isTriageSkippedToday()) {
+            setShowTriageBanner(true);
+          }
         } else {
           markTriageDone();
           setTriagePending(false);
@@ -156,7 +173,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     checkTriage();
-  }, [pathname, skipGates, onboardingChecked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname, skipGates, onboardingChecked, user?.triage_reminder_enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-check triage when a stale tab becomes visible again
   useEffect(() => {
@@ -380,7 +397,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {showTriageBanner && !skipGates && (
         <TriageReminderBanner
           onStart={() => { setShowTriageBanner(false); router.push("/triage"); }}
-          onDismiss={() => setShowTriageBanner(false)}
+          onSkipToday={() => {
+            markTriageSkippedToday();
+            setShowTriageBanner(false);
+          }}
+          onTurnOff={async () => {
+            setShowTriageBanner(false);
+            try {
+              const updated = await updateMe({ triage_reminder_enabled: false });
+              setUser(updated);
+            } catch (err) {
+              console.error("Failed to disable reminders:", err);
+            }
+          }}
           isFirstTime={user ? !user.has_triaged_before : false}
         />
       )}

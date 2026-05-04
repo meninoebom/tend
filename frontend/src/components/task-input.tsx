@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { BucketType, Domain } from "@/lib/api-types";
 import { createTask } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 type Phase = "typing" | "selecting" | "submitting";
 
@@ -21,6 +22,8 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
   const [phase, setPhase] = useState<Phase>("typing");
   // Index into [undefined, ...domains] where undefined = "None"
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [important, setImportant] = useState(false);
+  const [urgent, setUrgent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,15 +40,23 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
   const resetToTyping = useCallback(() => {
     setText("");
     setSelectedIndex(0);
+    setImportant(false);
+    setUrgent(false);
     setPhase("typing");
     setShouldRefocus(true);
   }, []);
 
-  const submitTask = useCallback(async (taskText: string, domainIndex: number) => {
+  const submitTask = useCallback(async (taskText: string, domainIndex: number, isImportant: boolean, isUrgent: boolean) => {
     setPhase("submitting");
     const domainId = domainIndex > 0 ? domains[domainIndex - 1]?.id : undefined;
     try {
-      await createTask({ text: taskText, bucket, domain_id: domainId });
+      await createTask({
+        text: taskText,
+        bucket,
+        domain_id: domainId,
+        important: isImportant,
+        urgent: isUrgent,
+      });
       onCreated();
     } catch (err) {
       console.error("Failed to create task:", err);
@@ -61,7 +72,7 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
 
     if (!hasDomains) {
       // No domains — skip Phase 2, create immediately
-      submitTask(trimmed, 0);
+      submitTask(trimmed, 0, important, urgent);
     } else {
       setPhase("selecting");
     }
@@ -82,15 +93,26 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
         setSelectedIndex((prev) => (prev - 1 + optionCount) % optionCount);
         break;
       }
+      case "!": {
+        e.preventDefault();
+        setImportant((v) => !v);
+        break;
+      }
+      case "u":
+      case "U": {
+        e.preventDefault();
+        setUrgent((v) => !v);
+        break;
+      }
       case "Enter": {
         e.preventDefault();
-        submitTask(text.trim(), selectedIndex);
+        submitTask(text.trim(), selectedIndex, important, urgent);
         break;
       }
       case "Escape": {
         e.preventDefault();
         // Skip domain, create with no domain
-        submitTask(text.trim(), 0);
+        submitTask(text.trim(), 0, important, urgent);
         break;
       }
     }
@@ -153,7 +175,7 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
             tabIndex={-1}
             onClick={() => {
               setSelectedIndex(0);
-              submitTask(text.trim(), 0);
+              submitTask(text.trim(), 0, important, urgent);
             }}
             className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-all ${
               selectedIndex === 0
@@ -178,7 +200,7 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
                 tabIndex={-1}
                 onClick={() => {
                   setSelectedIndex(optIndex);
-                  submitTask(text.trim(), optIndex);
+                  submitTask(text.trim(), optIndex, important, urgent);
                 }}
                 className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-all ${
                   isActive
@@ -197,8 +219,47 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
             );
           })}
 
+          {/* Divider */}
+          <span className="h-4 w-px bg-border mx-1" aria-hidden />
+
+          {/* Important toggle */}
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setImportant((v) => !v)}
+            aria-pressed={important}
+            aria-label={important ? "Remove important" : "Mark as important"}
+            title={important ? "Important (press !)" : "Important (press !)"}
+            className={cn(
+              "shrink-0 font-mono text-[11px] h-6 w-6 rounded border flex items-center justify-center transition-all",
+              important
+                ? "border-red-500/40 bg-red-500/10 text-red-400"
+                : "border-border text-text-muted hover:border-text-muted",
+            )}
+          >
+            !
+          </button>
+
+          {/* Urgent toggle */}
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setUrgent((v) => !v)}
+            aria-pressed={urgent}
+            aria-label={urgent ? "Remove urgent" : "Mark as urgent"}
+            title={urgent ? "Urgent (press u)" : "Urgent (press u)"}
+            className={cn(
+              "shrink-0 text-[11px] h-6 w-6 rounded border flex items-center justify-center transition-all",
+              urgent
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                : "border-border text-text-muted hover:border-text-muted",
+            )}
+          >
+            ⚡
+          </button>
+
           <span className="text-xs text-text-muted ml-1">
-            ← → then Enter
+            ← → ! u then Enter
           </span>
         </div>
       </div>
