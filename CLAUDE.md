@@ -266,6 +266,13 @@ All interactive elements must meet the 44px minimum tap target on mobile. Patter
 ### Color picker layout on mobile
 The 10 preset color dots in settings (`h-7 w-7` each) should NOT be in a single `flex` row alongside an input and action buttons — that row overflows at 320px. Structure as `flex-col`: color dots row first (`flex flex-wrap gap-1.5`), input + buttons row second.
 
+### Floating popovers: portal + vertical menu
+Floating popovers anchored to a row inside `SortableTaskItem` (or any `transform`-wrapped ancestor — dnd-kit applies one even when idle) get trapped in that ancestor's stacking context, so `z-index` alone can't lift them. Two-part rule:
+1. **Always portal** floating popovers to `document.body` via `createPortal`, position with `fixed` from `getBoundingClientRect()` on the trigger. Bumping `z-index` on absolute-positioned children does nothing here.
+2. **Use a vertical menu (`flex flex-col` + fixed width like `w-[140px]`)**, not a horizontal pill row. Horizontal rows scale with item count and overflow narrow viewports / sidebars / quadrant cards; vertical menus never do.
+
+`domain-picker.tsx` follows this pattern. Mirror it for any new task-row popover.
+
 ## Merging PRs
 
 After creating a PR:
