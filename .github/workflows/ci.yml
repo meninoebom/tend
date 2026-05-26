@@ -1,10 +1,17 @@
 name: CI
 
+# PR-only. The required `check` is produced by the PR run, so re-running on the
+# squash-merge commit (push) was pure duplication. Railway auto-deploys from git
+# push independently of Actions, so deploys are unaffected. See
+# ~/.claude/knowledge-base/github-actions-cost-control.md
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
