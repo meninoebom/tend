@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   type DragEndEvent,
@@ -12,9 +13,9 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { setPriority } from "@/lib/api";
+import { setPriority, updateTask } from "@/lib/api";
 import { DraggableTaskItem } from "@/components/draggable-task-item";
-import { BucketTabs } from "@/components/layouts/bucket-tabs";
+import { DroppableBucketTabs } from "@/components/layouts/droppable-bucket-tabs";
 
 interface QuadrantLayoutProps {
   tasks: Task[];
@@ -136,7 +137,23 @@ export function QuadrantLayout({
   activeBucket,
   onBucketChange,
 }: QuadrantLayoutProps) {
-  const bucketTasks = tasks.filter((t) => t.status === "pending" && t.bucket === activeBucket);
+  // Optimistic overlay: a drop applies the change locally before the API call
+  // resolves, so the card lands instantly. Cleared once `tasks` reflects the
+  // change (the parent only swaps the `tasks` reference on a refetch, which is
+  // triggered by our own onMutate — so by the time we clear, the real data
+  // already matches the optimistic state and there's no flicker).
+  const [overrides, setOverrides] = useState<
+    Record<string, { important?: boolean; urgent?: boolean; bucket?: BucketType }>
+  >({});
+  useEffect(() => setOverrides({}), [tasks]);
+
+  const effectiveTasks = useMemo(
+    () => tasks.map((t) => (overrides[t.id] ? { ...t, ...overrides[t.id] } : t)),
+    [tasks, overrides],
+  );
+  const bucketTasks = effectiveTasks.filter(
+    (t) => t.status === "pending" && t.bucket === activeBucket,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -148,21 +165,34 @@ export function QuadrantLayout({
     const { active, over } = event;
     if (!over) return;
 
-    const task = bucketTasks.find((t) => t.id === active.id);
+    const taskId = String(active.id);
+    const task = bucketTasks.find((t) => t.id === taskId);
     if (!task) return;
 
     const data = over.data.current;
-    if (data?.kind !== "priority") return;
+    if (!data) return;
 
-    const { important, urgent } = data as { important: boolean; urgent: boolean };
-    // Same-cell drop — no change, no network call.
-    if (task.important === important && task.urgent === urgent) return;
-
-    try {
-      await setPriority(task.id, { important, urgent });
+    if (data.kind === "priority") {
+      const { important, urgent } = data as { important: boolean; urgent: boolean };
+      // Same-cell drop — no change, no network call.
+      if (task.important === important && task.urgent === urgent) return;
+      setOverrides((prev) => ({ ...prev, [taskId]: { ...prev[taskId], important, urgent } }));
+      try {
+        await setPriority(taskId, { important, urgent });
+      } catch (err) {
+        console.error("Failed to set priority:", err);
+      }
       onMutate();
-    } catch (err) {
-      console.error("Failed to set priority:", err);
+    } else if (data.kind === "bucket") {
+      const { bucket } = data as { bucket: BucketType };
+      // Dropped on the current bucket's tab — no change.
+      if (task.bucket === bucket) return;
+      setOverrides((prev) => ({ ...prev, [taskId]: { ...prev[taskId], bucket } }));
+      try {
+        await updateTask(taskId, { bucket });
+      } catch (err) {
+        console.error("Failed to move task to bucket:", err);
+      }
       onMutate();
     }
   }
@@ -170,7 +200,11 @@ export function QuadrantLayout({
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
       <div className="flex flex-col gap-4">
-        <BucketTabs tasks={tasks} activeBucket={activeBucket} onBucketChange={onBucketChange} />
+        <DroppableBucketTabs
+          tasks={tasks}
+          activeBucket={activeBucket}
+          onBucketChange={onBucketChange}
+        />
 
         {/* Axis labels + 2×2 grid */}
         <div className="flex gap-0">
