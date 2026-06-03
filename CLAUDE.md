@@ -225,6 +225,16 @@ Stale tasks (>30 days, non-today bucket) are automatically archived per-user dur
 
 The "needs all tasks" layouts (grouped, quadrant, matrix) fetch `getTasks()` with no bucket filter and pass the full list down; individual layouts filter client-side. Only the list layout fetches `getTasks({ bucket })`.
 
+### Quadrant drag-and-drop: idiomatic `useDroppable`, not manual hit-testing
+The Quadrant view (`components/layouts/quadrant-layout.tsx`) supports dragging cards between Eisenhower cells (changes `important`/`urgent` via `setPriority`) and onto bucket tabs (changes `bucket` via `updateTask`). Two patterns worth reusing:
+
+- **Use dnd-kit's `useDroppable` + `pointerWithin`, NOT the Today-*list*'s manual approach.** The list view does cross-bucket drag by hand — `data-drop-bucket` DOM attributes + a `handleDragMove` that reads pointer coords and calls `getBoundingClientRect()` on every nav node — because its drop targets (nav links) live *outside* the page component. In Quadrant, the cells **and** tabs live inside one component, so plain `useDroppable` works. Don't copy the list's hit-testing hack when your drop targets are in-component. (The list view was intentionally left as-is — working code, out of scope.)
+- **`useDroppable` can't be called in a `.map` loop** (Rules of Hooks). Extract a per-item component that calls the hook once: `QuadrantCell` (one per cell), `DroppableTab` (one per tab inside `DroppableBucketTabs`).
+- **No nested `DndContext`:** QuadrantLayout mounts its own `DndContext`, which is safe only because the layout branches (list/grouped/quadrant/matrix) are mutually exclusive ternary arms — exactly one mounts at a time.
+
+### Optimistic DnD overlay: clear on `[tasks]`, and only because the parent's array ref is stable
+QuadrantLayout applies drops instantly via a local `overrides` map (`{ important?, urgent?, bucket? }` per task id) layered over the `tasks` prop, cleared with `useEffect(() => setOverrides({}), [tasks])`. This is flicker-free **only because** the parent passes `tasks={allTasks}` — a `useState` value mutated solely inside `refresh()`. So the `tasks` reference changes **only on a refetch**, which is itself triggered by our `onMutate()` and already reflects the change. If a parent recomputes/filters the array inline on each render instead, the effect wipes the overlay every render and optimism breaks. **Before adding an optimistic overlay keyed on a prop, verify that prop's reference is stable between the relevant updates.**
+
 ### Duplicate React keys in static config arrays → render loop
 Any static array that drives a rendered list (LAYOUTS, TABS, BUCKETS) must have unique `value` fields. Two elements with the same `key` cause React reconciliation to fire `onChange` spuriously — looks exactly like an infinite re-render/state loop. TypeScript validates shape, not uniqueness.
 
