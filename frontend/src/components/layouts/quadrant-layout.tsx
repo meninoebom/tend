@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   type DragEndEvent,
+  type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -102,7 +104,7 @@ function QuadrantCell({ quadrant: q, tasks, domains, onMutate }: QuadrantCellPro
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-lg border ${q.borderColor} overflow-hidden transition-shadow ${
+      className={`rounded-lg border ${q.borderColor} overflow-hidden transition-shadow motion-reduce:transition-none ${
         isOver ? "ring-2 ring-accent-blue ring-inset" : ""
       }`}
     >
@@ -155,13 +157,22 @@ export function QuadrantLayout({
     (t) => t.status === "pending" && t.bucket === activeBucket,
   );
 
+  // Id of the task currently being dragged — drives the DragOverlay preview.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeTask = activeId ? effectiveTasks.find((t) => t.id === activeId) : null;
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor),
   );
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -198,7 +209,13 @@ export function QuadrantLayout({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <div className="flex flex-col gap-4">
         <DroppableBucketTabs
           tasks={tasks}
@@ -261,6 +278,16 @@ export function QuadrantLayout({
           </div>
         </div>
       </div>
+
+      {/* Floating preview that follows the cursor while dragging. Rendered in a
+          portal, so it isn't clipped by a cell's overflow-hidden. */}
+      <DragOverlay dropAnimation={null}>
+        {activeTask ? (
+          <div className="max-w-xs cursor-grabbing rounded-md border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary shadow-lg">
+            {activeTask.text}
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
