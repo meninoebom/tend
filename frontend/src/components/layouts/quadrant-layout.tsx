@@ -1,7 +1,19 @@
 "use client";
 
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  pointerWithin,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { TaskItem } from "@/components/task-item";
+import { setPriority } from "@/lib/api";
+import { DraggableTaskItem } from "@/components/draggable-task-item";
 import { BucketTabs } from "@/components/layouts/bucket-tabs";
 
 interface QuadrantLayoutProps {
@@ -19,7 +31,8 @@ interface QuadrantDef {
   labelColor: string;
   borderColor: string;
   headerBg: string;
-  filter: (t: Task) => boolean;
+  important: boolean;
+  urgent: boolean;
 }
 
 const QUADRANTS: QuadrantDef[] = [
@@ -30,7 +43,8 @@ const QUADRANTS: QuadrantDef[] = [
     labelColor: "text-amber-400",
     borderColor: "border-amber-500/40",
     headerBg: "bg-amber-500/5",
-    filter: (t) => t.important && t.urgent,
+    important: true,
+    urgent: true,
   },
   {
     key: "schedule",
@@ -39,7 +53,8 @@ const QUADRANTS: QuadrantDef[] = [
     labelColor: "text-blue-400",
     borderColor: "border-blue-500/40",
     headerBg: "bg-blue-500/5",
-    filter: (t) => t.important && !t.urgent,
+    important: true,
+    urgent: false,
   },
   {
     key: "quick",
@@ -48,7 +63,8 @@ const QUADRANTS: QuadrantDef[] = [
     labelColor: "text-amber-400",
     borderColor: "border-amber-500/40",
     headerBg: "bg-amber-500/5",
-    filter: (t) => !t.important && t.urgent,
+    important: false,
+    urgent: true,
   },
   {
     key: "background",
@@ -57,9 +73,61 @@ const QUADRANTS: QuadrantDef[] = [
     labelColor: "text-text-muted",
     borderColor: "border-border",
     headerBg: "bg-bg-secondary",
-    filter: (t) => !t.important && !t.urgent,
+    important: false,
+    urgent: false,
   },
 ];
+
+interface QuadrantCellProps {
+  quadrant: QuadrantDef;
+  tasks: Task[];
+  domains: Domain[];
+  onMutate: () => void;
+}
+
+/**
+ * One Eisenhower cell. It's a dnd-kit drop target carrying the target priority
+ * (`{ kind: 'priority', important, urgent }`); dropping a task here re-prioritizes
+ * it via the parent's onDragEnd. Kept as its own component so `useDroppable` runs
+ * once per cell (Rules of Hooks). The empty-state placeholder sits inside the
+ * droppable body so empty cells still accept drops.
+ */
+function QuadrantCell({ quadrant: q, tasks, domains, onMutate }: QuadrantCellProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `cell-${q.key}`,
+    data: { kind: "priority", important: q.important, urgent: q.urgent },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg border ${q.borderColor} overflow-hidden transition-shadow ${
+        isOver ? "ring-2 ring-accent-blue ring-inset" : ""
+      }`}
+    >
+      {/* Cell header */}
+      <div
+        className={`px-3 py-2 ${q.headerBg} border-b ${q.borderColor} flex items-baseline justify-between`}
+      >
+        <div>
+          <span className={`text-xs font-semibold tracking-wide ${q.labelColor}`}>{q.label}</span>
+          <span className="text-[10px] text-text-muted ml-2">{q.sublabel}</span>
+        </div>
+        <span className="text-xs text-text-muted tabular-nums">{tasks.length}</span>
+      </div>
+      {/* Cell body — remains a drop target even when empty */}
+      <div className="min-h-[100px]">
+        {tasks.length === 0 ? (
+          <p className="text-text-muted text-center py-6 text-sm">—</p>
+        ) : (
+          tasks.map((task) => (
+            <DraggableTaskItem key={task.id} task={task} domains={domains} onMutate={onMutate} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function QuadrantLayout({
   tasks,
@@ -70,84 +138,95 @@ export function QuadrantLayout({
 }: QuadrantLayoutProps) {
   const bucketTasks = tasks.filter((t) => t.status === "pending" && t.bucket === activeBucket);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const task = bucketTasks.find((t) => t.id === active.id);
+    if (!task) return;
+
+    const data = over.data.current;
+    if (data?.kind !== "priority") return;
+
+    const { important, urgent } = data as { important: boolean; urgent: boolean };
+    // Same-cell drop — no change, no network call.
+    if (task.important === important && task.urgent === urgent) return;
+
+    try {
+      await setPriority(task.id, { important, urgent });
+      onMutate();
+    } catch (err) {
+      console.error("Failed to set priority:", err);
+      onMutate();
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <BucketTabs tasks={tasks} activeBucket={activeBucket} onBucketChange={onBucketChange} />
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+      <div className="flex flex-col gap-4">
+        <BucketTabs tasks={tasks} activeBucket={activeBucket} onBucketChange={onBucketChange} />
 
-      {/* Axis labels + 2×2 grid */}
-      <div className="flex gap-0">
-        {/* Left vertical axis */}
-        <div className="w-5 shrink-0 flex flex-col">
-          <div className="flex-1 flex items-center justify-center">
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest text-text-muted"
-              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-            >
-              Important
-            </span>
-          </div>
-          <div className="flex-1 flex items-center justify-center">
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest text-text-muted"
-              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-            >
-              Not Important
-            </span>
-          </div>
-        </div>
-
-        {/* Grid area */}
-        <div className="flex-1 flex flex-col gap-0">
-          {/* Top axis labels */}
-          <div className="grid grid-cols-2 mb-1">
-            <div className="text-center">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Urgent</span>
+        {/* Axis labels + 2×2 grid */}
+        <div className="flex gap-0">
+          {/* Left vertical axis */}
+          <div className="w-5 shrink-0 flex flex-col">
+            <div className="flex-1 flex items-center justify-center">
+              <span
+                className="text-[10px] font-mono uppercase tracking-widest text-text-muted"
+                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+              >
+                Important
+              </span>
             </div>
-            <div className="text-center">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Not Urgent</span>
+            <div className="flex-1 flex items-center justify-center">
+              <span
+                className="text-[10px] font-mono uppercase tracking-widest text-text-muted"
+                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+              >
+                Not Important
+              </span>
             </div>
           </div>
 
-          {/* 2×2 quadrant grid */}
-          <div className="grid grid-cols-2 gap-3">
-            {QUADRANTS.map((q) => {
-              const qTasks = bucketTasks.filter(q.filter);
-              return (
-                <div
+          {/* Grid area */}
+          <div className="flex-1 flex flex-col gap-0">
+            {/* Top axis labels */}
+            <div className="grid grid-cols-2 mb-1">
+              <div className="text-center">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
+                  Urgent
+                </span>
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
+                  Not Urgent
+                </span>
+              </div>
+            </div>
+
+            {/* 2×2 quadrant grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {QUADRANTS.map((q) => (
+                <QuadrantCell
                   key={q.key}
-                  className={`rounded-lg border ${q.borderColor} overflow-hidden`}
-                >
-                  {/* Cell header */}
-                  <div className={`px-3 py-2 ${q.headerBg} border-b ${q.borderColor} flex items-baseline justify-between`}>
-                    <div>
-                      <span className={`text-xs font-semibold tracking-wide ${q.labelColor}`}>
-                        {q.label}
-                      </span>
-                      <span className="text-[10px] text-text-muted ml-2">{q.sublabel}</span>
-                    </div>
-                    <span className="text-xs text-text-muted tabular-nums">{qTasks.length}</span>
-                  </div>
-                  {/* Cell body */}
-                  <div className="min-h-[100px]">
-                    {qTasks.length === 0 ? (
-                      <p className="text-text-muted text-center py-6 text-sm">—</p>
-                    ) : (
-                      qTasks.map((task) => (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          domains={domains}
-                          onMutate={onMutate}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                  quadrant={q}
+                  tasks={bucketTasks.filter(
+                    (t) => t.important === q.important && t.urgent === q.urgent,
+                  )}
+                  domains={domains}
+                  onMutate={onMutate}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </DndContext>
   );
 }
