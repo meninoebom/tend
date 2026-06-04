@@ -22,6 +22,21 @@ def _load_related(query: SelectOfScalar[Task]) -> SelectOfScalar[Task]:
     return query.options(selectinload(Task.domain), selectinload(Task.children))
 
 
+def _next_position(db: Session, user_id: uuid.UUID, bucket: BucketType) -> int:
+    """Append position for a new/moved top-level task: max(position)+1 within the
+    bucket's pending top-level tasks, or 0 if the bucket is empty. Every bucket
+    keeps its own ordering (not just Today)."""
+    max_pos = db.exec(
+        select(func.max(Task.position)).where(
+            Task.user_id == user_id,
+            Task.bucket == bucket,
+            Task.status == TaskStatus.pending,
+            Task.parent_id.is_(None),
+        )
+    ).first()
+    return (max_pos + 1) if max_pos is not None else 0
+
+
 def create_task(
     db: Session,
     user_id: uuid.UUID,
@@ -80,18 +95,11 @@ def create_task(
         bucket = BucketType(parent.bucket)
         domain_id = parent.domain_id
 
-    # For top-level Today tasks, assign position after existing ordered tasks
+    # Top-level tasks get an append position within their bucket (every bucket,
+    # not just Today). Subtasks stay unordered (position stays None).
     position = None
-    if bucket == BucketType.today and parent_id is None:
-        max_pos = db.exec(
-            select(func.max(Task.position)).where(
-                Task.user_id == user_id,
-                Task.bucket == BucketType.today,
-                Task.status == TaskStatus.pending,
-                Task.parent_id.is_(None),
-            )
-        ).first()
-        position = (max_pos + 1) if max_pos is not None else 0
+    if parent_id is None:
+        position = _next_position(db, user_id, bucket)
 
     task = Task(
         user_id=user_id,
@@ -132,14 +140,13 @@ def get_tasks(
     if domain_id is not None:
         query = query.where(Task.domain_id == domain_id)
 
-    if bucket == BucketType.today:
-        query = _load_related(query).order_by(
-            case((Task.position.is_(None), 1), else_=0),  # nulls last
-            Task.position.asc(),
-            Task.created_at.desc(),
-        )
-    else:
-        query = _load_related(query).order_by(Task.created_at.desc())
+    # Every bucket is position-ordered (nulls last, then newest). Legacy tasks
+    # with no position sort after positioned ones until first reordered.
+    query = _load_related(query).order_by(
+        case((Task.position.is_(None), 1), else_=0),  # nulls last
+        Task.position.asc(),
+        Task.created_at.desc(),
+    )
     return list(db.exec(query).all())
 
 
@@ -195,9 +202,12 @@ def update_task(
                 status_code=422,
             )
         task.text = text.strip()
-    if bucket is not None:
-        if task.bucket == BucketType.today and bucket != BucketType.today:
-            task.position = None
+    if bucket is not None and bucket != task.bucket:
+        # Moving buckets: append to the destination's order. Position isn't
+        # carried across buckets (no meaningful rank to preserve), per the
+        # "order is sacred" model — only explicit reorder sets a rank.
+        if task.parent_id is None:
+            task.position = _next_position(db, user_id, bucket)
         task.bucket = bucket
     if domain_id is not _UNSET:
         task.domain_id = domain_id
