@@ -340,6 +340,57 @@ class TestReorderTasks:
         r = client.patch("/tasks/reorder", json={"task_ids": [str(t.id)]})
         assert r.status_code == 400
 
+    def test_reorder_non_today_bucket(self, client, db, test_user):
+        """Reorder works for any bucket, not just Today."""
+        tasks = []
+        for text in ["A", "B", "C"]:
+            t = Task(
+                user_id=test_user.id, text=text, bucket=BucketType.soon, status=TaskStatus.pending
+            )
+            db.add(t)
+            tasks.append(t)
+        db.flush()
+
+        r = client.patch(
+            "/tasks/reorder",
+            json={
+                "bucket": "soon",
+                "task_ids": [str(tasks[2].id), str(tasks[0].id), str(tasks[1].id)],
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["updated"] == 3
+
+        r2 = client.get("/tasks", params={"bucket": "soon"})
+        assert [t["text"] for t in r2.json()] == ["C", "A", "B"]
+
+    def test_reorder_rejects_partial_list_in_bucket(self, client, db, test_user):
+        """Returns 400 if not all pending tasks of the given bucket are included."""
+        t1 = Task(user_id=test_user.id, text="A", bucket=BucketType.soon, status=TaskStatus.pending)
+        t2 = Task(user_id=test_user.id, text="B", bucket=BucketType.soon, status=TaskStatus.pending)
+        db.add_all([t1, t2])
+        db.flush()
+        r = client.patch("/tasks/reorder", json={"bucket": "soon", "task_ids": [str(t1.id)]})
+        assert r.status_code == 400
+
+    def test_reorder_rejects_task_from_other_bucket(self, client, db, test_user):
+        """A task in a different bucket than the one being reordered is rejected
+        (the id set won't match the target bucket's tasks)."""
+        soon_task = Task(
+            user_id=test_user.id, text="Soon", bucket=BucketType.soon, status=TaskStatus.pending
+        )
+        today_task = Task(
+            user_id=test_user.id, text="Today", bucket=BucketType.today, status=TaskStatus.pending
+        )
+        db.add_all([soon_task, today_task])
+        db.flush()
+        # Reordering bucket 'soon' but passing a today task → set mismatch → 400.
+        r = client.patch(
+            "/tasks/reorder",
+            json={"bucket": "soon", "task_ids": [str(soon_task.id), str(today_task.id)]},
+        )
+        assert r.status_code == 400
+
 
 class TestTaskNotes:
     def test_create_task_with_notes(self, client, test_user):

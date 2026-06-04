@@ -34,6 +34,7 @@ class TaskUpdate(BaseModel):
 
 class ReorderRequest(BaseModel):
     task_ids: list[uuid.UUID]
+    bucket: BucketType = BucketType.today
 
     @field_validator("task_ids")
     @classmethod
