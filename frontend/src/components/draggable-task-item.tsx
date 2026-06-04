@@ -9,6 +9,7 @@ interface DraggableTaskItemProps {
   task: Task;
   domains: Domain[];
   onMutate: () => void;
+  compact?: boolean;
 }
 
 /**
@@ -21,7 +22,7 @@ interface DraggableTaskItemProps {
  * (DragOverlay) is layered on in the polish pass; keeping the source in place
  * avoids the card being clipped by the cell's `overflow-hidden`.
  */
-export function DraggableTaskItem({ task, domains, onMutate }: DraggableTaskItemProps) {
+export function DraggableTaskItem({ task, domains, onMutate, compact }: DraggableTaskItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
 
   return (
@@ -45,7 +46,7 @@ export function DraggableTaskItem({ task, domains, onMutate }: DraggableTaskItem
         </svg>
       </button>
       <div className="flex-1 ml-1">
-        <TaskItem task={task} domains={domains} onMutate={onMutate} />
+        <TaskItem task={task} domains={domains} onMutate={onMutate} compact={compact} />
       </div>
     </div>
   );
