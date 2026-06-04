@@ -108,7 +108,7 @@ def reorder_tasks(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    count = task_service.reorder_tasks(db, user_id, body.task_ids)
+    count = task_service.reorder_tasks(db, user_id, body.task_ids, body.bucket)
     return {"updated": count}
 
 

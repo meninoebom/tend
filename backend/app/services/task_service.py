@@ -272,44 +272,29 @@ def complete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
     return task
 
 
-def reorder_tasks(db: Session, user_id: uuid.UUID, task_ids: list[uuid.UUID]) -> int:
-    # Verify all pending Today tasks are included
-    all_today = list(
+def reorder_tasks(
+    db: Session, user_id: uuid.UUID, task_ids: list[uuid.UUID], bucket: BucketType
+) -> int:
+    # Verify the id set matches all pending top-level tasks in the given bucket.
+    all_in_bucket = list(
         db.exec(
             select(Task).where(
                 Task.user_id == user_id,
-                Task.bucket == BucketType.today,
+                Task.bucket == bucket,
                 Task.status == TaskStatus.pending,
                 Task.parent_id.is_(None),
             )
         ).all()
     )
-    all_today_ids = {t.id for t in all_today}
-    if set(task_ids) != all_today_ids:
+    all_bucket_ids = {t.id for t in all_in_bucket}
+    if set(task_ids) != all_bucket_ids:
         raise AppError(
             code="incomplete_reorder",
-            message="All pending Today tasks must be included in reorder",
+            message=f"All pending {bucket} tasks must be included in reorder",
             status_code=400,
         )
 
-    tasks = list(db.exec(select(Task).where(Task.id.in_(task_ids), Task.user_id == user_id)).all())
-    task_map = {t.id: t for t in tasks}
-
-    for task_id in task_ids:
-        if task_id not in task_map:
-            raise AppError(
-                code="invalid_task",
-                message=f"Task {task_id} not found or does not belong to you",
-                status_code=400,
-            )
-        task = task_map[task_id]
-        if task.bucket != BucketType.today or task.status != TaskStatus.pending:
-            raise AppError(
-                code="invalid_task",
-                message=f"Task {task_id} is not a pending Today task",
-                status_code=400,
-            )
-
+    task_map = {t.id: t for t in all_in_bucket}
     for i, task_id in enumerate(task_ids):
         task_map[task_id].position = i
         db.add(task_map[task_id])
