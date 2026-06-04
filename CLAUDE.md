@@ -119,6 +119,7 @@ tend/
 - **Git:** Branch naming per `~/.claude/CLAUDE.md` conventions (feature/, bugfix/, etc.)
 - **Testing:** Shared DB with rollback per test, factory fixtures, auth mock
 - **Migrations:** Date-prefixed Alembic filenames, pre-flight verification
+- **Pre-commit hooks:** husky + lint-staged at the repo root auto-fix staged files on commit — ESLint `--fix` on `frontend/**`, Ruff `check --fix` + `format` on `backend/**` (scoped to staged files, so it's fast). Activate by running `npm install` at the repo root once (the `prepare` script wires up husky). The wrapper scripts (`scripts/precommit-*.sh`) no-op if that stack's tools aren't installed, so they never block a commit; bypass with `git commit --no-verify` if needed. CI still enforces the same checks on PRs as the source of truth.
 
 ## After Completing Work (Agent Self-Assessment)
 
