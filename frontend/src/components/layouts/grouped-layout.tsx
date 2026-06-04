@@ -1,8 +1,17 @@
 "use client";
 
+import {
+  DndContext,
+  DragOverlay,
+  type DragEndEvent,
+  pointerWithin,
+  useDroppable,
+} from "@dnd-kit/core";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { TaskItem } from "@/components/task-item";
-import { BucketTabs } from "@/components/layouts/bucket-tabs";
+import { updateTask } from "@/lib/api";
+import { DraggableTaskItem } from "@/components/draggable-task-item";
+import { DroppableBucketTabs } from "@/components/layouts/droppable-bucket-tabs";
+import { useOptimisticTaskDnd } from "@/components/layouts/use-optimistic-task-dnd";
 
 interface GroupedLayoutProps {
   tasks: Task[];
@@ -12,11 +21,56 @@ interface GroupedLayoutProps {
   onBucketChange: (b: BucketType) => void;
 }
 
-function priorityRank(task: Task): number {
-  if (task.important && task.urgent) return 1;
-  if (task.important && !task.urgent) return 2;
-  if (!task.important && task.urgent) return 3;
-  return 4;
+interface DomainSectionProps {
+  domain: Domain | null;
+  tasks: Task[];
+  domains: Domain[];
+  onMutate: () => void;
+}
+
+/**
+ * A domain group that is also a drop target. Dropping a card here sets its
+ * `domain_id` (null for the "No domain" section). Rendered even when empty so
+ * it's a valid target to move a task into. Its own component so `useDroppable`
+ * runs once per section (Rules of Hooks).
+ */
+function DomainSection({ domain, tasks, domains, onMutate }: DomainSectionProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `domain-${domain?.id ?? "none"}`,
+    data: { kind: "domain", domainId: domain?.id ?? null },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg transition-shadow motion-reduce:transition-none ${
+        isOver ? "ring-2 ring-accent-blue ring-inset" : ""
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-2 pb-1 border-b border-border/50">
+        <span
+          className="h-2 w-2 rounded-full shrink-0"
+          style={
+            domain ? { backgroundColor: domain.color } : { backgroundColor: "var(--color-border)" }
+          }
+        />
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+          {domain?.name ?? "No domain"}
+        </span>
+        <span className="text-[11px] text-text-muted/60 tabular-nums">{tasks.length}</span>
+      </div>
+      {/* Body stays a drop target even when empty */}
+      <div className="min-h-[44px]">
+        {tasks.length === 0 ? (
+          <p className="text-text-muted/50 text-xs py-2">—</p>
+        ) : (
+          tasks.map((task) => (
+            <DraggableTaskItem key={task.id} task={task} domains={domains} onMutate={onMutate} />
+          ))
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function GroupedLayout({
@@ -26,58 +80,96 @@ export function GroupedLayout({
   activeBucket,
   onBucketChange,
 }: GroupedLayoutProps) {
-  const pending = tasks.filter((t) => t.status === "pending" && t.bucket === activeBucket);
+  const { effectiveTasks, applyOverride, sensors, setActiveId, activeTask } =
+    useOptimisticTaskDnd(tasks);
 
-  // Group by domain
-  const domainMap = new Map<string | null, Task[]>();
-  for (const task of pending) {
-    const key = task.domain?.id ?? null;
-    if (!domainMap.has(key)) domainMap.set(key, []);
-    domainMap.get(key)!.push(task);
-  }
+  // Tasks arrive already in shared `position` order from the backend; filtering
+  // to the active bucket preserves that order, so we group by domain without
+  // re-sorting.
+  const pending = effectiveTasks.filter((t) => t.status === "pending" && t.bucket === activeBucket);
+  const byDomain = (domainId: string | null) =>
+    pending.filter((t) => (t.domain?.id ?? null) === domainId);
 
-  const sections: Array<{ domain: Domain | null; tasks: Task[] }> = [];
-  for (const domain of domains) {
-    const dt = domainMap.get(domain.id);
-    if (dt && dt.length > 0) {
-      sections.push({ domain, tasks: [...dt].sort((a, b) => priorityRank(a) - priorityRank(b)) });
+  // Render every domain (+ the "No domain" group) so empty groups are valid
+  // drop targets.
+  const sections: Array<{ domain: Domain | null; tasks: Task[] }> = [
+    ...domains.map((d) => ({ domain: d, tasks: byDomain(d.id) })),
+    { domain: null, tasks: byDomain(null) },
+  ];
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = String(active.id);
+    const task = pending.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const data = over.data.current;
+    if (!data) return;
+
+    if (data.kind === "domain") {
+      const targetDomainId = (data as { domainId: string | null }).domainId;
+      if ((task.domain?.id ?? null) === targetDomainId) return; // same domain — no-op
+      const targetDomain = targetDomainId
+        ? (domains.find((d) => d.id === targetDomainId) ?? null)
+        : null;
+      applyOverride(taskId, { domain: targetDomain });
+      try {
+        await updateTask(taskId, { domain_id: targetDomainId });
+      } catch (err) {
+        console.error("Failed to change domain:", err);
+      }
+      onMutate();
+    } else if (data.kind === "bucket") {
+      const { bucket } = data as { bucket: BucketType };
+      if (task.bucket === bucket) return; // same bucket — no-op
+      applyOverride(taskId, { bucket });
+      try {
+        await updateTask(taskId, { bucket });
+      } catch (err) {
+        console.error("Failed to move task to bucket:", err);
+      }
+      onMutate();
     }
-  }
-  const undomained = domainMap.get(null);
-  if (undomained && undomained.length > 0) {
-    sections.push({ domain: null, tasks: [...undomained].sort((a, b) => priorityRank(a) - priorityRank(b)) });
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <BucketTabs tasks={tasks} activeBucket={activeBucket} onBucketChange={onBucketChange} />
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={(e) => setActiveId(String(e.active.id))}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
+      <div className="flex flex-col gap-4">
+        <DroppableBucketTabs
+          tasks={tasks}
+          activeBucket={activeBucket}
+          onBucketChange={onBucketChange}
+        />
 
-      {/* Domain sections */}
-      {sections.length === 0 ? (
-        <p className="text-text-muted text-sm text-center py-10">Nothing here.</p>
-      ) : (
         <div className="flex flex-col gap-6">
           {sections.map((section) => (
-            <div key={section.domain?.id ?? "none"}>
-              <div className="flex items-center gap-2 mb-2 pb-1 border-b border-border/50">
-                <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={section.domain ? { backgroundColor: section.domain.color } : { backgroundColor: "var(--color-border)" }}
-                />
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-                  {section.domain?.name ?? "No domain"}
-                </span>
-                <span className="text-[11px] text-text-muted/60 tabular-nums">{section.tasks.length}</span>
-              </div>
-              <div>
-                {section.tasks.map((task) => (
-                  <TaskItem key={task.id} task={task} domains={domains} onMutate={onMutate} />
-                ))}
-              </div>
-            </div>
+            <DomainSection
+              key={section.domain?.id ?? "none"}
+              domain={section.domain}
+              tasks={section.tasks}
+              domains={domains}
+              onMutate={onMutate}
+            />
           ))}
         </div>
-      )}
-    </div>
+      </div>
+
+      <DragOverlay dropAnimation={null}>
+        {activeTask ? (
+          <div className="max-w-xs cursor-grabbing rounded-md border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary shadow-lg">
+            {activeTask.text}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
