@@ -154,8 +154,17 @@ class TestTodayOrdering:
         texts = [t["text"] for t in r.json()]
         assert texts == ["First", "Second", "Third", "No position"]
 
-    def test_position_cleared_when_moved_out_of_today(self, client, db, test_user):
-        """Moving a task out of Today should clear its position."""
+    def test_position_appended_to_new_bucket_when_moved(self, client, db, test_user):
+        """Moving a task to another bucket appends it to that bucket's order
+        (no longer clears position) — shared-ordering model."""
+        # Destination bucket already has one positioned task.
+        existing = Task(
+            user_id=test_user.id,
+            text="Already in soon",
+            bucket=BucketType.soon,
+            status=TaskStatus.pending,
+            position=0,
+        )
         t = Task(
             user_id=test_user.id,
             text="Positioned",
@@ -163,7 +172,7 @@ class TestTodayOrdering:
             status=TaskStatus.pending,
             position=2,
         )
-        db.add(t)
+        db.add_all([existing, t])
         db.flush()
 
         r = client.patch(f"/tasks/{t.id}", json={"bucket": "soon"})
@@ -171,34 +180,54 @@ class TestTodayOrdering:
 
         db.expire_all()
         updated = db.get(Task, t.id)
-        assert updated.position is None
         assert updated.bucket == "soon"
+        # Appended after the existing soon task (position 0) → position 1.
+        assert updated.position == 1
 
-    def test_non_today_bucket_ignores_position(self, client, db, test_user):
-        """Bucket views other than Today should not use position ordering."""
+    def test_non_today_bucket_ordered_by_position(self, client, db, test_user):
+        """Every bucket (not just Today) is position-ordered, nulls last."""
         from datetime import datetime, timedelta
 
         t1 = Task(
             user_id=test_user.id,
-            text="Older",
+            text="Second",
+            bucket=BucketType.soon,
+            position=1,
+            created_at=datetime.utcnow(),
+        )
+        t2 = Task(
+            user_id=test_user.id,
+            text="First",
             bucket=BucketType.soon,
             position=0,
             created_at=datetime.utcnow() - timedelta(hours=1),
         )
-        t2 = Task(
+        t3 = Task(
             user_id=test_user.id,
-            text="Newer",
+            text="No position",
             bucket=BucketType.soon,
-            position=5,
-            created_at=datetime.utcnow(),
+            position=None,
+            created_at=datetime.utcnow() - timedelta(hours=2),
         )
-        db.add_all([t1, t2])
+        db.add_all([t1, t2, t3])
         db.flush()
 
         r = client.get("/tasks", params={"bucket": "soon"})
         texts = [t["text"] for t in r.json()]
-        # created_at DESC — newer first
-        assert texts == ["Newer", "Older"]
+        # position ASC, nulls last
+        assert texts == ["First", "Second", "No position"]
+
+    def test_create_in_non_today_bucket_gets_append_position(self, client, db, test_user):
+        """New top-level tasks get an append position in any bucket."""
+        r1 = client.post("/tasks", json={"text": "First later", "bucket": "later"})
+        r2 = client.post("/tasks", json={"text": "Second later", "bucket": "later"})
+        assert r1.status_code == 201 and r2.status_code == 201
+
+        db.expire_all()
+        first = db.get(Task, uuid.UUID(r1.json()["id"]))
+        second = db.get(Task, uuid.UUID(r2.json()["id"]))
+        assert first.position == 0
+        assert second.position == 1
 
 
 class TestReorderTasks:
