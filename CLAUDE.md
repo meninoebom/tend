@@ -165,6 +165,7 @@ Both services deploy to Railway in a single project with managed PostgreSQL. Key
 - **postgres:// → postgresql://** — Railway Postgres uses `postgres://` scheme but SQLAlchemy requires `postgresql://`. Normalized in `config.py` via `model_validator`.
 - **Same project required** — All services must be in the same Railway project for variable references (`${{ServiceName.VAR}}`) to resolve.
 - **start.py pattern** — Backend uses `start.py` (not Procfile directly) to validate env vars, run Alembic migrations, then exec uvicorn.
+- **⚠ Prod deploy is GATED on the CI status check — CI MUST run on `push: [main]`, not PR-only.** Railway deploys `main` only after a CI `check` passes *on the squash-merge commit*. If CI is PR-only, the merge commit has no check and Railway waits forever — prod silently freezes (this happened May 26–Jun 4 2026: PR #183 went PR-only, prod froze at #183 until #206 restored the push trigger). `.github/workflows/ci.yml` must keep `on: push: branches: [main]`. After any CI-trigger change, verify `gh pr checks <recent-pr>` still shows the `Tend - Tend Frontend/Backend` deploy checks and that the prod deployment commit equals `origin/main`. Cross-project writeup: `~/projects/knowledge-base/github-actions-cost-control.md`.
 - **Node 20** — Set via `frontend/.node-version` for Railway Nixpacks (Next.js 16 requires >= 20.9.0).
 - **NextAuth on Railway** — Requires `AUTH_TRUST_HOST=true` and explicit `NEXTAUTH_SECRET`.
 - **Shared variables** — `INTERNAL_JWT_SECRET` is a Railway Shared Variable used by both frontend and backend.
