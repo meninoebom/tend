@@ -1,6 +1,6 @@
 "use client";
 
-import { useDraggable } from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { Task, Domain } from "@/lib/api-types";
 import { TaskItem } from "@/components/task-item";
 import { cn } from "@/lib/utils";
@@ -24,12 +24,25 @@ interface DraggableTaskItemProps {
  */
 export function DraggableTaskItem({ task, domains, onMutate, compact }: DraggableTaskItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  // The card is also a drop target so a card dropped onto it (same group) can
+  // reorder. The insertion line shows where the dragged card will land.
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `card-${task.id}`,
+    data: { kind: "reorder-card", taskId: task.id },
+  });
+  const setRefs = (el: HTMLDivElement | null) => {
+    setNodeRef(el);
+    setDropRef(el);
+  };
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       className={cn("relative flex items-center group/draggable", isDragging && "opacity-50 z-50")}
     >
+      {isOver && !isDragging && (
+        <div className="absolute -top-px left-0 right-0 h-0.5 bg-accent-blue z-10" />
+      )}
       <button
         {...attributes}
         {...listeners}
