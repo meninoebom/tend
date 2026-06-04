@@ -1,16 +1,14 @@
 "use client";
 
-import {
-  DndContext,
-  DragOverlay,
-  type DragEndEvent,
-  pointerWithin,
-  useDroppable,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, type DragEndEvent, useDroppable } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { updateTask } from "@/lib/api";
+import { reorderTasks, updateTask } from "@/lib/api";
 import { DraggableTaskItem } from "@/components/draggable-task-item";
-import { useOptimisticTaskDnd } from "@/components/layouts/use-optimistic-task-dnd";
+import {
+  reorderAwareCollision,
+  useOptimisticTaskDnd,
+} from "@/components/layouts/use-optimistic-task-dnd";
 
 const BUCKETS: { value: BucketType; label: string; sublabel: string }[] = [
   { value: "today", label: "Today", sublabel: "do it today" },
@@ -83,7 +81,7 @@ export function MatrixLayout({
   onBucketChange,
   onMutate,
 }: MatrixLayoutProps) {
-  const { effectiveTasks, applyOverride, sensors, setActiveId, activeTask } =
+  const { effectiveTasks, applyOverride, applyReorder, sensors, setActiveId, activeTask } =
     useOptimisticTaskDnd(tasks);
 
   const pending = effectiveTasks.filter((t) => t.status === "pending");
@@ -98,6 +96,17 @@ export function MatrixLayout({
     { domain: null },
   ];
 
+  async function reclassifyCell(taskId: string, domainId: string | null, bucket: BucketType) {
+    const targetDomain = domainId ? (domains.find((d) => d.id === domainId) ?? null) : null;
+    applyOverride(taskId, { domain: targetDomain, bucket });
+    try {
+      await updateTask(taskId, { domain_id: domainId, bucket });
+    } catch (err) {
+      console.error("Failed to move task in matrix:", err);
+    }
+    onMutate();
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     setActiveId(null);
     const { active, over } = event;
@@ -108,20 +117,40 @@ export function MatrixLayout({
     if (!task) return;
 
     const data = over.data.current;
-    if (data?.kind !== "cell") return;
+    if (!data) return;
 
-    const { domainId, bucket } = data as { domainId: string | null; bucket: BucketType };
-    // Already in this cell — no change.
-    if ((task.domain?.id ?? null) === domainId && task.bucket === bucket) return;
-
-    const targetDomain = domainId ? (domains.find((d) => d.id === domainId) ?? null) : null;
-    applyOverride(taskId, { domain: targetDomain, bucket });
-    try {
-      await updateTask(taskId, { domain_id: domainId, bucket });
-    } catch (err) {
-      console.error("Failed to move task in matrix:", err);
+    if (data.kind === "reorder-card") {
+      const overId = (data as { taskId: string }).taskId;
+      if (overId === taskId) return;
+      const overTask = pending.find((t) => t.id === overId);
+      if (!overTask) return;
+      const sameCell =
+        (task.domain?.id ?? null) === (overTask.domain?.id ?? null) &&
+        task.bucket === overTask.bucket;
+      if (!sameCell) {
+        await reclassifyCell(taskId, overTask.domain?.id ?? null, overTask.bucket);
+        return;
+      }
+      // Reorder within the cell's bucket (position is per-bucket).
+      const ids = pending.filter((t) => t.bucket === task.bucket).map((t) => t.id);
+      const from = ids.indexOf(taskId);
+      const to = ids.indexOf(overId);
+      if (from < 0 || to < 0) return;
+      const newOrder = arrayMove(ids, from, to);
+      applyReorder(task.bucket, newOrder);
+      try {
+        await reorderTasks(newOrder, task.bucket);
+      } catch (err) {
+        console.error("Failed to reorder:", err);
+      }
+      onMutate();
+      return;
     }
-    onMutate();
+
+    if (data.kind !== "cell") return;
+    const { domainId, bucket } = data as { domainId: string | null; bucket: BucketType };
+    if ((task.domain?.id ?? null) === domainId && task.bucket === bucket) return; // same cell
+    await reclassifyCell(taskId, domainId, bucket);
   }
 
   const isEmpty = domains.length === 0 && pending.filter((t) => t.domain === null).length === 0;
@@ -145,7 +174,7 @@ export function MatrixLayout({
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={pointerWithin}
+            collisionDetection={reorderAwareCollision}
             onDragStart={(e) => setActiveId(String(e.active.id))}
             onDragEnd={handleDragEnd}
             onDragCancel={() => setActiveId(null)}

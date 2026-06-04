@@ -1,17 +1,15 @@
 "use client";
 
-import {
-  DndContext,
-  DragOverlay,
-  type DragEndEvent,
-  pointerWithin,
-  useDroppable,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, type DragEndEvent, useDroppable } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { updateTask } from "@/lib/api";
+import { reorderTasks, updateTask } from "@/lib/api";
 import { DraggableTaskItem } from "@/components/draggable-task-item";
 import { DroppableBucketTabs } from "@/components/layouts/droppable-bucket-tabs";
-import { useOptimisticTaskDnd } from "@/components/layouts/use-optimistic-task-dnd";
+import {
+  reorderAwareCollision,
+  useOptimisticTaskDnd,
+} from "@/components/layouts/use-optimistic-task-dnd";
 
 interface GroupedLayoutProps {
   tasks: Task[];
@@ -80,8 +78,21 @@ export function GroupedLayout({
   activeBucket,
   onBucketChange,
 }: GroupedLayoutProps) {
-  const { effectiveTasks, applyOverride, sensors, setActiveId, activeTask } =
+  const { effectiveTasks, applyOverride, applyReorder, sensors, setActiveId, activeTask } =
     useOptimisticTaskDnd(tasks);
+
+  async function reclassifyDomain(taskId: string, targetDomainId: string | null) {
+    const targetDomain = targetDomainId
+      ? (domains.find((d) => d.id === targetDomainId) ?? null)
+      : null;
+    applyOverride(taskId, { domain: targetDomain });
+    try {
+      await updateTask(taskId, { domain_id: targetDomainId });
+    } catch (err) {
+      console.error("Failed to change domain:", err);
+    }
+    onMutate();
+  }
 
   // Tasks arrive already in shared `position` order from the backend; filtering
   // to the active bucket preserves that order, so we group by domain without
@@ -109,19 +120,33 @@ export function GroupedLayout({
     const data = over.data.current;
     if (!data) return;
 
-    if (data.kind === "domain") {
-      const targetDomainId = (data as { domainId: string | null }).domainId;
-      if ((task.domain?.id ?? null) === targetDomainId) return; // same domain — no-op
-      const targetDomain = targetDomainId
-        ? (domains.find((d) => d.id === targetDomainId) ?? null)
-        : null;
-      applyOverride(taskId, { domain: targetDomain });
+    if (data.kind === "reorder-card") {
+      const overId = (data as { taskId: string }).taskId;
+      if (overId === taskId) return; // dropped on itself
+      const overTask = pending.find((t) => t.id === overId);
+      if (!overTask) return;
+      // Different domain → reclassify into that card's domain. Same domain →
+      // reorder within the active bucket.
+      if ((task.domain?.id ?? null) !== (overTask.domain?.id ?? null)) {
+        await reclassifyDomain(taskId, overTask.domain?.id ?? null);
+        return;
+      }
+      const ids = pending.map((t) => t.id);
+      const from = ids.indexOf(taskId);
+      const to = ids.indexOf(overId);
+      if (from < 0 || to < 0) return;
+      const newOrder = arrayMove(ids, from, to);
+      applyReorder(activeBucket, newOrder);
       try {
-        await updateTask(taskId, { domain_id: targetDomainId });
+        await reorderTasks(newOrder, activeBucket);
       } catch (err) {
-        console.error("Failed to change domain:", err);
+        console.error("Failed to reorder:", err);
       }
       onMutate();
+    } else if (data.kind === "domain") {
+      const targetDomainId = (data as { domainId: string | null }).domainId;
+      if ((task.domain?.id ?? null) === targetDomainId) return; // same domain — no-op
+      await reclassifyDomain(taskId, targetDomainId);
     } else if (data.kind === "bucket") {
       const { bucket } = data as { bucket: BucketType };
       if (task.bucket === bucket) return; // same bucket — no-op
@@ -138,7 +163,7 @@ export function GroupedLayout({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
+      collisionDetection={reorderAwareCollision}
       onDragStart={(e) => setActiveId(String(e.active.id))}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}

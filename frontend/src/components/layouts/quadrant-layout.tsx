@@ -1,23 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  type DragEndEvent,
-  type DragStartEvent,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  pointerWithin,
-  useDroppable,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, type DragEndEvent, useDroppable } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { setPriority, updateTask } from "@/lib/api";
+import { reorderTasks, setPriority, updateTask } from "@/lib/api";
 import { DraggableTaskItem } from "@/components/draggable-task-item";
 import { DroppableBucketTabs } from "@/components/layouts/droppable-bucket-tabs";
+import {
+  reorderAwareCollision,
+  useOptimisticTaskDnd,
+} from "@/components/layouts/use-optimistic-task-dnd";
 
 interface QuadrantLayoutProps {
   tasks: Task[];
@@ -139,36 +131,20 @@ export function QuadrantLayout({
   activeBucket,
   onBucketChange,
 }: QuadrantLayoutProps) {
-  // Optimistic overlay: a drop applies the change locally before the API call
-  // resolves, so the card lands instantly. Cleared once `tasks` reflects the
-  // change (the parent only swaps the `tasks` reference on a refetch, which is
-  // triggered by our own onMutate — so by the time we clear, the real data
-  // already matches the optimistic state and there's no flicker).
-  const [overrides, setOverrides] = useState<
-    Record<string, { important?: boolean; urgent?: boolean; bucket?: BucketType }>
-  >({});
-  useEffect(() => setOverrides({}), [tasks]);
-
-  const effectiveTasks = useMemo(
-    () => tasks.map((t) => (overrides[t.id] ? { ...t, ...overrides[t.id] } : t)),
-    [tasks, overrides],
-  );
+  const { effectiveTasks, applyOverride, applyReorder, sensors, setActiveId, activeTask } =
+    useOptimisticTaskDnd(tasks);
   const bucketTasks = effectiveTasks.filter(
     (t) => t.status === "pending" && t.bucket === activeBucket,
   );
 
-  // Id of the task currently being dragged — drives the DragOverlay preview.
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const activeTask = activeId ? effectiveTasks.find((t) => t.id === activeId) : null;
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-    useSensor(KeyboardSensor),
-  );
-
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+  async function reprioritize(taskId: string, important: boolean, urgent: boolean) {
+    applyOverride(taskId, { important, urgent });
+    try {
+      await setPriority(taskId, { important, urgent });
+    } catch (err) {
+      console.error("Failed to set priority:", err);
+    }
+    onMutate();
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -183,22 +159,36 @@ export function QuadrantLayout({
     const data = over.data.current;
     if (!data) return;
 
-    if (data.kind === "priority") {
-      const { important, urgent } = data as { important: boolean; urgent: boolean };
-      // Same-cell drop — no change, no network call.
-      if (task.important === important && task.urgent === urgent) return;
-      setOverrides((prev) => ({ ...prev, [taskId]: { ...prev[taskId], important, urgent } }));
+    if (data.kind === "reorder-card") {
+      const overId = (data as { taskId: string }).taskId;
+      if (overId === taskId) return;
+      const overTask = bucketTasks.find((t) => t.id === overId);
+      if (!overTask) return;
+      // Different cell → reclassify to that card's priority. Same cell → reorder.
+      if (task.important !== overTask.important || task.urgent !== overTask.urgent) {
+        await reprioritize(taskId, overTask.important, overTask.urgent);
+        return;
+      }
+      const ids = bucketTasks.map((t) => t.id);
+      const from = ids.indexOf(taskId);
+      const to = ids.indexOf(overId);
+      if (from < 0 || to < 0) return;
+      const newOrder = arrayMove(ids, from, to);
+      applyReorder(activeBucket, newOrder);
       try {
-        await setPriority(taskId, { important, urgent });
+        await reorderTasks(newOrder, activeBucket);
       } catch (err) {
-        console.error("Failed to set priority:", err);
+        console.error("Failed to reorder:", err);
       }
       onMutate();
+    } else if (data.kind === "priority") {
+      const { important, urgent } = data as { important: boolean; urgent: boolean };
+      if (task.important === important && task.urgent === urgent) return; // same cell — no-op
+      await reprioritize(taskId, important, urgent);
     } else if (data.kind === "bucket") {
       const { bucket } = data as { bucket: BucketType };
-      // Dropped on the current bucket's tab — no change.
-      if (task.bucket === bucket) return;
-      setOverrides((prev) => ({ ...prev, [taskId]: { ...prev[taskId], bucket } }));
+      if (task.bucket === bucket) return; // same bucket — no-op
+      applyOverride(taskId, { bucket });
       try {
         await updateTask(taskId, { bucket });
       } catch (err) {
@@ -211,8 +201,8 @@ export function QuadrantLayout({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
+      collisionDetection={reorderAwareCollision}
+      onDragStart={(e) => setActiveId(String(e.active.id))}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
