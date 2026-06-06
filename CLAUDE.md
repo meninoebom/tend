@@ -112,6 +112,34 @@ tend/
 5. ~~**Onboarding**~~ — 3-step flow, first-time triage education, empty states
 6. ~~**Polish**~~ — wind-down nav swap, task input relocation, archived tasks view, delete error handling
 
+## Local Dev via mise
+
+tend is polyglot (Next.js frontend + FastAPI backend + a reference Tauri prototype), so
+`mise.toml` at the root pins the toolchains and orchestrates tasks across both halves. See
+`~/projects/knowledge-base/mise.md`.
+
+```bash
+mise install        # node 20, pnpm 10.33, python 3.13, uv (matches Railway)
+mise run dev        # Next.js + FastAPI together
+mise run check      # eslint + tsc (web) and ruff + pytest (api) — mirrors CI
+mise run test       # backend pytest only
+mise run migrate    # alembic upgrade head
+mise run build      # production Next.js build
+mise tasks ls       # all tasks (incl. desktop:dev / desktop:build for the Tauri prototype)
+```
+
+Notes:
+- **Frontend is on pnpm** (pinned via `packageManager` + `mise.toml [tools]`); CI and
+  `frontend/railway.toml` use pnpm too. The root Tauri prototype and the repo-root husky hooks
+  are still on npm — run `npm install` at the root once to wire up husky.
+- **bcrypt** is a declared frontend dep with a native build step, allowlisted via
+  `frontend/package.json` `pnpm.onlyBuiltDependencies`; sharp + unrs-resolver use prebuilt
+  binaries (no approval). `next.config.ts` pins `turbopack.root` so Next doesn't mistake the
+  repo root (which still has an npm lockfile) for the frontend's workspace root.
+- **uv owns the Python venv, not mise** — mise's `python = "3.13"` pin matches `.python-version`,
+  but `uv run` reuses an existing `.venv`. `rm -rf backend/.venv && uv sync` rebuilds on 3.13.
+- **CI gotcha:** never pipe `mise run check` through `tail` — it masks mise's exit code.
+
 ## Conventions
 
 - **Python:** Ruff for linting **and formatting** — CI runs both `ruff check` and `ruff format --check` as separate steps. Always run `uv run ruff check . && uv run ruff format .` before pushing, or `ruff check . --fix && ruff format .` to auto-fix. Lint-only passes are not enough.

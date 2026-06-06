@@ -26,9 +26,15 @@ jobs:
         with:
           python-version: "3.13"
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.33.0"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install backend dependencies
         working-directory: backend
@@ -46,15 +52,15 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: TypeScript type check
         working-directory: frontend
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       - name: ESLint
         working-directory: frontend
-        run: npm run lint
+        run: pnpm lint
 
       - name: Next.js build
         working-directory: frontend
@@ -62,4 +68,4 @@ jobs:
           NEXTAUTH_SECRET: ci-dummy-secret
           INTERNAL_JWT_SECRET: ci-dummy-secret
           BACKEND_URL: http://localhost:8000
-        run: npm run build
+        run: pnpm build
