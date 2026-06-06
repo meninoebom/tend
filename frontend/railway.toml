@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "pnpm start -- -p ${PORT:-3000}"
+startCommand = "pnpm exec next start -p ${PORT:-3000}"
 healthcheckPath = "/login"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
