@@ -1,0 +1,97 @@
+# mise — polyglot orchestrator for tend.
+# tend is two things in one repo:
+#   1. LIVE web app:  frontend/ (Next.js) + backend/ (FastAPI) + Postgres on Railway.
+#   2. REFERENCE Tauri prototype:  src/ (vanilla TS) + src-tauri/ (Rust + SQLite).
+# The web-app tasks below are the primary workflow; desktop:* drives the prototype.
+#
+# Package managers: frontend/ is on pnpm (its packageManager field pins the version).
+# The root Tauri prototype is still on npm (so desktop:* + the root husky hooks use npm);
+# the backend is uv.
+
+[tools]
+node = "20"        # matches frontend/.node-version (Railway Nixpacks; Next 16 needs >= 20.9)
+pnpm = "10.33.0"   # frontend package manager (matches its packageManager field)
+python = "3.13"    # matches backend/.python-version and requires-python
+uv = "latest"      # backend uses uv (uv.lock; ruff/pytest in [dependency-groups])
+
+[env]
+# No root .env: the backend reads backend/.env (pydantic-settings) and Next.js reads
+# frontend/.env.local because each task sets `dir`. Nothing to load here.
+
+# ---------------------------------------------------------------------------
+# Web app (live) — the primary workflow
+# ---------------------------------------------------------------------------
+
+[tasks.dev]
+description = "Run web app: Next.js frontend + FastAPI backend together"
+depends = ["dev:web", "dev:api"]
+
+[tasks."dev:web"]
+description = "Next.js dev server (frontend)"
+dir = "frontend"
+run = "pnpm dev"
+
+[tasks."dev:api"]
+description = "FastAPI dev server with reload (backend)"
+dir = "backend"
+run = "uv run uvicorn app.main:app --reload"
+
+[tasks.check]
+description = "Lint + typecheck + test for the whole web app (mirrors CI)"
+depends = ["check:web", "check:api"]
+
+[tasks."check:web"]
+description = "ESLint + TypeScript typecheck (frontend)"
+dir = "frontend"
+run = [
+  "pnpm lint",
+  "pnpm exec tsc --noEmit",
+]
+
+[tasks."check:api"]
+description = "Ruff lint + format check + pytest (backend)"
+dir = "backend"
+run = [
+  "uv run ruff check .",
+  "uv run ruff format --check .",
+  "uv run pytest",
+]
+
+[tasks.test]
+description = "Backend test suite"
+dir = "backend"
+run = "uv run pytest"
+
+[tasks.build]
+description = "Production build of the Next.js frontend"
+dir = "frontend"
+run = "pnpm build"
+
+[tasks.migrate]
+description = "Run Alembic migrations against the configured database"
+dir = "backend"
+run = "uv run alembic upgrade head"
+
+[tasks.install]
+description = "Install deps for both halves of the web app"
+depends = ["install:web", "install:api"]
+
+[tasks."install:web"]
+dir = "frontend"
+run = "pnpm install"
+
+[tasks."install:api"]
+dir = "backend"
+run = "uv sync"
+
+# ---------------------------------------------------------------------------
+# Desktop (Tauri prototype) — reference only, still on npm
+# ---------------------------------------------------------------------------
+
+[tasks."desktop:dev"]
+description = "Tauri prototype dev (root Vite UI + Rust)"
+run = "npm run tauri dev"
+
+[tasks."desktop:build"]
+description = "Tauri prototype release build"
+run = "npm run tauri build"
