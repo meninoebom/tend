@@ -45,9 +45,16 @@ export default function SignupPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-text-primary tracking-tight">Tend</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Create your account
+          <p className="mt-3 text-sm text-text-secondary leading-relaxed">
+            A quiet todo app built around a two-minute morning triage. Decide
+            what matters today, and nothing else sneaks in.
           </p>
+          <Link
+            href="/"
+            className="mt-2 inline-block text-xs text-text-muted hover:text-text-secondary transition-colors"
+          >
+            What&apos;s this?
+          </Link>
         </div>
 
         <div className="space-y-4">

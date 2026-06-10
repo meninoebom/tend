@@ -253,7 +253,9 @@ export default function OnboardingPage() {
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold text-text-primary">What&apos;s on your mind?</h1>
             <p className="text-sm text-text-secondary">
-              Add a few things you need to deal with. Think small &mdash; what could you actually finish today?
+              Add a few things you&apos;re juggling. Each morning, Tend walks you
+              through them one at a time so you can pick what matters today.
+              Think small.
             </p>
             {selectedDomains.length > 0 && (
               <p className="text-xs text-text-muted">Tap ⊕ to assign a life area</p>
