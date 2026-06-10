@@ -259,7 +259,11 @@ export default function BucketPage() {
                   Nothing here yet. Tasks untouched for 30 days will return to the soil.
                 </p>
               ) : (
-                compostTasks.map((task) => (
+                <>
+                <p className="text-xs text-text-muted pt-1 pb-3 px-3">
+                  Composting clears out tasks you haven&apos;t touched in 30 days. Restore the ones you still want; let the rest go.
+                </p>
+                {compostTasks.map((task) => (
                   <div key={task.id} className="py-2 px-3">
                     {confirmingId === task.id ? (
                       <div className="flex items-center justify-between text-sm">
@@ -313,7 +317,8 @@ export default function BucketPage() {
                       </div>
                     )}
                   </div>
-                ))
+                ))}
+                </>
               )}
             </div>
           </details>

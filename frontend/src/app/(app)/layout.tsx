@@ -11,6 +11,7 @@ import { useTheme } from "@/components/theme-provider";
 import { WinddownModal } from "@/components/winddown-modal";
 import { TriageReminderBanner } from "@/components/triage-reminder-banner";
 import { DomainNav } from "@/components/domain-nav";
+import { FeedbackWidget } from "@/components/feedback-widget";
 
 type NavIconName = "review" | "today" | "soon" | "later" | "someday" | "done" | "settings";
 
@@ -418,6 +419,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {showWinddownModal && (
         <WinddownModal onComplete={() => { setShowWinddownModal(false); setRefreshKey((k) => k + 1); }} />
       )}
+
+      {/* Persistent feedback affordance — present on every page incl. onboarding */}
+      <FeedbackWidget />
     </div>
   );
 }
