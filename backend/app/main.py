@@ -14,7 +14,17 @@ from app.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Tend", version="0.2.0")
+# Hide the interactive docs + OpenAPI schema in production. The backend is now
+# reachable from the internet (a desktop client calls it directly), and there is
+# no reason to advertise the full API surface publicly. Data routes are already
+# JWT-gated; this just closes the schema/docs endpoints.
+app = FastAPI(
+    title="Tend",
+    version="0.2.0",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 app.state.limiter = limiter
 
 # Routers

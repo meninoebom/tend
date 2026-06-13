@@ -11,8 +11,15 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
+    # Set by Railway automatically (e.g. "production"). Used to hide the
+    # interactive API docs once the backend is reachable from the internet.
+    railway_environment: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @property
+    def is_production(self) -> bool:
+        return self.railway_environment == "production"
 
     @model_validator(mode="after")
     def fix_database_url(self) -> "Settings":
