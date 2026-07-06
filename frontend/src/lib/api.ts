@@ -1,4 +1,6 @@
 import type {
+  ApiToken,
+  ApiTokenCreated,
   AppState,
   BillingStatus,
   BriefingResponse,
@@ -9,6 +11,7 @@ import type {
   MITSuggestion,
   PortalResponse,
   Task,
+  TaskSize,
   TaskStatus,
   TriageAction,
   TriageQueue,
@@ -69,13 +72,21 @@ export async function createTask(body: {
   skip_triage_stamp?: boolean;
   important?: boolean;
   urgent?: boolean;
+  size?: TaskSize;
 }): Promise<Task> {
   return request<Task>("tasks", { method: "POST", body: JSON.stringify(body) });
 }
 
 export async function updateTask(
   id: string,
-  body: { text?: string; bucket?: BucketType; domain_id?: string | null; status?: TaskStatus; notes?: string | null },
+  body: {
+    text?: string;
+    bucket?: BucketType;
+    domain_id?: string | null;
+    status?: TaskStatus;
+    notes?: string | null;
+    size?: TaskSize;
+  },
 ): Promise<Task> {
   return request<Task>(`tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 }
@@ -196,5 +207,20 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   return request<BillingStatus>("billing/status");
 }
 
+// Personal access tokens
+export async function getApiTokens(): Promise<ApiToken[]> {
+  return request<ApiToken[]>("api-tokens");
+}
+
+export async function createApiToken(name: string): Promise<ApiTokenCreated> {
+  return request<ApiTokenCreated>("api-tokens", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteApiToken(id: string): Promise<void> {
+  return request<void>(`api-tokens/${id}`, { method: "DELETE" });
+}
 
 export { ApiError };

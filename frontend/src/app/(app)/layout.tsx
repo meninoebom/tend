@@ -52,6 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showWinddownModal, setShowWinddownModal] = useState(false);
   const [triagePending, setTriagePending] = useState(false);
+  const [triageCount, setTriageCount] = useState(0);
   const [showTriageBanner, setShowTriageBanner] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [user, setUser] = useState<User | null>(null);
@@ -158,6 +159,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .then((q) => {
         if (!q.triage_complete && q.tasks.length > 0) {
           setTriagePending(true);
+          setTriageCount(q.tasks.length);
           // Banner is dismissed via hard skip, but the rail link still shows.
           if (!isTriageSkippedToday()) {
             setShowTriageBanner(true);
@@ -165,6 +167,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         } else {
           markTriageDone();
           setTriagePending(false);
+          setTriageCount(0);
         }
       })
       .catch((err) => {
@@ -230,7 +233,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <NavIcon name="review" className="text-accent-blue" />
                 <span className="flex-1 text-left">Morning triage</span>
-                <span className="h-2 w-2 rounded-full bg-accent-blue shrink-0" />
+                {triageCount > 0 ? (
+                  <span className="min-w-5 px-1.5 h-5 rounded-full bg-accent-blue text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
+                    {triageCount}
+                  </span>
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-accent-blue shrink-0" />
+                )}
               </button>
             )}
             {mainNavItems.map((item) => {

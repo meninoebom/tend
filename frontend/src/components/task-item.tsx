@@ -445,6 +445,44 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
           </span>
         )}
 
+        {/* Size glyph */}
+        {task.size && (
+          <span
+            className="shrink-0 font-mono text-[10px] leading-none h-4 w-4 rounded border border-border text-text-muted flex items-center justify-center uppercase"
+            title={
+              task.size === "s"
+                ? "Small (under 30 min)"
+                : task.size === "m"
+                  ? "Medium (about an hour)"
+                  : "Large (half a day)"
+            }
+          >
+            {task.size}
+          </span>
+        )}
+
+        {/* Placement badge (Plot time block) */}
+        {task.placement && (
+          <span
+            className="shrink-0 text-[10px] font-medium text-accent-blue/80 rounded bg-accent-blue/10 px-1.5 py-0.5"
+            title="Placed into a time block by Plot"
+          >
+            {[
+              task.placement.block_type
+                ? task.placement.block_type[0].toUpperCase() + task.placement.block_type.slice(1)
+                : "Block",
+              task.placement.block_start
+                ? new Date(task.placement.block_start).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        )}
+
         {/* Note indicator */}
         {!compact && !isSubtask && hasNote && (
           <button

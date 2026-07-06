@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BriefingResponse, MITSuggestion, Task, TriageQueue } from "@/lib/api-types";
-import { getTriageQueue, getMe, getTriageBriefing, createCheckout, getMITSuggestion, setMIT, getTasks } from "@/lib/api";
+import type {
+  BriefingResponse,
+  BucketType,
+  MITSuggestion,
+  Task,
+  TriageAction,
+  TriageQueue,
+} from "@/lib/api-types";
+import { getTriageQueue, getMe, getTriageBriefing, createCheckout, getMITSuggestion, setMIT, getTasks, updateTask } from "@/lib/api";
 import { TriageCard } from "@/components/triage-card";
 import { ProBadge } from "@/components/pro-badge";
 import { MITSelection } from "@/components/mit-selection";
@@ -31,6 +38,11 @@ export function TriageFlow({ onComplete, initialQueue }: TriageFlowProps) {
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [showQuote, setShowQuote] = useState(false);
   const todayQuote = getTodayQuote();
+
+  // Undo stack: each entry captures what a card action changed so `z` can revert
+  // it. prevBucket restores defers/confirms; complete/kill are reopened to pending.
+  type UndoEntry = { index: number; taskId: string; action: TriageAction; prevBucket: BucketType };
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
 
   useEffect(() => {
     const queuePromise = initialQueue
@@ -97,12 +109,45 @@ export function TriageFlow({ onComplete, initialQueue }: TriageFlowProps) {
     else onComplete();
   }
 
-  function handleAction(result: { triage_complete: boolean; remaining: number }) {
-    if (result.triage_complete || result.remaining === 0 || !queue || currentIndex >= queue.tasks.length - 1) {
+  function handleAction(result: { action: TriageAction; triage_complete: boolean; remaining: number }) {
+    // Record for undo, using the card's current task (still at currentIndex).
+    if (queue) {
+      const acted = queue.tasks[currentIndex];
+      if (acted) {
+        setUndoStack((s) => [
+          ...s,
+          {
+            index: currentIndex,
+            taskId: acted.id,
+            action: result.action,
+            prevBucket: acted.bucket,
+          },
+        ]);
+      }
+    }
+    // Walk the queue by index (works for both real and synthesized results).
+    if (!queue || currentIndex >= queue.tasks.length - 1) {
       handleTriageFinished();
       return;
     }
     setCurrentIndex((i) => i + 1);
+  }
+
+  async function handleUndo() {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack((s) => s.slice(0, -1));
+    setCurrentIndex(last.index);
+    try {
+      if (last.action === "confirm" || last.action === "defer") {
+        await updateTask(last.taskId, { bucket: last.prevBucket });
+      } else {
+        // complete (reopen) or kill (un-archive) → back to pending.
+        await updateTask(last.taskId, { status: "pending" });
+      }
+    } catch (err) {
+      console.error("Undo failed:", err);
+    }
   }
 
   async function handleMITConfirm(taskId: string) {
@@ -318,6 +363,8 @@ export function TriageFlow({ onComplete, initialQueue }: TriageFlowProps) {
         progress={{ current: currentIndex + 1, total: queue.tasks.length }}
         onAction={handleAction}
         showHints={showHints}
+        onUndo={handleUndo}
+        canUndo={undoStack.length > 0}
       />
       {skipLink}
     </div>

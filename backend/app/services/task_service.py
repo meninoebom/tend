@@ -222,8 +222,11 @@ def update_task(
         task.size = size
     if status is not None:
         allowed = {
+            # pending → archived (let go / compost), archived → pending (restore),
+            # complete → pending (reopen, e.g. undo a triage "Done").
             TaskStatus.pending: {TaskStatus.archived},
             TaskStatus.archived: {TaskStatus.pending},
+            TaskStatus.complete: {TaskStatus.pending},
         }
         if status not in allowed.get(task.status, set()):
             raise AppError(
@@ -234,6 +237,9 @@ def update_task(
         # Restoring an archived task: reset triaged_at so it enters triage
         if task.status == TaskStatus.archived and status == TaskStatus.pending:
             task.triaged_at = None
+        # Reopening a completed task: clear completion timestamp.
+        if task.status == TaskStatus.complete and status == TaskStatus.pending:
+            task.completed_at = None
         task.status = status
 
     task.updated_at = datetime.utcnow()

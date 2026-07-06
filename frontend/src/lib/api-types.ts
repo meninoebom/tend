@@ -2,6 +2,15 @@
 export type BucketType = "today" | "soon" | "later" | "someday";
 export type TaskStatus = "pending" | "complete" | "archived";
 export type TriageAction = "confirm" | "defer" | "complete" | "kill";
+// Coarse task size: s = under 30 min, m = ~an hour, l = half a day.
+export type TaskSize = "s" | "m" | "l";
+
+// Today's time-block placement, as reported by Plot.
+export interface Placement {
+  block_start: string | null;
+  block_type: string | null;
+  calendar_event_id: string | null;
+}
 
 // Domain
 export interface Domain {
@@ -45,6 +54,8 @@ export interface Task {
   is_mit: boolean;
   important: boolean;
   urgent: boolean;
+  size: TaskSize | null;
+  placement: Placement | null;
 }
 
 // MIT suggestion from the backend
@@ -120,4 +131,17 @@ export interface PortalResponse {
 export interface BillingStatus {
   subscription_status: "free" | "active" | "past_due" | "canceled";
   is_pro: boolean;
+}
+
+// Personal access tokens
+export interface ApiToken {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+// Returned once, at creation, with the raw token to copy.
+export interface ApiTokenCreated extends ApiToken {
+  token: string;
 }
