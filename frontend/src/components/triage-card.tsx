@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StickyNote } from "lucide-react";
-import type { Task, TriageAction, TriageResult, BucketType } from "@/lib/api-types";
+import type { Task, TriageAction, TriageResult, BucketType, TaskSize } from "@/lib/api-types";
 import { submitTriage, updateTask } from "@/lib/api";
 import { DomainBadge } from "@/components/domain-badge";
 import { formatAge, cn } from "@/lib/utils";
@@ -13,12 +13,34 @@ interface TriageCardProps {
   onAction: (result: TriageResult) => void;
   showHints?: boolean;
   isWinddown?: boolean;
+  onUndo?: () => void;
+  canUndo?: boolean;
 }
 
-export function TriageCard({ task, progress, onAction, showHints = false, isWinddown = false }: TriageCardProps) {
+export function TriageCard({
+  task,
+  progress,
+  onAction,
+  showHints = false,
+  isWinddown = false,
+  onUndo,
+  canUndo = false,
+}: TriageCardProps) {
   const [rewriteMode, setRewriteMode] = useState(false);
   const [rewriteText, setRewriteText] = useState(task.text);
   const [loading, setLoading] = useState(false);
+  const [size, setSizeState] = useState<TaskSize | null>(task.size);
+
+  // Set size during triage (keys 1/2/3). Optimistic; fire-and-forget.
+  const setSize = useCallback(
+    (next: TaskSize) => {
+      setSizeState(next);
+      updateTask(task.id, { size: next }).catch((err) =>
+        console.error("Failed to set size:", err),
+      );
+    },
+    [task.id],
+  );
 
   const [rewriteDismissed, setRewriteDismissed] = useState(false);
   const [noteExpanded, setNoteExpanded] = useState(false);
@@ -32,12 +54,12 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
   const hasNote = !!currentNotes;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
 
-  function startNoteEdit() {
+  const startNoteEdit = useCallback(() => {
     setNoteDraft(currentNotes ?? "");
     setNoteEditing(true);
     setNoteExpanded(true);
     setNoteError(null);
-  }
+  }, [currentNotes]);
 
   function cancelNoteEdit() {
     setNoteDraft(currentNotes ?? "");
@@ -81,22 +103,108 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
     }
   }, [noteEditing]);
 
-  async function handleAction(action: TriageAction, bucket?: BucketType) {
-    if (loading) return;
-    setLoading(true);
-    const body: { action: TriageAction; bucket?: BucketType; rewritten_text?: string } = { action };
-    if (bucket) body.bucket = bucket;
-    if (rewriteMode && rewriteText.trim() !== task.text) {
-      body.rewritten_text = rewriteText.trim();
+  const handleAction = useCallback(
+    async (action: TriageAction, bucket?: BucketType) => {
+      if (loading) return;
+      setLoading(true);
+      try {
+        if (action === "kill") {
+          // "Let go" is a reversible soft-archive (not a hard delete) so undo
+          // can restore it. Archived tasks remain recoverable on the Someday page.
+          await updateTask(task.id, { status: "archived" });
+          onAction({
+            task_id: task.id,
+            action: "kill",
+            same_text_warning: false,
+            triage_complete: false,
+            remaining: 1,
+          });
+          return;
+        }
+        const body: { action: TriageAction; bucket?: BucketType; rewritten_text?: string } = {
+          action,
+        };
+        if (bucket) body.bucket = bucket;
+        if (rewriteMode && rewriteText.trim() !== task.text) {
+          body.rewritten_text = rewriteText.trim();
+        }
+        const result = await submitTriage(task.id, body);
+        onAction(result);
+      } catch (err) {
+        console.error("Triage action failed:", err);
+        setLoading(false);
+      }
+    },
+    [loading, task.id, task.text, rewriteMode, rewriteText, onAction],
+  );
+
+  // Keyboard-driven triage: single keys act on the current card. Ignored while
+  // editing text (rewrite/note) so typing isn't hijacked.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (rewriteMode || noteEditing) return;
+      const el = document.activeElement;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+
+      switch (e.key.toLowerCase()) {
+        case "t":
+          e.preventDefault();
+          handleAction("confirm");
+          break;
+        case "s":
+          e.preventDefault();
+          handleAction("defer", "soon");
+          break;
+        case "l":
+          e.preventDefault();
+          handleAction("defer", "later");
+          break;
+        case "o":
+          e.preventDefault();
+          handleAction("defer", "someday");
+          break;
+        case "d":
+          e.preventDefault();
+          handleAction("complete");
+          break;
+        case "x":
+          e.preventDefault();
+          handleAction("kill");
+          break;
+        case "1":
+          e.preventDefault();
+          setSize("s");
+          break;
+        case "2":
+          e.preventDefault();
+          setSize("m");
+          break;
+        case "3":
+          e.preventDefault();
+          setSize("l");
+          break;
+        case "n":
+          e.preventDefault();
+          startNoteEdit();
+          break;
+        case "r":
+          if (!isWinddown) {
+            e.preventDefault();
+            setRewriteMode(true);
+          }
+          break;
+        case "z":
+          if (onUndo && canUndo) {
+            e.preventDefault();
+            onUndo();
+          }
+          break;
+      }
     }
-    try {
-      const result = await submitTriage(task.id, body);
-      onAction(result);
-    } catch (err) {
-      console.error("Triage action failed:", err);
-      setLoading(false);
-    }
-  }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleAction, rewriteMode, noteEditing, isWinddown, onUndo, canUndo, startNoteEdit, setSize]);
 
   return (
     <div className="flex flex-col items-center gap-6 px-4 w-full max-w-lg mx-auto">
@@ -142,6 +250,28 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
               {completedChildren} of {task.children.length} sub-tasks done
             </span>
           )}
+        </div>
+
+        {/* Size picker (keys 1/2/3) */}
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="text-text-muted">Size</span>
+          {(["s", "m", "l"] as const).map((s, i) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSize(s)}
+              aria-pressed={size === s}
+              title={`${s === "s" ? "Small · under 30 min" : s === "m" ? "Medium · about an hour" : "Large · half a day"} (press ${i + 1})`}
+              className={cn(
+                "font-mono uppercase h-6 w-6 rounded border flex items-center justify-center transition-all",
+                size === s
+                  ? "border-accent-blue/50 bg-accent-blue/10 text-accent-blue"
+                  : "border-border text-text-muted hover:border-text-muted",
+              )}
+            >
+              {s}
+            </button>
+          ))}
         </div>
 
         {/* Note indicator + expand/edit */}
@@ -260,6 +390,7 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
       <div className="grid grid-cols-4 gap-2 w-full">
         <ActionButton
           label={isWinddown ? "Tomorrow" : "Today"}
+          keyHint="T"
           hint={showHints ? (isWinddown ? "first thing" : "do it today") : undefined}
           onClick={() => handleAction("confirm")}
           loading={loading}
@@ -267,6 +398,7 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
         />
         <ActionButton
           label="Soon"
+          keyHint="S"
           hint={showHints ? "this week" : undefined}
           onClick={() => handleAction("defer", "soon")}
           loading={loading}
@@ -274,6 +406,7 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
         />
         <ActionButton
           label="Later"
+          keyHint="L"
           hint={showHints ? "not now" : undefined}
           onClick={() => handleAction("defer", "later")}
           loading={loading}
@@ -281,6 +414,7 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
         />
         <ActionButton
           label="Someday"
+          keyHint="O"
           hint={showHints ? "be honest" : undefined}
           onClick={() => handleAction("defer", "someday")}
           loading={loading}
@@ -292,6 +426,7 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
       <div className="grid grid-cols-2 gap-2 w-full">
         <ActionButton
           label="Done"
+          keyHint="D"
           hint={showHints ? "already handled" : undefined}
           onClick={() => handleAction("complete")}
           loading={loading}
@@ -299,24 +434,38 @@ export function TriageCard({ task, progress, onAction, showHints = false, isWind
         />
         <ActionButton
           label="Let go"
+          keyHint="X"
           hint={showHints ? "release it" : undefined}
           onClick={() => handleAction("kill")}
           loading={loading}
           className="bg-bg-surface text-accent-red/70 hover:bg-accent-red/10"
         />
       </div>
+
+      {/* Undo affordance */}
+      {onUndo && (
+        <button
+          onClick={onUndo}
+          disabled={!canUndo || loading}
+          className="text-xs text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40 min-h-[44px] px-4"
+        >
+          Undo last <kbd className="font-mono">Z</kbd>
+        </button>
+      )}
     </div>
   );
 }
 
 function ActionButton({
   label,
+  keyHint,
   hint,
   onClick,
   loading,
   className,
 }: {
   label: string;
+  keyHint?: string;
   hint?: string;
   onClick: () => void;
   loading: boolean;
@@ -327,10 +476,13 @@ function ActionButton({
       onClick={onClick}
       disabled={loading}
       className={cn(
-        "flex flex-col items-center justify-center gap-0.5 rounded-xl min-h-[44px] py-3 px-2 transition-colors disabled:opacity-50",
+        "relative flex flex-col items-center justify-center gap-0.5 rounded-xl min-h-[44px] py-3 px-2 transition-colors disabled:opacity-50",
         className,
       )}
     >
+      {keyHint && (
+        <kbd className="absolute top-1 right-1.5 font-mono text-[9px] opacity-50">{keyHint}</kbd>
+      )}
       <span className="text-sm font-medium">{label}</span>
       {hint && <span className="text-[10px] opacity-60">{hint}</span>}
     </button>

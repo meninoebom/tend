@@ -131,8 +131,28 @@ class TestComposter:
         assert task.status == TaskStatus.pending
         assert task.triaged_at is None
 
+    def test_reopen_complete_to_pending_allowed(self, client, test_user, db):
+        """complete→pending is allowed (reopen, e.g. undo a triage "Done");
+        completed_at is cleared."""
+        from datetime import datetime
+
+        task = Task(
+            user_id=test_user.id,
+            text="Done task",
+            bucket=BucketType.today,
+            status=TaskStatus.complete,
+            completed_at=datetime.utcnow(),
+        )
+        db.add(task)
+        db.flush()
+
+        r = client.patch(f"/tasks/{task.id}", json={"status": "pending"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "pending"
+        assert r.json()["completed_at"] is None
+
     def test_invalid_status_transition_rejected(self, client, test_user, db):
-        """Cannot transition complete→pending via PATCH."""
+        """complete→archived is not a valid transition."""
         task = Task(
             user_id=test_user.id,
             text="Done task",
@@ -142,5 +162,5 @@ class TestComposter:
         db.add(task)
         db.flush()
 
-        r = client.patch(f"/tasks/{task.id}", json={"status": "pending"})
+        r = client.patch(f"/tasks/{task.id}", json={"status": "archived"})
         assert r.status_code == 422

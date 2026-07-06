@@ -117,6 +117,11 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
   // --- Intro: reflection before cards ---
   if (phase === "intro") {
     const remaining = tasks.length;
+    // Honest, non-numerical distinction from placement data:
+    //  - had a block but didn't finish → the plan was off (block too small / eaten)
+    //  - never got a block → you said "today" but never made room for it
+    const placedUnfinished = tasks.filter((t) => t.placement).length;
+    const neverPlaced = tasks.filter((t) => !t.placement).length;
 
     return (
       <RitualOverlay>
@@ -136,6 +141,16 @@ export function WinddownModal({ onComplete }: WinddownModalProps) {
             {remaining > 0 && (
               <p className="text-sm text-text-muted">
                 {remaining} task{remaining !== 1 ? "s" : ""} still open &mdash; where should {remaining === 1 ? "it" : "they"} go?
+              </p>
+            )}
+            {placedUnfinished > 0 && (
+              <p className="text-sm text-text-secondary">
+                {placedUnfinished} had time blocked but didn&apos;t get done. Was the plan off?
+              </p>
+            )}
+            {neverPlaced > 0 && placedUnfinished > 0 && (
+              <p className="text-sm text-text-secondary">
+                {neverPlaced} never got a block &mdash; you said today but never made room.
               </p>
             )}
           </div>

@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.api.tasks import _to_response
 from app.core.deps import get_db
 from app.core.errors import AppError
-from app.core.security import get_current_user_id
+from app.core.security import get_current_user_id, get_user_id_allow_pat
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
@@ -23,6 +23,7 @@ from app.services import (
     briefing_service,
     composter_service,
     mit_service,
+    placement_service,
     stats_service,
     triage_service,
 )
@@ -35,7 +36,7 @@ router = APIRouter(prefix="/triage", tags=["triage"])
 @router.get("", response_model=TriageQueueResponse)
 def get_triage_queue(
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     # Compost stale tasks before building the triage queue.
     # Savepoint ensures a composter failure rolls back cleanly
@@ -121,6 +122,8 @@ def get_winddown(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
+    from datetime import date
+
     tasks = triage_service.get_winddown_tasks(db, user_id)
     mit_task_id = mit_service.get_today_mit(db, user_id)
     mit_completed: bool | None = None
@@ -128,7 +131,11 @@ def get_winddown(
         mit_task = db.get(Task, mit_task_id)
         if mit_task is not None:
             mit_completed = mit_task.status == TaskStatus.complete
+    # Enrich with today's placements so the frontend can distinguish
+    # "had a block and didn't finish" (planning-honesty) from
+    # "never got a block" (triage-honesty).
+    placements = placement_service.get_placements_for_date(db, user_id, date.today())
     return WinddownResponse(
-        tasks=[_to_response(t) for t in tasks],
+        tasks=[_to_response(t, placement=placements.get(t.id)) for t in tasks],
         mit_completed=mit_completed,
     )

@@ -1,9 +1,9 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.models.enums import BucketType, TaskStatus
+from app.models.enums import BucketType, SizeType, TaskStatus
 
 
 class PriorityUpdate(BaseModel):
@@ -20,6 +20,7 @@ class TaskCreate(BaseModel):
     skip_triage_stamp: bool = False
     important: bool = False
     urgent: bool = False
+    size: SizeType | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -30,6 +31,7 @@ class TaskUpdate(BaseModel):
     notes: str | None = None
     important: bool | None = None
     urgent: bool | None = None
+    size: SizeType | None = None
 
 
 class ReorderRequest(BaseModel):
@@ -46,6 +48,21 @@ class ReorderRequest(BaseModel):
         return v
 
 
+class PlacementCreate(BaseModel):
+    """Plot reports that a task was placed into a time block.
+
+    The JSON field is ``date``; the attribute is ``placement_date`` to avoid
+    shadowing the ``date`` type annotation.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    placement_date: date = Field(alias="date")
+    block_start: datetime | None = None
+    block_type: str | None = None
+    calendar_event_id: str | None = None
+
+
 class DomainBrief(BaseModel):
     id: uuid.UUID
     name: str
@@ -57,6 +74,14 @@ class SubTaskResponse(BaseModel):
     text: str
     status: TaskStatus
     completed_at: datetime | None
+
+
+class PlacementBrief(BaseModel):
+    """Today's time-block placement for a task, as reported by Plot."""
+
+    block_start: datetime | None
+    block_type: str | None
+    calendar_event_id: str | None
 
 
 class TaskResponse(BaseModel):
@@ -76,6 +101,8 @@ class TaskResponse(BaseModel):
     is_mit: bool = False
     important: bool = False
     urgent: bool = False
+    size: SizeType | None = None
+    placement: PlacementBrief | None = None
 
     @computed_field
     @property

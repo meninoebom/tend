@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { ApiError } from "@/lib/api";
+import { ApiTokensSection } from "@/components/api-tokens-section";
 import { PRESET_COLORS, FREE_DOMAIN_LIMIT, PRO_DOMAIN_LIMIT } from "@/lib/constants";
 
 export default function SettingsPage() {
@@ -394,6 +395,9 @@ function SettingsContent() {
           Sign out
         </button>
       </section>
+
+      {/* Personal access tokens */}
+      <ApiTokensSection />
 
       {/* Feedback */}
       <section className="space-y-3 pt-4 border-t border-border">

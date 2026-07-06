@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy import Column, Index, String
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.enums import BucketType, TaskStatus
+from app.models.enums import BucketType, SizeType, TaskStatus
 
 
 class Task(SQLModel, table=True):
@@ -25,6 +25,8 @@ class Task(SQLModel, table=True):
     triaged_at: date | None = Field(default=None)
     important: bool = Field(default=False, nullable=False)
     urgent: bool = Field(default=False, nullable=False)
+    # Coarse size (S/M/L), optional. A triage-time judgment consumed by Plot.
+    size: SizeType | None = Field(default=None, sa_column=Column(String, nullable=True))
 
     # Parent task (one level of sub-tasks)
     parent_id: uuid.UUID | None = Field(
@@ -58,6 +60,11 @@ class Task(SQLModel, table=True):
     )
     children: list["Task"] = Relationship(
         back_populates="parent",
+        cascade_delete=True,
+        sa_relationship_kwargs={"lazy": "raise", "passive_deletes": True},
+    )
+    placements: list["TaskPlacement"] = Relationship(  # noqa: F821
+        back_populates="task",
         cascade_delete=True,
         sa_relationship_kwargs={"lazy": "raise", "passive_deletes": True},
     )

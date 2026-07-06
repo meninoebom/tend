@@ -31,3 +31,15 @@ class LayoutType(StrEnum):
     grouped = "grouped"
     quadrant = "quadrant"
     matrix = "matrix"
+
+
+class SizeType(StrEnum):
+    """Coarse task size, set as a triage-time judgment (not a schedule).
+
+    S = under 30 min, M = about an hour, L = half a day. Consumed by Plot to
+    reason about block capacity; always optional in Tend.
+    """
+
+    small = "s"
+    medium = "m"
+    large = "l"
