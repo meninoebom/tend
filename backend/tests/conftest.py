@@ -11,7 +11,7 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 
 from app.core.deps import get_db  # noqa: E402
-from app.core.security import get_current_user_id  # noqa: E402
+from app.core.security import get_current_user_id, get_user_id_allow_pat  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.domain import Domain
 from app.models.enums import AuthProvider, BucketType, TaskStatus
@@ -50,6 +50,9 @@ def client(db: Session) -> TestClient:
 
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user_id] = _override_user
+    # PAT-accepting endpoints use a distinct dependency; mock it the same way so
+    # the transactional/auth bypass applies there too.
+    app.dependency_overrides[get_user_id_allow_pat] = _override_user
 
     with TestClient(app) as c:
         yield c

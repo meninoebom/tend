@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from sqlmodel.sql.expression import SelectOfScalar
 
 from app.core.errors import AppError, NotFoundError
-from app.models.enums import BucketType, TaskStatus
+from app.models.enums import BucketType, SizeType, TaskStatus
 from app.models.task import Task
 from app.services import stats_service
 
@@ -48,6 +48,7 @@ def create_task(
     skip_triage_stamp: bool = False,
     important: bool = False,
     urgent: bool = False,
+    size: SizeType | None = None,
 ) -> Task:
     if len(text) > 500:
         raise AppError(
@@ -113,6 +114,7 @@ def create_task(
         triaged_at=None if skip_triage_stamp else date.today(),
         important=important,
         urgent=urgent,
+        size=size,
     )
     db.add(task)
     db.flush()
@@ -173,6 +175,7 @@ def update_task(
     notes: str | None | object = _UNSET,
     important: bool | None = None,
     urgent: bool | None = None,
+    size: SizeType | None | object = _UNSET,
 ) -> Task:
     task = get_task(db, user_id, task_id)
 
@@ -215,6 +218,8 @@ def update_task(
         task.important = important
     if urgent is not None:
         task.urgent = urgent
+    if size is not _UNSET:
+        task.size = size
     if status is not None:
         allowed = {
             TaskStatus.pending: {TaskStatus.archived},

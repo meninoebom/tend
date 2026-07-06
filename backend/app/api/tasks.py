@@ -5,10 +5,12 @@ from sqlmodel import Session
 
 from app.core.deps import get_db
 from app.core.errors import AppError
-from app.core.security import get_current_user_id
+from app.core.security import get_current_user_id, get_user_id_allow_pat
 from app.models.enums import BucketType, TaskStatus
 from app.schemas.task_schemas import (
     DomainBrief,
+    PlacementBrief,
+    PlacementCreate,
     PriorityUpdate,
     ReorderRequest,
     SubTaskResponse,
@@ -16,12 +18,12 @@ from app.schemas.task_schemas import (
     TaskResponse,
     TaskUpdate,
 )
-from app.services import mit_service, task_service
+from app.services import mit_service, placement_service, task_service
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def _to_response(task, mit_task_id: uuid.UUID | None = None) -> TaskResponse:
+def _to_response(task, mit_task_id: uuid.UUID | None = None, placement=None) -> TaskResponse:
     return TaskResponse(
         id=task.id,
         text=task.text,
@@ -44,6 +46,14 @@ def _to_response(task, mit_task_id: uuid.UUID | None = None) -> TaskResponse:
         is_mit=mit_task_id is not None and task.id == mit_task_id,
         important=task.important,
         urgent=task.urgent,
+        size=task.size,
+        placement=PlacementBrief(
+            block_start=placement.block_start,
+            block_type=placement.block_type,
+            calendar_event_id=placement.calendar_event_id,
+        )
+        if placement is not None
+        else None,
     )
 
 
@@ -53,11 +63,14 @@ def list_tasks(
     status: TaskStatus | None = None,
     domain_id: uuid.UUID | None = None,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
+    from datetime import date
+
     tasks = task_service.get_tasks(db, user_id, bucket=bucket, status=status, domain_id=domain_id)
     mit_id = mit_service.get_today_mit(db, user_id)
-    return [_to_response(t, mit_task_id=mit_id) for t in tasks]
+    placements = placement_service.get_placements_for_date(db, user_id, date.today())
+    return [_to_response(t, mit_task_id=mit_id, placement=placements.get(t.id)) for t in tasks]
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -74,7 +87,7 @@ def get_task(
 def create_task(
     body: TaskCreate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     # Only honor skip_triage_stamp during onboarding (prevents abuse after onboarding)
     skip_stamp = False
@@ -96,6 +109,7 @@ def create_task(
         skip_triage_stamp=skip_stamp,
         important=body.important,
         urgent=body.urgent,
+        size=body.size,
     )
     # Reload with relationships for response
     task = task_service.get_task(db, user_id, task.id)
@@ -134,6 +148,8 @@ def update_task(
         kwargs["important"] = body.important
     if body.urgent is not None:
         kwargs["urgent"] = body.urgent
+    if body.size is not None:
+        kwargs["size"] = body.size
     task = task_service.update_task(db, user_id, task_id, **kwargs)
     return _to_response(task)
 
@@ -158,7 +174,7 @@ def set_priority(
 def complete_task(
     task_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     task = task_service.complete_task(db, user_id, task_id)
     task = task_service.get_task(db, user_id, task.id)
@@ -178,7 +194,7 @@ def delete_task(
 def set_mit(
     task_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     task = task_service.get_task(db, user_id, task_id)
     if task.status != TaskStatus.pending:
@@ -195,3 +211,28 @@ def set_mit(
         )
     mit_service.set_mit(db, user_id, task_id)
     return _to_response(task, mit_task_id=task_id)
+
+
+@router.post("/{task_id}/placements", response_model=TaskResponse, status_code=201)
+def create_placement(
+    task_id: uuid.UUID,
+    body: PlacementCreate,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
+):
+    """Record that Plot placed a task into a time block (PAT-scoped).
+
+    Tend never schedules — this only stores the fact Plot reports. Upserts on
+    (task, date), so re-placing the same task on the same day is idempotent.
+    """
+    placement = placement_service.record_placement(
+        db,
+        user_id,
+        task_id,
+        placement_date=body.placement_date,
+        block_start=body.block_start,
+        block_type=body.block_type,
+        calendar_event_id=body.calendar_event_id,
+    )
+    task = task_service.get_task(db, user_id, task_id)
+    return _to_response(task, placement=placement)
