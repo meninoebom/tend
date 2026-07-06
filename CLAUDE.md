@@ -70,6 +70,19 @@ JWT-based tokens, no database migration. Token encodes `{sub: user_id, purpose: 
 ### Unauthenticated API Routes
 The main `[...proxy]` catch-all requires a NextAuth session. Endpoints that must work without auth (password reset, etc.) need their own routes in `frontend/src/app/api/` that forward to the backend directly. Same pattern as `auth.ts` calling `/users` and `/users/verify`.
 
+### Personal Access Tokens (PATs) — scoping by opt-in dependency
+External clients (Plot, Raycast, iOS Shortcuts) authenticate with a `tend_pat_...` token instead of the 60s proxy JWT. Design:
+- `api_tokens` table stores only a **SHA-256 hash** of the raw token (fast, unsalted — auth looks a token up by hash without knowing the user). The raw value is shown **once** at creation.
+- `core/security.py` has two dependencies: `get_current_user_id` (proxy-JWT only, the default for every route) and `get_user_id_allow_pat` (accepts a PAT **or** the proxy JWT).
+- **Scoping is expressed by which routes use `get_user_id_allow_pat`** — there is no per-path allowlist. A PAT works only on the endpoints that opted in (currently `GET/POST /tasks`, `POST /tasks/{id}/complete`, `POST /tasks/{id}/mit`, `GET /triage`, `POST /tasks/{id}/placements`). To expose a new endpoint to PATs, switch its dependency; to keep it internal, leave `get_current_user_id`.
+- **Test gotcha:** `conftest.py` must override *both* auth dependencies. To test real PAT auth/scoping, pop the overrides in a fixture (see `TestPatScoping` in `test_api_tokens.py`).
+
+### Task Placements — Tend records, never schedules
+`task_placements` stores the fact that Plot placed a task into a time block (`{task_id, date, block_start, block_type, calendar_event_id}`), upserting on `(task_id, date)`. This does **not** make Tend a calendar — it records a reported fact the way `reschedule_count` does. `POST /tasks/{id}/placements` is PAT-scoped. `TaskResponse.placement` carries **today's** placement (passed explicitly to `_to_response`, never via `task.placements` — that relationship is `lazy="raise"`; use `placement_service.get_placements_for_date` to build a `{task_id: placement}` map and pass it in). Wind-down uses placement to distinguish "had a block, didn't finish" (planning-honesty) from "never got a block" (triage-honesty).
+
+### Status transitions: complete→pending is a "reopen"
+`update_task` allows `pending↔archived` **and** `complete→pending` (clears `completed_at`). The reopen exists so keyboard-triage undo can revert a "Done". `complete→archived` is still invalid.
+
 ## Project Structure
 
 ```
@@ -322,6 +335,15 @@ Floating popovers anchored to a row inside `SortableTaskItem` (or any `transform
 2. **Use a vertical menu (`flex flex-col` + fixed width like `w-[140px]`)**, not a horizontal pill row. Horizontal rows scale with item count and overflow narrow viewports / sidebars / quadrant cards; vertical menus never do.
 
 `domain-picker.tsx` follows this pattern. Mirror it for any new task-row popover.
+
+### Capture token grammar
+`lib/parse-capture.ts` is a **pure** function that pulls inline tokens out of a task string: `#domain` (prefix-matched against the user's domains, first match wins), `!` (important), `!!` (important+urgent), `u!`/`!u` (urgent), `>today|soon|later|someday` (bucket), `~s|~m|~l` (size). Recognized tokens are stripped from the text; unrecognized `#tags` are left verbatim. `task-input.tsx` submits on a single Enter (refocuses for rapid-fire; never disables the input) and opens the domain/priority picker on **Tab**, not Enter. The `/capture` PWA share-target page reuses the same parser.
+
+### Keyboard-driven triage + undo
+`triage-card.tsx` binds a window `keydown` listener (ignored while a text input/textarea is focused or in rewrite/note edit): `t/s/l/o` bucket, `d` done, `x` let go, `n` note, `r` rewrite, `1/2/3` size, `z` undo. **"Let go" is a reversible soft-archive** (`updateTask status=archived`), not the hard-delete `kill` triage action — so undo can restore it (archived tasks live on the Someday page). The undo stack lives in `triage-flow.tsx`: each action records `{index, taskId, action, prevBucket}`; `z` moves the index back and issues a compensating `updateTask` (restore bucket, or `status=pending` to un-archive / reopen). Advancement is **index-based**, not driven by the server's `remaining`, so synthesized results (from the archive path) work too.
+
+### PWA share target
+`app/manifest.ts` (Next metadata route) declares a `share_target` pointing at `/capture`; `public/sw.js` is a deliberately no-op service worker (installability only, **no** offline caching/sync); `components/pwa-register.tsx` registers it from the root layout. `share_target` isn't in Next's `Manifest` type — extend it locally with a cast.
 
 ## Merging PRs
 
