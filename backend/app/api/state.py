@@ -7,7 +7,7 @@ from sqlalchemy import select as sa_select
 from sqlmodel import Session
 
 from app.core.deps import get_db
-from app.core.security import get_current_user_id
+from app.core.security import get_user_id_allow_pat
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
 
@@ -37,7 +37,7 @@ class StateResponse(BaseModel):
 @router.get("", response_model=StateResponse)
 def get_state(
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     # Priority counts via GROUP BY
     priority_rows = db.exec(

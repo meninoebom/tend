@@ -50,6 +50,25 @@ jobs:
         working-directory: backend
         run: ruff format --check .
 
+      # The CLI is a separate package with no database dependency, so unlike the
+      # backend suite its tests can actually run here. They pin the capture
+      # grammar against the frontend parser it was ported from.
+      - name: Install CLI
+        working-directory: cli
+        run: pip install -e . --quiet
+
+      - name: Ruff lint (CLI)
+        working-directory: cli
+        run: ruff check .
+
+      - name: Ruff format check (CLI)
+        working-directory: cli
+        run: ruff format --check .
+
+      - name: CLI tests
+        working-directory: cli
+        run: pytest -q
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile

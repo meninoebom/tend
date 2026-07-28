@@ -7,11 +7,6 @@ async function handler(
   { params }: { params: Promise<{ proxy: string[] }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
       return NextResponse.json(
@@ -20,7 +15,30 @@ async function handler(
       );
     }
 
-    const backendToken = await createBackendToken(session.user.id);
+    // Two ways in. A browser session gets a freshly minted 60s proxy JWT. An
+    // external client (the tend CLI, Plot, an agent) presents a personal access
+    // token, which we forward verbatim for the backend to validate against its
+    // token hashes. The backend has no public domain, so this proxy is the only
+    // door — without the PAT branch, tokens would be unreachable in production.
+    //
+    // ONLY the tend_pat_ prefix is passed through. Any other Authorization value
+    // is ignored and replaced by a JWT we mint ourselves, so a caller can never
+    // smuggle in a self-supplied proxy token. Which endpoints a PAT may actually
+    // reach is decided by the backend (get_user_id_allow_pat), not here.
+    const incomingAuth = req.headers.get("authorization") ?? "";
+    const isPat = incomingAuth.startsWith("Bearer tend_pat_");
+
+    let backendToken: string;
+    if (isPat) {
+      backendToken = incomingAuth.slice("Bearer ".length);
+    } else {
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      backendToken = await createBackendToken(session.user.id);
+    }
+
     const { proxy } = await params;
     const path = proxy.join("/");
     const base = backendUrl.endsWith("/") ? backendUrl : `${backendUrl}/`;
