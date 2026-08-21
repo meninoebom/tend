@@ -16,6 +16,7 @@ Tend is a "conscious todo app" — it forces a daily morning triage where you de
 - **Implementation plan:** `docs/plans/2026-02-06-feat-tend-web-v0.1.0-mvp-plan.md` — v0.1.0 MVP, 6 phases
 - **UI playground:** `docs/tend-playground.html` — interactive design reference (dark theme tokens, all 4 screens)
 - **Prototype reference:** `src-tauri/src/commands.rs` (business logic), `src-tauri/src/reaper.rs` (auto-archive, old naming)
+- **Granting pro access:** `docs/admin/granting-pro-access.md` — pro is just `subscription_status in ("active","past_due")`; how to comp an account manually (local + Railway prod) and the Stripe-webhook caveat
 
 ## Architecture (v0.1.0)
 
