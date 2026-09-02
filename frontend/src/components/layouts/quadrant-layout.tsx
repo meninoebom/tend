@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { DndContext, DragOverlay, type DragEndEvent, useDroppable } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Task, Domain, BucketType } from "@/lib/api-types";
-import { reorderTasks, setPriority, updateTask } from "@/lib/api";
+import { createTask, reorderTasks, setPriority, updateTask } from "@/lib/api";
+import { parseCapture } from "@/lib/parse-capture";
 import { DraggableTaskItem } from "@/components/draggable-task-item";
 import { DroppableBucketTabs } from "@/components/layouts/droppable-bucket-tabs";
 import {
@@ -73,10 +75,98 @@ const QUADRANTS: QuadrantDef[] = [
   },
 ];
 
+interface CellAddInputProps {
+  quadrant: QuadrantDef;
+  bucket: BucketType;
+  domains: Domain[];
+  onCreated: () => void;
+}
+
+/**
+ * The per-cell "＋ add" affordance. Idle it's a faint ghost row pinned at the
+ * foot of the cell body (invisible until the cell is hovered on desktop, always
+ * tappable at 44px on touch). Active it's a bare text input scoped to this
+ * quadrant: Enter creates a task with the cell's important/urgent baked in and
+ * keeps focus for rapid-fire; Escape or an empty blur collapses it. Priority
+ * comes from the quadrant, so we ignore any parsed !/u! and force the cell's
+ * values — the cell you type in wins. #domain / >bucket / ~size still parse.
+ */
+function CellAddInput({ quadrant: q, bucket, domains, onCreated }: CellAddInputProps) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+
+  function reset() {
+    setText("");
+    setOpen(false);
+  }
+
+  function submit() {
+    const parsed = parseCapture(text, domains);
+    if (!parsed.text) {
+      setText("");
+      return;
+    }
+    void (async () => {
+      try {
+        await createTask({
+          text: parsed.text,
+          bucket: parsed.bucket ?? bucket,
+          domain_id: parsed.domainId,
+          important: q.important,
+          urgent: q.urgent,
+          size: parsed.size,
+        });
+        onCreated();
+      } catch (err) {
+        console.error("Failed to create task:", err);
+      }
+    })();
+    setText(""); // clear for the next thought; input stays focused
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full min-h-[44px] px-3 py-2 text-left text-xs text-text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity motion-reduce:transition-none hover:text-text-secondary"
+        aria-label={`Add task to ${q.label}`}
+      >
+        ＋ add
+      </button>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      value={text}
+      maxLength={500}
+      onChange={(e) => setText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (text.trim()) submit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          reset();
+        }
+      }}
+      onBlur={() => {
+        if (!text.trim()) reset();
+      }}
+      placeholder="Add a task…  (#domain  >later  ~m)"
+      className="w-full min-h-[44px] bg-transparent px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none border-t border-border"
+    />
+  );
+}
+
 interface QuadrantCellProps {
   quadrant: QuadrantDef;
   tasks: Task[];
   domains: Domain[];
+  bucket: BucketType;
   onMutate: () => void;
 }
 
@@ -87,7 +177,7 @@ interface QuadrantCellProps {
  * once per cell (Rules of Hooks). The empty-state placeholder sits inside the
  * droppable body so empty cells still accept drops.
  */
-function QuadrantCell({ quadrant: q, tasks, domains, onMutate }: QuadrantCellProps) {
+function QuadrantCell({ quadrant: q, tasks, domains, bucket, onMutate }: QuadrantCellProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `cell-${q.key}`,
     data: { kind: "priority", important: q.important, urgent: q.urgent },
@@ -96,7 +186,7 @@ function QuadrantCell({ quadrant: q, tasks, domains, onMutate }: QuadrantCellPro
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-lg border ${q.borderColor} overflow-hidden transition-shadow motion-reduce:transition-none ${
+      className={`group rounded-lg border ${q.borderColor} overflow-hidden transition-shadow motion-reduce:transition-none ${
         isOver ? "ring-2 ring-accent-blue ring-inset" : ""
       }`}
     >
@@ -111,14 +201,17 @@ function QuadrantCell({ quadrant: q, tasks, domains, onMutate }: QuadrantCellPro
         <span className="text-xs text-text-muted tabular-nums">{tasks.length}</span>
       </div>
       {/* Cell body — remains a drop target even when empty */}
-      <div className="min-h-[100px]">
+      <div className="min-h-[100px] flex flex-col">
         {tasks.length === 0 ? (
-          <p className="text-text-muted text-center py-6 text-sm">—</p>
+          <p className="text-text-muted text-center py-4 text-sm">—</p>
         ) : (
           tasks.map((task) => (
             <DraggableTaskItem key={task.id} task={task} domains={domains} onMutate={onMutate} />
           ))
         )}
+        <div className="mt-auto">
+          <CellAddInput quadrant={q} bucket={bucket} domains={domains} onCreated={onMutate} />
+        </div>
       </div>
     </div>
   );
@@ -261,6 +354,7 @@ export function QuadrantLayout({
                     (t) => t.important === q.important && t.urgent === q.urgent,
                   )}
                   domains={domains}
+                  bucket={activeBucket}
                   onMutate={onMutate}
                 />
               ))}
