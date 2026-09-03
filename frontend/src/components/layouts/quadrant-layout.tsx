@@ -88,8 +88,9 @@ interface CellAddInputProps {
  * tappable at 44px on touch). Active it's a bare text input scoped to this
  * quadrant: Enter creates a task with the cell's important/urgent baked in and
  * keeps focus for rapid-fire; Escape or an empty blur collapses it. Priority
- * comes from the quadrant, so we ignore any parsed !/u! and force the cell's
- * values — the cell you type in wins. #domain / >bucket / ~size still parse.
+ * comes from the quadrant, so we ignore any parsed `*` or `!` priority token
+ * and force the cell's values — the cell you type in wins. #domain / >bucket /
+ * ~size still parse.
  */
 function CellAddInput({ quadrant: q, bucket, domains, onCreated }: CellAddInputProps) {
   const [open, setOpen] = useState(false);
