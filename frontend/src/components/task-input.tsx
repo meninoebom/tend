@@ -107,13 +107,12 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
         setSelectedIndex((prev) => (prev - 1 + optionCount) % optionCount);
         break;
       }
-      case "!": {
+      case "*": {
         e.preventDefault();
         setImportant((v) => !v);
         break;
       }
-      case "u":
-      case "U": {
+      case "!": {
         e.preventDefault();
         setUrgent((v) => !v);
         break;
@@ -152,7 +151,7 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Add a task…  (#domain  !  u!  >later  ~m)"
+          placeholder="Add a task…  (#domain  *  !  >later  ~m)"
           maxLength={500}
           className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
         />
@@ -224,15 +223,15 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
             onClick={() => setImportant((v) => !v)}
             aria-pressed={important}
             aria-label={important ? "Remove important" : "Mark as important"}
-            title="Important (press !)"
+            title="Important (press *)"
             className={cn(
-              "shrink-0 font-mono text-[11px] h-6 w-6 rounded border flex items-center justify-center transition-all",
+              "shrink-0 font-mono text-[13px] h-6 w-6 rounded border flex items-center justify-center transition-all",
               important
                 ? "border-red-500/40 bg-red-500/10 text-red-400"
                 : "border-border text-text-muted hover:border-text-muted",
             )}
           >
-            !
+            *
           </button>
 
           <button
@@ -241,7 +240,7 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
             onClick={() => setUrgent((v) => !v)}
             aria-pressed={urgent}
             aria-label={urgent ? "Remove urgent" : "Mark as urgent"}
-            title="Urgent (press u)"
+            title="Urgent (press !)"
             className={cn(
               "shrink-0 text-[11px] h-6 w-6 rounded border flex items-center justify-center transition-all",
               urgent
@@ -252,7 +251,7 @@ export const TaskInput = forwardRef<TaskInputHandle, TaskInputProps>(function Ta
             ⚡
           </button>
 
-          <span className="text-xs text-text-muted ml-1">← → ! u · Enter · Esc</span>
+          <span className="text-xs text-text-muted ml-1">← → * ! · Enter · Esc</span>
         </div>
       </div>
     </div>

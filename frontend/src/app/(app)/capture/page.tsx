@@ -85,7 +85,7 @@ function CaptureContent() {
     <div className="mx-auto max-w-md px-4 py-12 space-y-4">
       <h1 className="text-xl font-semibold text-text-primary">Quick capture</h1>
       <p className="text-xs text-text-muted">
-        Tokens work here too: <code>#domain</code> <code>!</code> <code>u!</code>{" "}
+        Tokens work here too: <code>#domain</code> <code>*</code> <code>!</code>{" "}
         <code>&gt;later</code> <code>~m</code>
       </p>
       <textarea

@@ -23,9 +23,9 @@ const SIZE_LETTERS: Record<string, TaskSize> = { s: "s", m: "m", l: "l" };
  * fast with *optional* classification (Tend's real sorting moment is triage):
  *
  *   #health         domain, prefix-matched against the user's domain names
- *   !               important
- *   !!              important + urgent
- *   u!              urgent
+ *   *               important  (star = important, like a starred email)
+ *   !               urgent     (bang = time pressure)
+ *   *! / !*         important + urgent (the "do first" fast-path)
  *   >soon|later|someday|today   bucket
  *   ~s|~m|~l        size (S/M/L)
  *
@@ -40,17 +40,17 @@ export function parseCapture(raw: string, domains: Domain[]): ParsedCapture {
     if (token === "") continue;
     const lower = token.toLowerCase();
 
-    // Priority
-    if (token === "!") {
+    // Priority: * important, ! urgent, *! / !* both ("do first")
+    if (token === "*") {
       result.important = true;
       continue;
     }
-    if (token === "!!") {
-      result.important = true;
+    if (token === "!") {
       result.urgent = true;
       continue;
     }
-    if (token === "u!" || token === "!u") {
+    if (token === "*!" || token === "!*") {
+      result.important = true;
       result.urgent = true;
       continue;
     }
