@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.api.tasks import _to_response
 from app.core.deps import get_db
 from app.core.errors import AppError
-from app.core.security import get_current_user_id, get_user_id_allow_pat
+from app.core.security import get_user_id_allow_pat
 from app.models.enums import BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
@@ -60,7 +60,7 @@ def get_triage_queue(
 @router.get("/briefing", response_model=BriefingResponse)
 def get_briefing(
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     user = db.get(User, user_id)
     is_pro = user.subscription_status in ("active", "past_due")
@@ -83,7 +83,7 @@ def get_briefing(
 @router.get("/mit-suggestion", response_model=MITSuggestionResponse | None)
 def get_mit_suggestion(
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     tasks = db.exec(
         select(Task).where(
@@ -104,7 +104,7 @@ def triage_task(
     task_id: uuid.UUID,
     body: TriageRequest,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     result = triage_service.triage_task(
         db,
@@ -120,7 +120,7 @@ def triage_task(
 @router.get("/winddown", response_model=WinddownResponse)
 def get_winddown(
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     from datetime import date
 

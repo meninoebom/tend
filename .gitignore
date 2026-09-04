@@ -9,6 +9,7 @@ src-tauri/target/
 
 # Python
 backend/.venv/
+cli/.venv/
 __pycache__/
 *.pyc
 .pytest_cache/

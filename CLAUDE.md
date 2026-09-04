@@ -75,7 +75,10 @@ The main `[...proxy]` catch-all requires a NextAuth session. Endpoints that must
 External clients (Plot, Raycast, iOS Shortcuts) authenticate with a `tend_pat_...` token instead of the 60s proxy JWT. Design:
 - `api_tokens` table stores only a **SHA-256 hash** of the raw token (fast, unsalted — auth looks a token up by hash without knowing the user). The raw value is shown **once** at creation.
 - `core/security.py` has two dependencies: `get_current_user_id` (proxy-JWT only, the default for every route) and `get_user_id_allow_pat` (accepts a PAT **or** the proxy JWT).
-- **Scoping is expressed by which routes use `get_user_id_allow_pat`** — there is no per-path allowlist. A PAT works only on the endpoints that opted in (currently `GET/POST /tasks`, `POST /tasks/{id}/complete`, `POST /tasks/{id}/mit`, `GET /triage`, `POST /tasks/{id}/placements`). To expose a new endpoint to PATs, switch its dependency; to keep it internal, leave `get_current_user_id`.
+- **Scoping is expressed by which routes use `get_user_id_allow_pat`** — there is no per-path allowlist. To expose a new endpoint to PATs, switch its dependency; to keep it internal, leave `get_current_user_id`.
+- **The policy: a PAT can create, read, and modify; it cannot destroy.** A token sits in plaintext in config files and agent settings, so it is a more exposed credential than a browser session — `DELETE /tasks/{id}`, `DELETE /domains/{id}`, everything under `/me` and `/billing`, and **all of `/api-tokens`** (a PAT must never mint or revoke PATs) stay proxy-JWT only. Everything reversible is deliberately open, because per PRD §17.2 the question of *whether* to act belongs in the agent's prompt, not in the API.
+- **The policy lives as data in `PAT_MATRIX` (`tests/test_api_tokens.py`)**, which parametrizes a test asserting the 401 boundary route by route. Add a route → add a row. This is what stops a new endpoint from silently shipping UI-only, which is exactly how the surface drifted after #218.
+- **The proxy is the only door.** The backend has no public domain, so an external client reaches it through `frontend/src/app/api/[...proxy]/route.ts`, which forwards `Bearer tend_pat_*` verbatim and mints a fresh 60s JWT for session callers. **Only that prefix is passed through** — any other Authorization value is discarded and replaced, so a caller can never supply its own proxy token. Before #219 the proxy rejected every session-less request, which meant the PATs shipped in #218 were unreachable in production.
 - **Test gotcha:** `conftest.py` must override *both* auth dependencies. To test real PAT auth/scoping, pop the overrides in a fixture (see `TestPatScoping` in `test_api_tokens.py`).
 
 ### Task Placements — Tend records, never schedules
@@ -83,6 +86,11 @@ External clients (Plot, Raycast, iOS Shortcuts) authenticate with a `tend_pat_..
 
 ### Status transitions: complete→pending is a "reopen"
 `update_task` allows `pending↔archived` **and** `complete→pending` (clears `completed_at`). The reopen exists so keyboard-triage undo can revert a "Done". `complete→archived` is still invalid.
+
+### Triage `kill` archives; it does not delete
+`POST /triage/{id}` is uniformly reversible. `kill` ("let go") calls `task_service.archive_task`, which soft-archives the task and cascade-archives its pending children, mirroring `complete_task`'s shape. Hard delete lives only at `DELETE /tasks/{id}`, which is session-only.
+
+This closed a divergence rather than adding a mechanism: `triage-card.tsx` already intercepted "let go" client-side and PATCHed `status=archived` so undo could restore it, which left the backend's hard-delete branch reachable only by direct API callers. Aligning the backend meant the whole endpoint could be handed to PATs with no auth-mode plumbing.
 
 ## Project Structure
 
@@ -107,15 +115,18 @@ tend/
 │   │   ├── schemas/    # request/response Pydantic models
 │   │   └── services/   # task_service, triage_service, domain_service, stats_service, composter_service
 │   ├── alembic/        # migrations (date-prefixed filenames)
-│   ├── tests/          # 75 tests, shared DB with rollback per test
+│   ├── tests/          # 229 tests, shared DB with rollback per test
 │   ├── start.py        # Railway startup: validate env, run migrations, start uvicorn
 │   └── railway.toml
+├── cli/                # `tend` CLI (uv tool install ./cli) — not deployed
+│   ├── tend_cli/       # cli.py (commands), client.py (HTTP + token), grammar.py
+│   └── tests/          # grammar parity with the frontend parser, ref resolution
 ├── docs/               # PRD, plans, playground, solutions/learnings
 │   └── log/            # Build-in-public learning journal (numbered entries)
-├── src/                # (prototype — reference only)
-├── src-tauri/          # (prototype — reference only)
 └── CLAUDE.md           # this file
 ```
+
+(The Tauri prototype that used to live in `src/` and `src-tauri/` was removed in 2f4048e.)
 
 ## Build Phases
 
@@ -153,6 +164,27 @@ Notes:
 - **uv owns the Python venv, not mise** — mise's `python = "3.13"` pin matches `.python-version`,
   but `uv run` reuses an existing `.venv`. `rm -rf backend/.venv && uv sync` rebuilds on 3.13.
 - **CI gotcha:** never pipe `mise run check` through `tail` — it masks mise's exit code.
+
+## The `tend` CLI
+
+`cli/` is a third Python package (its own `pyproject.toml` and `.venv`, `uv tool install ./cli`),
+independent of the backend and never deployed. It talks to the API over HTTP with a PAT, so it is
+just another client — it imports nothing from `backend/`.
+
+- **It is the agent integration surface.** An MCP server was considered and deliberately deferred:
+  MCP is a wrapper over an API that already exists, and a CLI reaches every agent harness, cron
+  job, and shell script without one. MCP earns its keep only for clients with no shell (Claude
+  Desktop, mobile), and by then it is a thin wrapper over the same client. Read commands take
+  `--json` so one artifact serves both a human and an agent.
+- **`grammar.py` is a line-by-line port of `frontend/src/lib/parse-capture.ts`**, with
+  `tests/test_grammar.py` mirroring the frontend's cases. Parsing is client-side in both, matching
+  the browser — it is an input affordance, not a security boundary, since the API validates what
+  it produces regardless. **Change the grammar on one side, change it on both.**
+- **`tend add` defaults to the `soon` bucket, not `today`.** Deciding something belongs in today is
+  what triage is for; a terminal capture shouldn't quietly add to a day already committed to.
+- Interactive `tend triage` mirrors the web app's keys (`t/s/l/o/d/x`) and refuses to run without a
+  TTY, so an agent that runs it bare gets an error instead of a hang.
+- Tests: `cd cli && uv run pytest` (not part of `mise run check` yet).
 
 ## Conventions
 

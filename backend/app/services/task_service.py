@@ -283,6 +283,40 @@ def complete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
     return task
 
 
+def archive_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
+    """Soft-archive a task and its pending children ("let go").
+
+    Mirrors complete_task's cascade. Reversible via PATCH status=pending, which
+    is why triage's "kill" action archives instead of hard-deleting; delete_task
+    remains the irreversible path behind DELETE /tasks/{id}.
+    """
+    task = get_task(db, user_id, task_id)
+    now = datetime.utcnow()
+
+    if task.status != TaskStatus.pending:
+        raise AppError(
+            code="invalid_status_transition",
+            message=f"Cannot transition from {task.status.value} to archived",
+            status_code=422,
+        )
+
+    task.status = TaskStatus.archived
+    task.updated_at = now
+    db.add(task)
+
+    children = list(
+        db.exec(select(Task).where(Task.parent_id == task_id, Task.status == TaskStatus.pending))
+    )
+    for child in children:
+        child.status = TaskStatus.archived
+        child.updated_at = now
+        db.add(child)
+
+    db.flush()
+    db.refresh(task)
+    return task
+
+
 def reorder_tasks(
     db: Session, user_id: uuid.UUID, task_ids: list[uuid.UUID], bucket: BucketType
 ) -> int:
