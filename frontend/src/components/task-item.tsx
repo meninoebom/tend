@@ -161,7 +161,10 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
   const isComplete = task.status === "complete";
   const isSubtask = !!task.parent_id;
   const hasChildren = task.children.length > 0;
-  const hasNote = !!task.notes;
+  const hasNote = !!task.notes?.trim();
+  const noteLines = (task.notes ?? "").trim().split("\n");
+  const firstNoteLine = noteLines[0];
+  const noteHasMoreLines = noteLines.length > 1;
   const completedChildren = task.children.filter((c) => c.status === "complete").length;
   const isQ1 = important && urgent;
 
@@ -483,15 +486,12 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
           </span>
         )}
 
-        {/* Note indicator */}
-        {!compact && !isSubtask && hasNote && (
-          <button
-            onClick={() => setNoteExpanded(!noteExpanded)}
-            className="shrink-0 text-text-muted hover:text-text-secondary transition-colors"
-            title="View note"
-          >
-            <StickyNote className="h-3.5 w-3.5" />
-          </button>
+        {/* Note indicator — compact (matrix) cells have no room for the preview
+            line, so they get an icon with the note as a native tooltip. */}
+        {compact && !isSubtask && hasNote && (
+          <span className="shrink-0 text-text-muted" title={task.notes ?? undefined}>
+            <StickyNote className="h-3 w-3" />
+          </span>
         )}
 
         {/* Edit button (hover affordance for tasks with children) */}
@@ -516,14 +516,15 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
           </button>
         )}
 
-        {/* Add note button (top-level tasks without notes) */}
+        {/* Add note button (top-level tasks without notes). Text, not the
+            sticky-note icon, so that icon only ever means "a note exists". */}
         {!compact && !isEditing && !isComplete && !isSubtask && !hasNote && (
           <button
             onClick={startNoteEdit}
-            className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-text-secondary"
+            className="shrink-0 hover-action hidden md:inline-flex text-text-muted hover:text-text-secondary text-xs"
             title="Add note"
           >
-            <StickyNote className="h-3.5 w-3.5" />
+            + note
           </button>
         )}
 
@@ -639,6 +640,16 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
             </button>
           )}
 
+          {/* Add / edit note */}
+          {!isComplete && !isSubtask && (
+            <button
+              onClick={() => { onExpand(); startNoteEdit(); }}
+              className="flex items-center gap-3 w-full min-h-[44px] px-4 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors border-b border-border/30"
+            >
+              <StickyNote className="h-4 w-4" /> {hasNote ? "Edit note" : "Add note"}
+            </button>
+          )}
+
           {/* Priority toggles */}
           {!isComplete && (
             <div className="flex border-b border-border/30">
@@ -711,10 +722,25 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
         </div>
       )}
 
-      {/* Note expand/edit area */}
-      {!isSubtask && noteExpanded && (
-        <div className="ml-8 px-3 py-2">
-          {noteEditing ? (
+      {/* Note area, three states: preview line (default whenever a pending
+          task has a note, so notes survive a reload visibly) → full → editing. */}
+      {!compact && !isSubtask && (noteExpanded || (hasNote && !isComplete)) && (
+        <div className={cn("ml-8 px-3", noteExpanded ? "py-2" : "pb-1.5 -mt-1")}>
+          {!noteExpanded ? (
+            <button
+              onClick={() => setNoteExpanded(true)}
+              // w-0 + min-w-full: fill the row but contribute zero intrinsic
+              // width, so the nowrap preview can't stretch ancestor flex items.
+              className="flex items-center gap-1.5 w-0 min-w-full text-left text-xs text-text-muted hover:text-text-secondary transition-colors"
+              title="Show note"
+            >
+              <StickyNote className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {firstNoteLine}
+                {noteHasMoreLines && "…"}
+              </span>
+            </button>
+          ) : noteEditing ? (
             <div className="space-y-2">
               <textarea
                 ref={noteTextareaRef}
@@ -752,12 +778,21 @@ export function TaskItem({ task, domains, onMutate, isMIT, onSetMIT, compact, is
               )}
             </div>
           ) : (
-            <button
-              onClick={startNoteEdit}
-              className="text-sm text-text-secondary hover:text-text-primary text-left w-full whitespace-pre-wrap transition-colors"
-            >
-              {task.notes}
-            </button>
+            <div className="space-y-1">
+              <button
+                onClick={startNoteEdit}
+                className="text-sm text-text-secondary hover:text-text-primary text-left w-full whitespace-pre-wrap transition-colors"
+                title="Edit note"
+              >
+                {task.notes}
+              </button>
+              <button
+                onClick={() => setNoteExpanded(false)}
+                className="text-[10px] text-text-muted hover:text-text-secondary transition-colors"
+              >
+                Show less
+              </button>
+            </div>
           )}
         </div>
       )}
