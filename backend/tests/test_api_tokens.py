@@ -11,6 +11,53 @@ from app.main import app
 from app.models.user import User
 from app.services import api_token_service
 
+# An id that will never exist, so routes 404 rather than mutating real rows.
+_MISSING = "00000000-0000-0000-0000-0000000000ff"
+
+# The PAT policy, as data: a token can create, read, and modify; it cannot
+# destroy. A PAT sits in plaintext in config files and agent settings, so it is
+# a more exposed credential than a browser session — irreversible operations and
+# anything account-level stay behind the short-lived proxy JWT. Per PRD §17.2 the
+# question of *whether* to act belongs in the agent's prompt, not the API, so
+# everything reversible is deliberately open.
+#
+# `pat_allowed` asserts only that the auth gate let the request through. A route
+# may still answer 404 or 422 for a placeholder id; that is not what this pins.
+PAT_MATRIX = [
+    # Read.
+    ("GET", "/state", None, True),
+    ("GET", "/tasks", None, True),
+    ("GET", f"/tasks/{_MISSING}", None, True),
+    ("GET", "/triage", None, True),
+    ("GET", "/triage/winddown", None, True),
+    ("GET", "/triage/briefing", None, True),
+    ("GET", "/triage/mit-suggestion", None, True),
+    ("GET", "/domains", None, True),
+    # Create.
+    ("POST", "/tasks", {"text": "from an agent", "bucket": "today"}, True),
+    ("POST", "/domains", {"name": "Agent", "color": "#3b82f6"}, True),
+    # Modify.
+    ("PATCH", f"/tasks/{_MISSING}", {"text": "renamed"}, True),
+    ("PATCH", "/tasks/reorder", {"task_ids": [], "bucket": "today"}, True),
+    ("POST", f"/tasks/{_MISSING}/priority", {"important": True}, True),
+    ("POST", f"/tasks/{_MISSING}/complete", None, True),
+    ("POST", f"/tasks/{_MISSING}/mit", None, True),
+    ("POST", f"/triage/{_MISSING}", {"action": "confirm"}, True),
+    ("PATCH", f"/domains/{_MISSING}", {"name": "Renamed"}, True),
+    # Destroy — session only. Domain delete also orphans tasks.
+    ("DELETE", f"/tasks/{_MISSING}", None, False),
+    ("DELETE", f"/domains/{_MISSING}", None, False),
+    # Account level — session only.
+    ("GET", "/me", None, False),
+    ("PATCH", "/me", {"default_layout": "list"}, False),
+    ("DELETE", "/me", None, False),
+    ("GET", "/billing/status", None, False),
+    # Token management — a PAT must never mint or revoke PATs.
+    ("GET", "/api-tokens", None, False),
+    ("POST", "/api-tokens", {"name": "escalated"}, False),
+    ("DELETE", f"/api-tokens/{_MISSING}", None, False),
+]
+
 
 class TestApiTokenService:
     def test_create_returns_raw_token_once(self, db: Session, test_user: User):
@@ -118,3 +165,14 @@ class TestPatScoping:
         api_token_service.revoke_token(db, test_user.id, token.id)
         r = real_auth_client.get("/tasks", headers={"Authorization": f"Bearer {raw}"})
         assert r.status_code == 401
+
+    @pytest.mark.parametrize(("method", "path", "body", "pat_allowed"), PAT_MATRIX)
+    def test_pat_matrix(self, real_auth_client, db, test_user, method, path, body, pat_allowed):
+        _, raw = api_token_service.create_token(db, test_user.id, "matrix")
+        r = real_auth_client.request(
+            method, path, json=body, headers={"Authorization": f"Bearer {raw}"}
+        )
+        if pat_allowed:
+            assert r.status_code != 401, f"{method} {path} should accept a PAT"
+        else:
+            assert r.status_code == 401, f"{method} {path} must reject a PAT"

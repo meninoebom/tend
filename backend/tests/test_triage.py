@@ -56,9 +56,19 @@ class TestTriageFlow:
         r = client.post(f"/triage/{task.id}", json={"action": "kill"})
         assert r.status_code == 200
         assert r.json()["action"] == "kill"
+        assert client.get(f"/tasks/{task.id}").json()["status"] == "archived"
+
+    def test_triage_kill_is_reversible(self, client, test_user, test_tasks):
+        """Kill archives rather than deletes, so undo can restore the task."""
+        task = test_tasks[0]
+        client.post(f"/triage/{task.id}", json={"action": "kill"})
+
+        r = client.patch(f"/tasks/{task.id}", json={"status": "pending"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "pending"
 
     def test_triage_kill_task_with_children(self, client, test_user, test_tasks, db):
-        """Kill a parent task — children should be cascade-deleted too."""
+        """Kill a parent task — children should be cascade-archived too."""
         parent = test_tasks[0]
         child = Task(
             user_id=test_user.id,
@@ -75,13 +85,15 @@ class TestTriageFlow:
         assert r.status_code == 200
         assert r.json()["action"] == "kill"
 
-        # Parent gone
+        # Parent archived, not deleted — "let go" stays recoverable
         r2 = client.get(f"/tasks/{parent.id}")
-        assert r2.status_code == 404
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "archived"
 
-        # Child cascade-deleted
+        # Child cascade-archived
         r3 = client.get(f"/tasks/{child_id}")
-        assert r3.status_code == 404
+        assert r3.status_code == 200
+        assert r3.json()["status"] == "archived"
 
     def test_triage_kill_decrements_remaining(self, client, test_user, test_tasks):
         """Kill should decrement the remaining count."""

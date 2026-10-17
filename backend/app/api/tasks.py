@@ -77,7 +77,7 @@ def list_tasks(
 def get_task(
     task_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     task = task_service.get_task(db, user_id, task_id)
     return _to_response(task)
@@ -120,7 +120,7 @@ def create_task(
 def reorder_tasks(
     body: ReorderRequest,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     count = task_service.reorder_tasks(db, user_id, body.task_ids, body.bucket)
     return {"updated": count}
@@ -131,7 +131,7 @@ def update_task(
     task_id: uuid.UUID,
     body: TaskUpdate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     kwargs: dict = {}
     if body.text is not None:
@@ -159,7 +159,7 @@ def set_priority(
     task_id: uuid.UUID,
     body: PriorityUpdate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     kwargs: dict = {}
     if body.important is not None:

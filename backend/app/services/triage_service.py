@@ -96,7 +96,14 @@ def triage_task(
         task_service.complete_task(db, user_id, task_id)
 
     elif action == "kill":
-        task_service.delete_task(db, user_id, task_id)
+        # "Let go" is a reversible soft-archive, not a hard delete. The frontend
+        # has always treated it that way (triage-card intercepts kill and PATCHes
+        # status=archived) so undo can restore it; the backend now matches. Hard
+        # delete stays at DELETE /tasks/{id}, which is session-only.
+        task.triaged_at = today
+        db.add(task)
+        db.flush()
+        task_service.archive_task(db, user_id, task_id)
 
     # Check if triage is now complete
     remaining_count = db.exec(
