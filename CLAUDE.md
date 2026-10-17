@@ -305,6 +305,8 @@ The backend has no `.env` file committed. When starting a fresh backend process,
 DATABASE_URL=postgresql://brandon@localhost:5432/tend_dev
 INTERNAL_JWT_SECRET=dev-only-change-in-production
 ```
+Also check `BACKEND_URL` in `frontend/.env.local` matches the port the API is actually on: `mise run dev` serves FastAPI on **8000**, so a `BACKEND_URL` pointing elsewhere makes login fail silently (NextAuth logs `fetch failed ... ECONNREFUSED`, the login page just stays put).
+
 If `INTERNAL_JWT_SECRET` doesn't match what's in `frontend/.env.local`, every proxied API call returns 401 → `window.location.href = "/login"` → redirect back → looks like a render loop. The backend defaults to `"change-me"` which won't match.
 
 ### useRef objects must NOT appear in useCallback or useEffect deps arrays
@@ -342,6 +344,9 @@ Floating popovers anchored to a row inside `SortableTaskItem` (or any `transform
 
 ### Capture token grammar
 `lib/parse-capture.ts` is a **pure** function that pulls inline tokens out of a task string: `#domain` (prefix-matched against the user's domains, first match wins), `*` (important — star, like a starred email), `!` (urgent — bang = time pressure), `*!`/`!*` (important+urgent, the "do first" fast-path), `>today|soon|later|someday` (bucket), `~s|~m|~l` (size). Recognized tokens are stripped from the text; unrecognized `#tags` are left verbatim. Only a **standalone** token parses, so trailing punctuation ("Call mom!") stays text. The Tab-picker keys in `task-input.tsx` mirror the grammar (`*` important, `!` urgent) — keep them aligned if the token glyphs ever change. `task-input.tsx` submits on a single Enter (refocuses for rapid-fire; never disables the input) and opens the domain/priority picker on **Tab**, not Enter. The `/capture` PWA share-target page reuses the same parser.
+
+### Task notes: always-visible preview line
+A pending top-level task with a note renders a one-line truncated preview (sticky-note glyph + first line) under its text in `task-item.tsx`, so notes stay discoverable after a reload. Three states: preview → full (click) → editing (click again); "Show less" collapses. The sticky-note icon means **only** "a note exists"; the hover "add note" affordance is the text `+ note`. Compact (Matrix) rows show just the icon with the note as a native `title` tooltip. The mobile action tray has an Add/Edit note item. Completed tasks get no preview. **Gotcha:** a `truncate` (nowrap) line inside the row's nested flex ancestors widens the whole page; the preview uses `w-0 min-w-full` so it contributes zero intrinsic width.
 
 ### Keyboard-driven triage + undo
 `triage-card.tsx` binds a window `keydown` listener (ignored while a text input/textarea is focused or in rewrite/note edit): `t/s/l/o` bucket, `d` done, `x` let go, `n` note, `r` rewrite, `1/2/3` size, `z` undo. **"Let go" is a reversible soft-archive** (`updateTask status=archived`), not the hard-delete `kill` triage action — so undo can restore it (archived tasks live on the Someday page). The undo stack lives in `triage-flow.tsx`: each action records `{index, taskId, action, prevBucket}`; `z` moves the index back and issues a compensating `updateTask` (restore bucket, or `status=pending` to un-archive / reopen). Advancement is **index-based**, not driven by the server's `remaining`, so synthesized results (from the archive path) work too.
