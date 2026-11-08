@@ -19,6 +19,20 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tend
+          POSTGRES_PASSWORD: tend
+          POSTGRES_DB: tend_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -39,7 +53,8 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: |
-          pip install -e . --quiet
+          pip install -r requirements.txt --quiet
+          pip install -e . --no-deps --quiet
           pip install ruff pytest httpx --quiet
 
       - name: Ruff lint
@@ -49,6 +64,18 @@ jobs:
       - name: Ruff format check
         working-directory: backend
         run: ruff format --check .
+
+      - name: Migrate test database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://tend:tend@localhost:5432/tend_test
+        run: alembic upgrade head
+
+      - name: Backend tests
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql://tend:tend@localhost:5432/tend_test
+        run: pytest -q
 
       - name: Install frontend dependencies
         working-directory: frontend

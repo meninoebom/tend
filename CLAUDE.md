@@ -107,7 +107,7 @@ tend/
 │   │   ├── schemas/    # request/response Pydantic models
 │   │   └── services/   # task_service, triage_service, domain_service, stats_service, composter_service
 │   ├── alembic/        # migrations (date-prefixed filenames)
-│   ├── tests/          # 75 tests, shared DB with rollback per test
+│   ├── tests/          # pytest, shared DB with rollback per test (runs in CI against Postgres 16)
 │   ├── start.py        # Railway startup: validate env, run migrations, start uvicorn
 │   └── railway.toml
 ├── docs/               # PRD, plans, playground, solutions/learnings
@@ -325,9 +325,20 @@ A pending top-level task with a note renders a one-line truncated preview (stick
 ### PWA share target
 `app/manifest.ts` (Next metadata route) declares a `share_target` pointing at `/capture`; `public/sw.js` is a deliberately no-op service worker (installability only, **no** offline caching/sync); `components/pwa-register.tsx` registers it from the root layout. `share_target` isn't in Next's `Manifest` type — extend it locally with a cast.
 
+## Overnight agent runs
+
+A cloud scheduled task runs `/overnight` (`.claude/commands/overnight.md`) every night. It takes up to 3 open issues labeled `agent-ready` that Brandon opened, skips blocked or already-shipped ones, builds each on a `claude/issue-N-*` branch, and opens a **draft** PR. It then swaps the issue's label to `needs-eyes` and comments a one-line summary on the `Overnight log` issue. Morning review = filter by `needs-eyes`.
+
+- **It never merges.** Unattended runs ignore the "Merging PRs" section below. A required-approval rule would not help: runs open PRs as Brandon's GitHub user, and GitHub does not let you approve your own PR.
+- **Cloud sessions can't see `~/.claude`.** Anything the run needs must be committed here (`.claude/commands/`, `.claude/settings.json`).
+- **`scripts/cloud-session-start.sh`** runs as a SessionStart hook. In a cloud session (`CLAUDE_CODE_REMOTE=true`) it starts Postgres, creates and migrates `tend_test`, installs deps, and puts Node 20 on PATH. Everywhere else it exits immediately.
+- **`gh pr` / `gh issue` fail in cloud sessions** (the GitHub proxy blocks GraphQL). Use `gh api repos/meninoebom/tend/...`.
+- **Tests read `TEST_DATABASE_URL`** (default: the local `brandon@localhost/tend_test`). CI and cloud sessions set it.
+- **`agent-ready` means runnable unattended**: well-scoped, unblocked, no credentials or third-party console needed. Remove the label from anything that shipped.
+
 ## Merging PRs
 
-After creating a PR:
+After creating a PR (interactive sessions only; overnight runs never merge):
 1. Run `gh pr checks <PR> --watch` to wait for CI to complete (timeout: 5 min)
 2. If checks pass, run `gh pr merge <PR> --squash --delete-branch`
 3. If checks fail, read the failure, fix it, push, and repeat from step 1
