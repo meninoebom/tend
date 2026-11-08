@@ -72,6 +72,12 @@ func TestLoadMalformedFileIsAnError(t *testing.T) {
 	}
 }
 
+func TestLoadUnknownKeyIsAnError(t *testing.T) {
+	if _, err := Load(writeConfig(t, `api_ulr = "http://localhost:8000"`)); err == nil {
+		t.Fatal("expected an error for a misspelled key")
+	}
+}
+
 func TestDefaultPathHonorsXDG(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg")
 	got, err := DefaultPath()

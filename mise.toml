@@ -13,6 +13,7 @@ node = "20"        # matches frontend/.node-version (Railway Nixpacks; Next 16 n
 pnpm = "10.33.0"   # frontend package manager (matches its packageManager field)
 python = "3.13"    # matches backend/.python-version and requires-python
 uv = "latest"      # backend uses uv (uv.lock; ruff/pytest in [dependency-groups])
+go = "1.24"        # cli/ (Go tend CLI)
 
 [env]
 # No root .env: the backend reads backend/.env (pydantic-settings) and Next.js reads
@@ -97,7 +98,7 @@ description = "Tauri prototype release build"
 run = "npm run tauri build"
 
 # ---------------------------------------------------------------------------
-# Go CLI (cli/) — `tend` binary. Go itself is not pinned here; any Go >= 1.24.
+# Go CLI (cli/) — `tend` binary.
 # ---------------------------------------------------------------------------
 
 [tasks."cli:build"]
@@ -109,4 +110,7 @@ go build -ldflags "-X main.version=$VERSION" -o cli/bin/tend ./cli/cmd/tend
 
 [tasks."cli:test"]
 description = "Go CLI tests"
-run = "go test ./cli/..."
+run = [
+  "go vet ./cli/...",
+  "go test ./cli/...",
+]

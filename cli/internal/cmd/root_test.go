@@ -64,3 +64,17 @@ func TestRootMalformedConfigFails(t *testing.T) {
 		t.Fatal("expected error for malformed config")
 	}
 }
+
+func TestVersionWorksEvenWithBrokenConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(`api_url = `), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := run(t, "1.2.3", "--version", "--config", path)
+	if err != nil {
+		t.Fatalf("--version should not depend on config: %v", err)
+	}
+	if out != "tend 1.2.3\n" {
+		t.Fatalf("output = %q", out)
+	}
+}

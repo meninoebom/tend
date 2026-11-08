@@ -45,7 +45,8 @@ func DefaultPath() (string, error) {
 // Load reads the config at path. A missing file is not an error: it yields
 // Default(). Keys absent from the file keep their defaults. A file that
 // exists but cannot be parsed is an error, so a typo is never silently
-// ignored.
+// ignored. Unknown keys are
+// an error for the same reason (`api_ulr` must not silently fall back to prod).
 func Load(path string) (Config, error) {
 	cfg := Default()
 	data, err := os.ReadFile(path)
@@ -55,8 +56,16 @@ func Load(path string) (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("reading config %s: %w", path, err)
 	}
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
+	meta, err := toml.Decode(string(data), &cfg)
+	if err != nil {
 		return Default(), fmt.Errorf("parsing config %s: %w", path, err)
+	}
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		keys := make([]string, len(undecoded))
+		for i, k := range undecoded {
+			keys[i] = k.String()
+		}
+		return Default(), fmt.Errorf("config %s: unknown key(s): %s", path, strings.Join(keys, ", "))
 	}
 	cfg.APIURL = strings.TrimRight(strings.TrimSpace(cfg.APIURL), "/")
 	if cfg.APIURL == "" {

@@ -12,7 +12,7 @@ From the repo root (a `go.work` file makes `./cli/...` resolve there):
 
 ```bash
 mise run cli:build        # -> cli/bin/tend, version from `git describe`
-mise run cli:test         # go test ./cli/...
+mise run cli:test         # go vet + go test ./cli/...
 
 # or by hand
 go build -ldflags "-X main.version=v0.1.0" -o cli/bin/tend ./cli/cmd/tend
