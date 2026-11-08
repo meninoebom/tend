@@ -18,7 +18,7 @@ from app.models.enums import AuthProvider, BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
 
-TEST_DB_URL = "postgresql://brandon@localhost:5432/tend_test"
+TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://brandon@localhost:5432/tend_test")
 TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
 engine = create_engine(TEST_DB_URL)
