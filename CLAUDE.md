@@ -175,7 +175,7 @@ If yes, update this CLAUDE.md with the pattern or gotcha — don't wait to be as
 
 Both services deploy to Railway in a single project with managed PostgreSQL. Key learnings:
 
-- **postgres:// → postgresql://** — Railway Postgres uses `postgres://` scheme but SQLAlchemy requires `postgresql://`. Normalized in `config.py` via `model_validator`.
+- **Database URLs always name the driver: `postgresql+psycopg2://`** — `config.py`'s `with_psycopg2_driver` rewrites Railway's `postgres://` and plain `postgresql://`. Naming the driver matters because SQLAlchemy 2.1 changed the default driver for `postgresql://` to psycopg 3, which isn't installed; a fresh `uv pip compile` picks 2.1, so without the pin a routine dependency bump crashes prod on boot.
 - **Same project required** — All services must be in the same Railway project for variable references (`${{ServiceName.VAR}}`) to resolve.
 - **start.py pattern** — Backend uses `start.py` (not Procfile directly) to validate env vars, run Alembic migrations, then exec uvicorn.
 - **⚠ Prod deploy is GATED on the CI status check — CI MUST run on `push: [main]`, not PR-only.** Railway deploys `main` only after a CI `check` passes *on the squash-merge commit*. If CI is PR-only, the merge commit has no check and Railway waits forever — prod silently freezes (this happened May 26–Jun 4 2026: PR #183 went PR-only, prod froze at #183 until #206 restored the push trigger). `.github/workflows/ci.yml` must keep `on: push: branches: [main]`. After any CI-trigger change, verify `gh pr checks <recent-pr>` still shows the `Tend - Tend Frontend/Backend` deploy checks and that the prod deployment commit equals `origin/main`. Cross-project writeup: `~/projects/knowledge-base/github-actions-cost-control.md`.

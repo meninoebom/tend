@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 
+from app.core.config import with_psycopg2_driver  # noqa: E402
 from app.core.deps import get_db  # noqa: E402
 from app.core.security import get_current_user_id, get_user_id_allow_pat  # noqa: E402
 from app.main import app  # noqa: E402
@@ -18,7 +19,9 @@ from app.models.enums import AuthProvider, BucketType, TaskStatus
 from app.models.task import Task
 from app.models.user import User
 
-TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://brandon@localhost:5432/tend_test")
+TEST_DB_URL = with_psycopg2_driver(
+    os.environ.get("TEST_DATABASE_URL", "postgresql://brandon@localhost:5432/tend_test")
+)
 TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000099")
 
 engine = create_engine(TEST_DB_URL)
