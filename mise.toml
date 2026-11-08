@@ -103,14 +103,16 @@ run = "npm run tauri build"
 
 [tasks."cli:build"]
 description = "Build the tend CLI to cli/bin/tend (version from git describe)"
+dir = "cli"
 run = '''
 VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
-go build -ldflags "-X main.version=$VERSION" -o cli/bin/tend ./cli/cmd/tend
+go build -ldflags "-X main.version=$VERSION" -o bin/tend ./cmd/tend
 '''
 
 [tasks."cli:test"]
 description = "Go CLI tests"
+dir = "cli"
 run = [
-  "go vet ./cli/...",
-  "go test ./cli/...",
+  "go vet ./...",
+  "go test ./...",
 ]
