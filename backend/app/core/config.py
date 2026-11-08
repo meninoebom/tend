@@ -2,6 +2,15 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
+def with_psycopg2_driver(url: str) -> str:
+    # Name the driver explicitly. SQLAlchemy 2.1 changed the default for plain
+    # postgresql:// from psycopg2 to psycopg 3, which this app does not install.
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg2://" + url.removeprefix(prefix)
+    return url
+
+
 class Settings(BaseSettings):
     database_url: str = "postgresql://localhost:5432/tend_dev"
     allowed_origins: str = "http://localhost:3000"
@@ -23,9 +32,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def fix_database_url(self) -> "Settings":
-        # Railway provides postgres:// but SQLAlchemy requires postgresql://
-        if self.database_url.startswith("postgres://"):
-            self.database_url = self.database_url.replace("postgres://", "postgresql://", 1)
+        self.database_url = with_psycopg2_driver(self.database_url)
         return self
 
 
