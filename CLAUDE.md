@@ -78,6 +78,14 @@ External clients (Plot, Raycast, iOS Shortcuts) authenticate with a `tend_pat_..
 - **Scoping is expressed by which routes use `get_user_id_allow_pat`** — there is no per-path allowlist. A PAT works only on the endpoints that opted in (currently `GET/POST /tasks`, `POST /tasks/{id}/complete`, `POST /tasks/{id}/mit`, `GET /triage`, `POST /tasks/{id}/placements`). To expose a new endpoint to PATs, switch its dependency; to keep it internal, leave `get_current_user_id`.
 - **Test gotcha:** `conftest.py` must override *both* auth dependencies. To test real PAT auth/scoping, pop the overrides in a fixture (see `TestPatScoping` in `test_api_tokens.py`).
 
+### MCP endpoint: `/mcp/<PAT>`, tools call route handlers
+`app/mcp_server.py` serves MCP (Streamable HTTP, stateless, JSON responses) at `/mcp/<tend_pat_...>`, mounted in `main.py` with its session manager started in the FastAPI `lifespan`. Rules:
+- **The token rides in the URL path** because Claude's custom-connector form takes only a URL. Every PAT reaches every MCP tool, so the tool list *is* the PAT's MCP scope. `main.py` redacts `tend_pat_...` from uvicorn access logs; Railway's edge HTTP logs still see the path. When strangers use it, add OAuth (WorkOS AuthKit) as a second front door; the tools stay.
+- **Tools call the route handler functions directly** (`task_routes.create_task(body=..., db=..., user_id=...)`), so business logic and response shaping live in one place. Never re-implement a rule in a tool.
+- **Nothing destructive:** no delete tools, and `tend_triage_task` excludes `kill` (a hard delete). "Let go" is `status=archived`.
+- **User id comes from `ctx.request_context.request.state.tend_user_id`**, not a contextvar: stateless MCP runs each request in the session manager's own task group, so request-scoped contextvars don't propagate.
+- **Tests** monkeypatch `mcp_server.open_session` to yield the transactional `db` (`tests/test_mcp.py`); MCP requests bypass FastAPI `dependency_overrides`.
+
 ### Task Placements — Tend records, never schedules
 `task_placements` stores the fact that Plot placed a task into a time block (`{task_id, date, block_start, block_type, calendar_event_id}`), upserting on `(task_id, date)`. This does **not** make Tend a calendar — it records a reported fact the way `reschedule_count` does. `POST /tasks/{id}/placements` is PAT-scoped. `TaskResponse.placement` carries **today's** placement (passed explicitly to `_to_response`, never via `task.placements` — that relationship is `lazy="raise"`; use `placement_service.get_placements_for_date` to build a `{task_id: placement}` map and pass it in). Wind-down uses placement to distinguish "had a block, didn't finish" (planning-honesty) from "never got a block" (triage-honesty).
 

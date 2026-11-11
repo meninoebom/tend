@@ -1,4 +1,6 @@
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,8 +13,29 @@ from app.core.config import settings
 from app.core.deps import engine
 from app.core.errors import AppError, app_error_handler
 from app.core.rate_limit import limiter
+from app.mcp_server import endpoint as mcp_endpoint
+from app.mcp_server import redact_tokens
 
 logger = logging.getLogger(__name__)
+
+
+class RedactAccessTokens(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                redact_tokens(arg) if isinstance(arg, str) else arg for arg in record.args
+            )
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(RedactAccessTokens())
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    async with mcp_endpoint.running():
+        yield
+
 
 # Hide the interactive docs + OpenAPI schema in production. The backend is now
 # reachable from the internet (a desktop client calls it directly), and there is
@@ -24,6 +47,7 @@ app = FastAPI(
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",
     openapi_url=None if settings.is_production else "/openapi.json",
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 
@@ -35,6 +59,7 @@ app.include_router(account.router)
 app.include_router(billing.router)
 app.include_router(state.router)
 app.include_router(api_tokens.router)
+app.mount("/mcp", mcp_endpoint)
 
 # Error handlers
 app.add_exception_handler(AppError, app_error_handler)
