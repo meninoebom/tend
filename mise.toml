@@ -95,3 +95,23 @@ run = "npm run tauri dev"
 [tasks."desktop:build"]
 description = "Tauri prototype release build"
 run = "npm run tauri build"
+
+# ---------------------------------------------------------------------------
+# Go CLI (cli/) — `tend` binary. Go is not pinned in [tools] above; any Go >= 1.24.
+# ---------------------------------------------------------------------------
+
+[tasks."cli:build"]
+description = "Build the tend CLI to cli/bin/tend (version from git describe)"
+dir = "cli"
+run = '''
+VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
+go build -ldflags "-X main.version=$VERSION" -o bin/tend ./cmd/tend
+'''
+
+[tasks."cli:test"]
+description = "Go CLI tests"
+dir = "cli"
+run = [
+  "go vet ./...",
+  "go test ./...",
+]
