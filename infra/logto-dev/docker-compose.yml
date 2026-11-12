@@ -1,0 +1,45 @@
+# Local Logto (OSS, MPL-2.0) for Tend auth development. NOT for production.
+# See infra/logto-dev/README.md for setup and verification.
+#
+#   docker compose -f infra/logto-dev/docker-compose.yml up -d
+#
+# Ports: 3001 = core API + OIDC endpoints, 3002 = admin console.
+# Postgres is persisted to a named volume so the tenant config (apps, API
+# resource, scopes) configured for issue #224 survives restarts. Use
+# `down -v` to wipe it and start clean.
+name: tend-logto-dev
+
+services:
+  logto:
+    image: svhd/logto:${LOGTO_TAG:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Seed the DB on first run, then start. Seeding is idempotent-safe: it
+    # only runs against an unseeded database.
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+    environment:
+      - TRUST_PROXY_HEADER=1
+      - DB_URL=postgres://postgres:p0stgr3s@postgres:5432/logto
+      - ENDPOINT=${LOGTO_ENDPOINT:-http://localhost:3001}
+      - ADMIN_ENDPOINT=${LOGTO_ADMIN_ENDPOINT:-http://localhost:3002}
+
+  postgres:
+    image: postgres:17-alpine
+    user: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: p0stgr3s
+    volumes:
+      - logto-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  logto-pg:
