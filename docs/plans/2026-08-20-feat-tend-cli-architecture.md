@@ -1,6 +1,6 @@
 # Tend CLI + Unified Auth — Architecture Plan
 
-**Status:** Architecture locked. Command-surface details deferred to a follow-up.
+**Status:** Auth half DEFERRED (2026-11-12). Tend has one real user, and personal access tokens already cover agents (the `/mcp/<PAT>` endpoint) and the Go CLI. The Logto, device-flow, and NextAuth-replacement work (#224-#231, #236) is closed as not planned. Revisit the identity-provider choice when Tend opens to other users. The CLI half still applies, authenticating with a PAT.
 **Date:** 2026-08-20 (revised 2026-09-01 after adopting Logto)
 **Goal:** A `tend` CLI so agents (Claude Code) and Brandon can drive Tend from a shell, using one login shared by the web app and the CLI — the Anthropic `/login` model — on a well-worn, supported path.
 
