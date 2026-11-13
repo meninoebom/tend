@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from app.models.enums import BucketType, SizeType
 from app.services.capture_service import parse_capture
 
 CASES = json.loads((Path(__file__).parent / "capture_cases.json").read_text())
@@ -28,6 +29,10 @@ def test_parse_capture_cases(case):
     assert result.urgent is exp.get("urgent", False)
     assert result.bucket == exp.get("bucket")
     assert result.size == exp.get("size")
+    if result.bucket is not None:
+        assert isinstance(result.bucket, BucketType)
+    if result.size is not None:
+        assert isinstance(result.size, SizeType)
     assert (result.domain.name if result.domain else None) == exp.get("domain")
 
 

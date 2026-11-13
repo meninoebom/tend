@@ -34,5 +34,10 @@
   {"name": "everything plus bucket", "input": "*! #wo plan launch >soon ~l", "domains": ["Work"], "expected": {"text": "plan launch", "important": true, "urgent": true, "bucket": "soon", "size": "l", "domain": "Work"}},
   {"name": "extra whitespace collapses", "input": "  a   b\tc  ", "domains": [], "expected": {"text": "a b c"}},
   {"name": "only tokens leaves empty text", "input": "* ! >later ~m", "domains": [], "expected": {"text": "", "important": true, "urgent": true, "bucket": "later", "size": "m"}},
+  {"name": "tag longer than domain stays", "input": "start #healthcare", "domains": ["Health"], "expected": {"text": "start #healthcare"}},
+  {"name": "punctuated bucket stays", "input": "x >later.", "domains": [], "expected": {"text": "x >later."}},
+  {"name": "punctuated size stays", "input": "x ~s,", "domains": [], "expected": {"text": "x ~s,"}},
+  {"name": "repeated star", "input": "x * *", "domains": [], "expected": {"text": "x", "important": true}},
+  {"name": "second matching tag stays after bind", "input": "x #work #wo", "domains": ["Work"], "expected": {"text": "x #wo", "domain": "Work"}},
   {"name": "empty input", "input": "", "domains": [], "expected": {"text": ""}}
 ]
