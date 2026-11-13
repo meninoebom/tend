@@ -43,7 +43,7 @@ Tokens are never stored here.
 The personal access token (`tend_pat_...`) lives in the OS keychain (macOS Keychain,
 Linux Secret Service, Windows Credential Manager) under service `tend-cli`, account
 `personal-access-token`. When no keychain is reachable (headless Linux, CI, containers),
-it falls back to `~/.config/tend/token` (mode `0600`, directory `0700`). Loading checks
+it falls back to `~/.config/tend/token` (mode `0600`; a newly created directory is `0700`). Loading checks
 the keychain first, then the file; deleting clears both. `TEND_TOKEN`, when set,
 overrides the stored token (`token.Store.Resolve`). See `internal/token/`.
 

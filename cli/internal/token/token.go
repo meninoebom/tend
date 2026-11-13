@@ -93,6 +93,13 @@ func (s *Store) Save(tok string) (Backend, error) {
 		}
 		return BackendKeychain, nil
 	}
+	// Falling back: Load checks the keychain first, so an older token still
+	// held there would shadow the new file. Clear it, and refuse to report
+	// success if it is still readable.
+	_ = keyring.Delete(keychainService, keychainUser)
+	if old, gerr := keyring.Get(keychainService, keychainUser); gerr == nil && strings.TrimSpace(old) != "" {
+		return "", errors.New("keychain rejected the new token but still holds an old one; remove it from the keychain and retry")
+	}
 	if err := s.writeFile(tok); err != nil {
 		return "", err
 	}
