@@ -113,6 +113,43 @@ class TestPatScoping:
         )
         assert r.status_code == 401
 
+    def test_pat_reaches_state(self, real_auth_client, db, test_user):
+        _, raw = api_token_service.create_token(db, test_user.id, "cli")
+        r = real_auth_client.get("/state", headers={"Authorization": f"Bearer {raw}"})
+        assert r.status_code == 200
+
+    def test_pat_reaches_domains(self, real_auth_client, db, test_user):
+        _, raw = api_token_service.create_token(db, test_user.id, "cli")
+        r = real_auth_client.get("/domains", headers={"Authorization": f"Bearer {raw}"})
+        assert r.status_code == 200
+
+    def test_pat_can_patch_task(self, real_auth_client, db, test_user, test_tasks):
+        _, raw = api_token_service.create_token(db, test_user.id, "cli")
+        r = real_auth_client.patch(
+            f"/tasks/{test_tasks[0].id}",
+            json={"status": "archived"},
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert r.status_code == 200
+        assert r.json()["status"] == "archived"
+
+    def test_pat_can_triage_task(self, real_auth_client, db, test_user, test_tasks):
+        _, raw = api_token_service.create_token(db, test_user.id, "cli")
+        r = real_auth_client.post(
+            f"/triage/{test_tasks[0].id}",
+            json={"action": "confirm"},
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert r.status_code == 200
+
+    def test_pat_rejected_on_domain_delete(self, real_auth_client, db, test_user):
+        _, raw = api_token_service.create_token(db, test_user.id, "cli")
+        r = real_auth_client.delete(
+            f"/domains/{uuid.uuid4()}",
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert r.status_code == 401
+
     def test_revoked_pat_rejected(self, real_auth_client, db, test_user):
         token, raw = api_token_service.create_token(db, test_user.id, "Plot")
         api_token_service.revoke_token(db, test_user.id, token.id)
