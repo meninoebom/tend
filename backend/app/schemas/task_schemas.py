@@ -23,6 +23,13 @@ class TaskCreate(BaseModel):
     size: SizeType | None = None
 
 
+class CaptureRequest(BaseModel):
+    """Raw capture text; the backend parses the token grammar (#251)."""
+
+    text: str
+    bucket: BucketType | None = None
+
+
 class TaskUpdate(BaseModel):
     text: str | None = None
     bucket: BucketType | None = None

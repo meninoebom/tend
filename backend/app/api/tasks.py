@@ -8,6 +8,7 @@ from app.core.errors import AppError
 from app.core.security import get_current_user_id, get_user_id_allow_pat
 from app.models.enums import BucketType, TaskStatus
 from app.schemas.task_schemas import (
+    CaptureRequest,
     DomainBrief,
     PlacementBrief,
     PlacementCreate,
@@ -18,7 +19,13 @@ from app.schemas.task_schemas import (
     TaskResponse,
     TaskUpdate,
 )
-from app.services import mit_service, placement_service, task_service
+from app.services import (
+    capture_service,
+    domain_service,
+    mit_service,
+    placement_service,
+    task_service,
+)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -114,6 +121,32 @@ def create_task(
     # Reload with relationships for response
     task = task_service.get_task(db, user_id, task.id)
     return _to_response(task)
+
+
+@router.post("/capture", response_model=TaskResponse, status_code=201)
+def capture_task(
+    body: CaptureRequest,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
+):
+    """Create a task from raw text, parsing the capture grammar server-side."""
+    domains = domain_service.get_domains(db, user_id)
+    parsed = capture_service.parse_capture(body.text, domains)
+    if not parsed.text:
+        raise AppError(
+            code="validation_error",
+            message="Task text is empty after removing capture tokens",
+            status_code=422,
+        )
+    task_body = TaskCreate(
+        text=parsed.text,
+        bucket=body.bucket or parsed.bucket or BucketType.today,
+        domain_id=parsed.domain.id if parsed.domain else None,
+        important=parsed.important,
+        urgent=parsed.urgent,
+        size=parsed.size,
+    )
+    return create_task(body=task_body, db=db, user_id=user_id)
 
 
 @router.patch("/reorder")
