@@ -57,8 +57,28 @@ class TestTriageFlow:
         assert r.status_code == 200
         assert r.json()["action"] == "kill"
 
+    def test_triage_kill_archives_instead_of_deleting(self, client, test_user, test_tasks):
+        """Kill is a soft archive (#219): the task survives as archived."""
+        task = test_tasks[0]
+        r = client.post(f"/triage/{task.id}", json={"action": "kill"})
+        assert r.status_code == 200
+
+        r2 = client.get(f"/tasks/{task.id}")
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "archived"
+        assert r2.json()["triaged_at"] == date.today().isoformat()
+
+    def test_triage_kill_is_restorable(self, client, test_user, test_tasks):
+        """PATCH status=pending undoes a kill."""
+        task = test_tasks[0]
+        client.post(f"/triage/{task.id}", json={"action": "kill"})
+
+        r = client.patch(f"/tasks/{task.id}", json={"status": "pending"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "pending"
+
     def test_triage_kill_task_with_children(self, client, test_user, test_tasks, db):
-        """Kill a parent task — children should be cascade-deleted too."""
+        """Kill a parent task: nothing is deleted, children survive."""
         parent = test_tasks[0]
         child = Task(
             user_id=test_user.id,
@@ -75,13 +95,12 @@ class TestTriageFlow:
         assert r.status_code == 200
         assert r.json()["action"] == "kill"
 
-        # Parent gone
         r2 = client.get(f"/tasks/{parent.id}")
-        assert r2.status_code == 404
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "archived"
 
-        # Child cascade-deleted
         r3 = client.get(f"/tasks/{child_id}")
-        assert r3.status_code == 404
+        assert r3.status_code == 200
 
     def test_triage_kill_decrements_remaining(self, client, test_user, test_tasks):
         """Kill should decrement the remaining count."""
