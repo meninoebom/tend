@@ -1,7 +1,8 @@
 import uuid
-from datetime import datetime
 
 from pydantic import BaseModel
+
+from app.schemas.utc import UtcDatetime
 
 
 class ApiTokenCreate(BaseModel):
@@ -13,8 +14,8 @@ class ApiTokenResponse(BaseModel):
 
     id: uuid.UUID
     name: str
-    created_at: datetime
-    last_used_at: datetime | None
+    created_at: UtcDatetime
+    last_used_at: UtcDatetime | None
 
 
 class ApiTokenCreated(ApiTokenResponse):
