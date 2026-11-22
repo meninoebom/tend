@@ -131,7 +131,7 @@ def update_task(
     task_id: uuid.UUID,
     body: TaskUpdate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     kwargs: dict = {}
     if body.text is not None:

@@ -96,7 +96,13 @@ def triage_task(
         task_service.complete_task(db, user_id, task_id)
 
     elif action == "kill":
-        task_service.delete_task(db, user_id, task_id)
+        # Soft archive, not a hard delete (#219): this route is PAT-reachable
+        # and a PAT must not destroy data. Same path as the web's "let go"
+        # and MCP let_go, so PATCH status=pending restores it.
+        task.triaged_at = today
+        db.add(task)
+        db.flush()
+        task_service.update_task(db, user_id, task_id, status=TaskStatus.archived)
 
     # Check if triage is now complete
     remaining_count = db.exec(

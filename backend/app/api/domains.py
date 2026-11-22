@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
 from app.core.deps import get_db
-from app.core.security import get_current_user_id
+from app.core.security import get_current_user_id, get_user_id_allow_pat
 from app.models.user import User
 from app.schemas.domain_schemas import DomainCreate, DomainResponse, DomainUpdate
 from app.services import domain_service
@@ -24,7 +24,7 @@ def _to_response(domain) -> DomainResponse:
 @router.get("", response_model=list[DomainResponse])
 def list_domains(
     db: Session = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_user_id_allow_pat),
 ):
     domains = domain_service.get_domains(db, user_id)
     return [_to_response(d) for d in domains]
