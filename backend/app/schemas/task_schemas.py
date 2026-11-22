@@ -1,9 +1,10 @@
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.models.enums import BucketType, SizeType, TaskStatus
+from app.schemas.utc import UtcDatetime
 
 
 class PriorityUpdate(BaseModel):
@@ -73,7 +74,7 @@ class SubTaskResponse(BaseModel):
     id: uuid.UUID
     text: str
     status: TaskStatus
-    completed_at: datetime | None
+    completed_at: UtcDatetime | None
 
 
 class PlacementBrief(BaseModel):
@@ -95,9 +96,9 @@ class TaskResponse(BaseModel):
     domain: DomainBrief | None
     parent_id: uuid.UUID | None
     children: list[SubTaskResponse]
-    created_at: datetime
-    updated_at: datetime
-    completed_at: datetime | None
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
+    completed_at: UtcDatetime | None
     is_mit: bool = False
     important: bool = False
     urgent: bool = False
@@ -107,4 +108,4 @@ class TaskResponse(BaseModel):
     @computed_field
     @property
     def age_days(self) -> int:
-        return (datetime.utcnow() - self.created_at).days
+        return (datetime.now(UTC) - self.created_at).days

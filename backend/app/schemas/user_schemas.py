@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
 from app.models.enums import AuthProvider, LayoutType
+from app.schemas.utc import UtcDatetime
 
 
 class UserCreate(BaseModel):
@@ -25,7 +25,7 @@ class UserResponse(BaseModel):
     auth_provider: AuthProvider
     has_completed_onboarding: bool
     has_triaged_before: bool
-    created_at: datetime
+    created_at: UtcDatetime
     subscription_status: str = "free"
     is_pro: bool = False
     default_layout: LayoutType = LayoutType.list

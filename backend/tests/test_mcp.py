@@ -1,5 +1,6 @@
 import uuid
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 
 import pytest
 from sqlmodel import Session
@@ -143,6 +144,12 @@ class TestWrites:
         assert stored.domain_id == test_domains[2].id
         assert stored.important is True
         assert stored.size == "s"
+
+    def test_task_timestamps_carry_a_utc_offset(self, client, mcp_url):
+        task = _ok(client, mcp_url, "tend_add_task", text="Call the bank")
+        done = _ok(client, mcp_url, "tend_complete_task", task_id=task["id"])
+        for stamp in (task["created_at"], task["updated_at"], done["completed_at"]):
+            assert datetime.fromisoformat(stamp).utcoffset() == timedelta(0), stamp
 
     def test_add_task_unknown_domain_names_the_real_ones(self, client, mcp_url, test_domains):
         message = _error_text(client, mcp_url, "tend_add_task", text="x", domain="Hobbies")
