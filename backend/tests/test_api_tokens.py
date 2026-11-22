@@ -113,6 +113,17 @@ class TestPatScoping:
         )
         assert r.status_code == 401
 
+    def test_pat_can_capture(self, real_auth_client, db, test_user):
+        _, raw = api_token_service.create_token(db, test_user.id, "cli")
+        r = real_auth_client.post(
+            "/tasks/capture",
+            json={"text": "call dentist ! ~s"},
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert r.status_code == 201
+        assert r.json()["text"] == "call dentist"
+        assert r.json()["urgent"] is True
+
     def test_revoked_pat_rejected(self, real_auth_client, db, test_user):
         token, raw = api_token_service.create_token(db, test_user.id, "Plot")
         api_token_service.revoke_token(db, test_user.id, token.id)
